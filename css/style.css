@@ -2378,6 +2378,34 @@ small {
     flex: 1 1 100%;
   }
 
+  /* 스코어보드 팀 이름이 글자 단위로 꺾이지 않게 */
+  .sb-team {
+    font-size: 13px;
+    word-break: keep-all;
+  }
+
+  /* 경기 시작 오버레이: 긴 규칙 설명은 숨기고 시작 버튼이 항상 보이게 */
+  .arena-overlay {
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .arena-overlay h2 {
+    font-size: 20px;
+  }
+
+  .arena-overlay h2 span {
+    font-size: 13px;
+  }
+
+  .arena-overlay p {
+    font-size: 12px;
+  }
+
+  .arena-overlay .rule {
+    display: none;
+  }
+
   /* 능력치 막대: 3~4글자 라벨이 두 줄로 꺾이지 않게 */
   .stat {
     grid-template-columns: 46px 1fr 46px;
