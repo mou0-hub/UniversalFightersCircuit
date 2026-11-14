@@ -99,6 +99,9 @@ const UI = (() => {
     angel: { origin: '천계', story: '' },
     oba: { origin: '씬시티', story: '' },
     stardust: { origin: '외계', story: '' },
+    renegade: { origin: '천계', story: '' },
+    carcer: { origin: '외계', story: '' },
+    peg: { origin: '씬시티', story: '' },
   };
 
   /* ---------- 파이터 도감: 꽉 찬 카드 + 슬라이드 상세 ---------- */

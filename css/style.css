@@ -2378,8 +2378,30 @@ small {
     flex: 1 1 100%;
   }
 
-  .btn {
+  /* 능력치 막대: 3~4글자 라벨이 두 줄로 꺾이지 않게 */
+  .stat {
+    grid-template-columns: 46px 1fr 46px;
+  }
+
+  .stat .sn {
     white-space: nowrap;
+  }
+
+  .team-head,
+  .shop-head {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .team-head > div,
+  .shop-head > div {
+    flex: 1 1 220px;
+    min-width: 0;
+  }
+
+  .team-head > .btn,
+  .shop-head > .btn {
+    flex: 1 1 100%;
   }
 
   .res-head h2 {
@@ -2389,6 +2411,67 @@ small {
   .dc-fs {
     flex-wrap: wrap;
     gap: 14px 22px;
+  }
+}
+
+@media (max-width: 1100px) {
+  /* 1fr 열이 내용 최소폭 때문에 화면보다 넓어지는 것을 방지 */
+  .league-grid,
+  .match-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .col {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 900px) {
+  /* 밴픽: 두 팀을 위에 나란히, 파이터 목록은 그 아래 전체 폭 */
+  body .draft-view .dr-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  body .draft-view .dr-mid {
+    grid-column: 1 / -1;
+    order: 3;
+  }
+
+  body .draft-view .dr-tiles {
+    grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+    max-height: 52vh;
+    max-height: 52dvh;
+  }
+
+  body .draft-view .dr-head {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 720px) {
+  body .draft-view .dr-team {
+    padding: 8px;
+  }
+
+  body .draft-view .dr-slot {
+    gap: 6px;
+    min-height: 64px;
+    padding: 8px;
+  }
+
+  body .draft-view .dr-slot .dr-pick {
+    width: 44px;
+  }
+
+  body .draft-view .dr-slot .dr-pick img.px {
+    max-width: 100%;
+    height: auto;
+  }
+
+  body .draft-view .dr-slot .dr-favs {
+    font-size: 10.5px;
   }
 }
 

@@ -1322,7 +1322,324 @@
       } }
   };
 
-  const NEW = ['crush', 'viser', 'darkknight', 'shadow', 'redhood', 'reaper', 'press', 'jade', 'dark', 'biomachine', 'frost', 'shining', 'steamman', 'itrain', 'grainger', 'angel', 'oba', 'stardust'];
+  const RN_MAX = 8, CC_MAX = 12;
+  const rnSync = (b, u) => { u.role.range = u.f.stats.range + (u.mem.rn || 0) * 0.4 + (u.form === 'fallen' ? 1.5 : 0) + (b.has(u, 'rn_blade') ? 1 : 0); };
+  const ccPain = (b, u) => {
+    const m = u.mem; if (b.t - (m.pT || -99) < b.sec(0.25)) return;
+    m.pT = b.t; m.pn = (m.pn || 0) + 1;
+    if (m.pn < CC_MAX) return;
+    m.pn = 0; ring(b, u.x, u.y, 11, '#f43f5e'); ring(b, u.x, u.y, 6, '#fecdd3');
+    b.inCircle(b.foes(u), u.x, u.y, 11).forEach(e => hit(b, u, e, 'magic', b.raw(u, 55, 0.3, 0.5), '고통의환희', { splash: true }));
+    b.heal(u, u, 60 + u.maxHp * 0.07, '고통의환희');
+  };
+
+  /* ================= 48. 레니게이드 ================= */
+  FD.renegade = {
+    id: 'renegade', name: '레니게이드', role: 'mage', color: '#a78bfa', title: '마법의 칼을 벼리는 타락천사',
+    concept: '\"신이 버린 게 아니다, 내가 버린 것이다\"',
+    stats: { hp: 840, mp: 300, aspd: 0.92, spd: 8.2, atk: 24, ap: 66, def: 26, res: 24, ten: 0.06, pen: 0.10, ls: 0.10, range: 6.5 },
+    basic: { type: 'magic', atk: 0.3, ap: 0.7, proj: 'melee' }, ai: { threat: 1.0 },
+    tac: { act: ['rush', 'basic'], fight: ['solo', 'coop'], aim: ['weak', 'near'] },
+    look: { res: 2, pal: { n: '#0c0814', N: '#241a3c', V: '#4c1d95', v: '#a78bfa', h: '#f4d36a', H: '#fff3b0', s: '#f6d9bd', S: '#d9a87c', w: '#f8fafc', W: '#cbd5e1', y: '#fbbf24', Y: '#fff7c2', p: '#8b5cf6', k: '#0b0818', r: '#ef4444', m: '#9a3412' },
+      rows: [
+        '............yy.yYy.yy...........',
+        '..............yhhhy.............',
+        '.VV..........hHhhhHh............',
+        '.VV.........HhHhHhHhh...........',
+        '.VnVV......hhhhhhhhhhh..........',
+        '.VVNnV.....hhhhhhhhhhh..........',
+        '..VnNVV...hhhhhhhhhhhhh.........',
+        '..VnnNNV..hhhhsssshhhh..........',
+        '..VnnnNV..hhsSssssSshh..........',
+        '..VNNnnNV.h.skrssrkshh..........',
+        '.VnnnNNnV.h.SssssssS.h..........',
+        'VnnnnnNnnVh.sssmmSss.h..........',
+        'VNNNnnnNNNh.sssssssshh....V.....',
+        'VnnnNNNNnNV..ssssss.....N.......',
+        'VnnnnnYnNyyyyyyyyyyyyyyN.Y......',
+        '.VnnnnNwwwwwwwwyywwwwwwww.......',
+        '.VnNNNNwwwwwWwwyywwWw.wwwN......',
+        '.VNnnnNwwwwwWwwyywwWw.www.......',
+        '.VnnnnNwwwwwWwwyywwWw.www.......',
+        '.VnnNNnwwwwwWwwyywwWw.www..V....',
+        'VnnNnnnwwwwwWwwyywwWw.www.......',
+        'VNNnnnNwwwwwWwwyywwWw.www.v.....',
+        'VnnnnNNwwwpppppYYpppppwww.vp....',
+        '.VnnnVnyyyppppppppppppyyy.vp....',
+        '.VVnVVnyyywwwwwyywwwwwyyy.vp....',
+        '..VnV.VssswWwwwyywwwWwsss.vp....',
+        '...V...ssswWwwwyywwwWwsss.vp....',
+        '.......V.wwWwwwyywwwWww...vp....',
+        '.........wwWwwwyywwwWwww..v.....',
+        '....N....wwWwwwyywwwWwww..V.....',
+        '.........wwWwwwyywwwWwww........',
+        '........yyyyyyyyyyyyyyyyy.......',
+        '...........kkkk..kkkk...........',
+        '...........kkkk..kkkk...........'],
+      weapon: '' },
+    looks: { fallen: { res: 2, pal: { n: '#05030c', N: '#1a1030', V: '#7c3aed', v: '#c084fc', a: '#2e1065', d: '#8a6a1e', D: '#d9b34a', g: '#8b7aa8', u: '#1b1233', r: '#ef4444', R: '#fecaca', k: '#05030c', m: '#7f1d1d' },
+      rows: [
+        'VV.........rr..r.r.rr.........VV',
+        'VNV..........r.dddr...........VV',
+        'VnVV.........ddddddd........VVnV',
+        'VnNnV.......DddDddDdd......VnNnV',
+        'VVnNVV.....ddddddddddd....VVNnV.',
+        '.VnnNNV....ddddddddddd...VNNnnV.',
+        '.VnnnNV...ddddddddddddd..VNnnnV.',
+        '.VnnnnNV..ddddggggdddd..VNnnnnV.',
+        '.VNNnnnNV.ddgrggggrgdd.VNnnnNNV.',
+        'VVnnNNnnV.darRRggRRgddaVnnNNnnVV',
+        'VnnnnnNnnadaggggggrgadaanNnnnnnV',
+        'VNNnnnnNaadagrgkkkggadaaannnnNNV',
+        'VnnNNNNNaadaggggggggddaaaNNNNnnV',
+        'VnnnnnnaaadaaggggggaadaaaannnnnV',
+        'VnnnnnnaaVVVVVVVVVVVVVVaaannnnnV',
+        'VnnnnNNuuuuuuuuVVuuuuVuuuaNnnnnV',
+        'VnNNNnnuuuuuuruVVuuuuauuuanNNNnV',
+        'VNnnnnNuuuuuuuuVVuruuauuuannnnNV',
+        'VnnnnvauuuuuuruVVuuuuauuuavnnnnV',
+        'VnnnnvnuuuuuuuuVVuruuauuuavnnnnV',
+        'VnnNNvnuuuuuuruVVuuuuauuuavNNnnV',
+        'VnNnnvNuuuuuuuuVVuruuauuuavnnNnV',
+        'VNnnnvNuuuNNNNNNNNNNNNuuuavnnnNV',
+        'VnnnnvNuuuNNNNNNNNNNNNuuuavnnnnV',
+        '.Vnnnvnuuuuuuuuuuuuuuuuuunvnnna.',
+        '.VVnVvnggguuuuuuuuuuuugggnvNnVV.',
+        '.aVnVvVgrgruuuuuuuuuuugrgVvVVV..',
+        '...V.vVggguuuuuuuuuruugggVv.V...',
+        '.....RVruuuuuuruuuuuuuuurVR.....',
+        '.......Vuuuuuuuuuuuuuuuuu....a..',
+        '..a....Vuruuuuuuuuuuuuruu.......',
+        '...............VV...............',
+        '.....a.....kkkk..kkkk.....a.....',
+        '...........kkkk..kkkk...........'],
+      weapon: '' } },
+    passive: { name: '변절의검', desc: '자신이 적을 처치하거나 처치에 관여할 때마다 공격 속도(+4.5%)와 사거리(+0.4)가 증가합니다. (최대 8중첩, 사망 시 초기화)',
+      init(b, u) { u.mem.rn = 0; u.mem.rh = {}; u.mem.ki = b.rec.kills.length; },
+      onDealt(b, u, t, res) { if (res.dealt > 0 && !t.struct) (u.mem.rh = u.mem.rh || {})[t.id] = b.t; },
+      stat(b, u, k, v) { return k === 'aspd' ? v * (1 + 0.045 * (u.mem ? u.mem.rn || 0 : 0)) : v; },
+      onForm(b, u, form) { if (form === 'fallen') { u.scale = 1.3; u.glow = '#7c3aed'; } else { u.scale = 1; u.glow = b.has(u, 'rn_blade') ? '#a78bfa' : null; } },
+      tick(b, u) {
+        const m = u.mem, ks = b.rec.kills; if (m.ki === undefined || m.ki > ks.length) m.ki = ks.length;
+        for (; m.ki < ks.length; m.ki++) {
+          const K = ks[m.ki]; if (K.kt !== u.team) continue;
+          const h = m.rh && m.rh[K.v];
+          if (K.k === u.id || (h && b.t - h <= b.sec(6))) m.rn = Math.min(RN_MAX, (m.rn || 0) + 1);
+        }
+        rnSync(b, u);
+        u.gauge = { label: '변절', val: m.rn || 0, max: RN_MAX, color: '#a78bfa' };
+      } },
+    skills: [
+      { id: 'rn_s1', name: '이단의칼날', cost: 40, cd: 12, range: 10, sfx: 'buff', desc: '6초 동안 마법대검을 소환해 싸웁니다. 기본 공격이 적중할 때마다 추가 고정 피해를 줍니다.', plan: anyIn(10),
+        cast(b, u) {
+          b.buff(u, 'rn_blade', 6, { name: '마법대검', f: { onEnd(bb, uu) { if (uu.form !== 'fallen') uu.glow = null; } } });
+          if (u.form !== 'fallen') u.glow = '#a78bfa'; ring(b, u.x, u.y, 6, '#a78bfa');
+          u.bm.push({ until: b.t + b.sec(6), fn(bb, uu, tt) { hit(bb, uu, tt, 'true', bb.raw(uu, 22, 0, 0.3), '이단의칼날', { noLeech: true }); ring(bb, tt.x, tt.y, 3, '#c4b5fd'); } });
+        } },
+      { id: 'rn_s2', name: '찢어진성약', cost: 50, cd: 11, range: 12, sfx: 'aoe', desc: '양손에 마법검을 소환해 전방을 X자로 그어 피해를 주고 체력을 회복합니다. 두 칼날이 교차하는 지점의 적에게는 치명 피해(×1.7)를 줍니다.', plan: foeIn(12),
+        cast(b, u, pl) {
+          const d = b.dir(u, pl.t), p = { x: -d.y, y: d.x }, cx = u.x + d.x * 8, cy = u.y + d.y * 8, fs = b.foes(u);
+          const a1 = [cx - d.x * 8 - p.x * 8, cy - d.y * 8 - p.y * 8, cx + d.x * 8 + p.x * 8, cy + d.y * 8 + p.y * 8];
+          const a2 = [cx - d.x * 8 + p.x * 8, cy - d.y * 8 + p.y * 8, cx + d.x * 8 - p.x * 8, cy + d.y * 8 - p.y * 8];
+          slash(b, ...a1, 4, '#a78bfa'); slash(b, ...a2, 4, '#c4b5fd'); ring(b, cx, cy, 5, '#ede9fe');
+          const h1 = b.inLine(fs, ...a1, 2.6), h2 = b.inLine(fs, ...a2, 2.6), all = [...new Set([...h1, ...h2])];
+          all.forEach(e => { const x = (h1.includes(e) && h2.includes(e)) || Math.hypot(e.x - cx, e.y - cy) <= 4.8; hit(b, u, e, 'magic', b.raw(u, 50, 0, 0.78) * (x ? 1.7 : 1), '찢어진성약', { splash: true, crit: x }); });
+          b.heal(u, u, b.raw(u, 28, 0, 0.3) + Math.min(3, all.length) * 14, '찢어진성약');
+        } }
+    ],
+    ult: { id: 'rn_ult', name: '완전타락', cd: 46, range: 14, sfx: 'nuke', desc: '9초 동안 완전한 타락천사로 현현합니다. 시전 즉시 주변 적에게 피해를 주고 공포에 빠뜨리며, 지속 시간 동안 생명력 흡수가 크게 오르고 방어력·저항력·공격 속도가 증가합니다.',
+      plan: (b, u, en, al, strict) => {
+        const n = en.filter(e => b.dist(u, e) <= 14); if (!n.length) return null;
+        if (strict && !(n.length >= 2 || u.hp < u.maxHp * 0.6 || n.some(e => e.hp < e.maxHp * 0.45))) return null;
+        return {};
+      },
+      cast(b, u) {
+        b.setForm(u, 'fallen'); ring(b, u.x, u.y, 13, '#7c3aed'); ring(b, u.x, u.y, 7, '#0c0814');
+        b.inCircle(b.foes(u), u.x, u.y, 13).forEach(e => { hit(b, u, e, 'magic', b.raw(u, 70, 0, 0.8), '완전타락', { splash: true }); b.cc(u, e, 'fear', 1.6); });
+        b.buff(u, 'rn_fall', 9, { name: '완전타락', add: { ls: 0.34 }, mul: { def: 1.12, res: 1.12, aspd: 1.1 }, f: { onEnd(bb, uu) { bb.setForm(uu, 'normal'); } } });
+      } }
+  };
+
+  /* ================= 49. 카르세르 ================= */
+  FD.carcer = {
+    id: 'carcer', name: '카르세르', role: 'guardian', color: '#94a3b8', title: '우주감옥의 흉악범',
+    concept: '\"고통이야말로 내가 살아있다는 증거지\"',
+    stats: { hp: 1160, mp: 220, aspd: 0.75, spd: 7.2, atk: 54, ap: 34, def: 40, res: 36, ten: 0.22, pen: 0.06, ls: 0, range: 7 },
+    basic: meleeBasic, ai: { front: true, threat: 1.3 },
+    tac: { act: ['basic'], fight: ['coop'], pos: ['front'] },
+    look: { res: 2, pal: { s: '#c7a58c', S: '#8f6e5a', w: '#e5e7eb', W: '#9ca3af', n: '#1f2a44', y: '#fbbf24', m: '#94a3b8', M: '#475569', X: '#334155', k: '#0b1020', e: '#f8fafc', R: '#b91c1c' },
+      rows: [
+        '................s...............',
+        '.............sssssss............',
+        '............sssssssRs...........',
+        '............sssssssRs...........',
+        '...........ssSSssSSRRs..........',
+        '...........skkkkkkkkRs..........',
+        '...........SseksskesSs..........',
+        '...........sssssssssss..........',
+        '............ssekkesss...........',
+        '............sskkkksss...........',
+        '............ssssssss............',
+        '...........SSSSSsSSSS...........',
+        '.....sss...SSSSSSSSSS...sss.....',
+        '....sSssswwwnnnnnnnnwwwsssSs....',
+        '...ssSsssswwnnnnnnnnwwssssSss...',
+        '...sSSssssywwwwnnwwwwyssssSSs...',
+        '...ssSsssswnnnwnnwnnnwssssSss...',
+        '...ssSsSsswwwwnnnnwwwwssSsSss...',
+        '...ssSsssswwwwwyywwwwwssssSss...',
+        '....sSsssWwwwwnnnnwwwwWsssSs....',
+        '...WWWWWWWWwwwwwwwwwwWWWWWWWW...',
+        '...wnnwwwwwwwwywwywwwwwwwwnnw...',
+        '...wnnwwwwwnnnnnnnnnnwwwwwnnw...',
+        '...wwwwwwwwnnnnyynnnnwwwwwwww...',
+        '...mmm..nnnnnnnyynnnnnnn........',
+        '...mmm....nnnnnn.nnnnnn.........',
+        '....M.....nnnnnn.nnnnnn.........',
+        '...m......nnnnnn.nnnnnn.........',
+        '...m......mmmmmm.mmmmmm....XWX..',
+        '..M.....M.mmmmmm.mmmmmmm..XWXXX.',
+        '.m.....m.MMMMMMM.MMMMMM.M.XXXXX.',
+        '.M....M...nnnnnn.nnnnnn..mXXXXX.',
+        '.........kkkkkkkkkkkkkk....XXX..',
+        '.........kkkkkkkkkkkkkk...kkkkk.'],
+      weapon: '' },
+    passive: { name: '고통의환희', desc: '피해를 받을 때마다 고통이 중첩됩니다. 12중첩이 되면 주변 적에게 피해를 주고 자신의 체력을 회복한 뒤 초기화됩니다.',
+      onHurt(b, u, src, res) { if (res.dealt > 0) ccPain(b, u); },
+      tick(b, u) {
+        const m = u.mem, s = m.soak;
+        if (s) b.friends(u).forEach(a => {
+          if (a === u || !a.st.some(x => x.key === 'cs_link')) return;
+          const cur = a.taken || 0, prev = s.last[a.id]; s.last[a.id] = cur;
+          if (prev === undefined || cur <= prev) return;
+          const x = (cur - prev) * 0.25; u.hp = Math.max(1, u.hp - x); u.taken = (u.taken || 0) + x; s.total += x; ccPain(b, u);
+        });
+        u.gauge = s ? { label: '흡수', val: Math.min(300, Math.round(s.total)), max: 300, color: '#38bdf8' } : { label: '고통', val: m.pn || 0, max: CC_MAX, color: '#f43f5e' };
+      } },
+    skills: [
+      { id: 'cs_s1', name: '에너지흡수', cost: 50, cd: 14, range: 14, sfx: 'shield', desc: '4.5초 동안 주변(14) 아군이 받는 피해가 20% 감소하고, 그 일부를 카르세르가 대신 받습니다. 끝나면 대신 받은 피해에 비례한 피해를 주변 적에게 줍니다.',
+        plan: (b, u, en, al) => (al.some(a => a !== u && b.dist(u, a) <= 14) && en.some(e => b.dist(u, e) <= 22) ? {} : null),
+        cast(b, u) {
+          const s = u.mem.soak = { last: {}, total: 0 }; ring(b, u.x, u.y, 14, '#38bdf8');
+          b.inCircle(b.friends(u), u.x, u.y, 14).forEach(a => { if (a === u) return; s.last[a.id] = a.taken || 0; b.buff(a, 'cs_link', 4.5, { name: '에너지 연결', f: { dmgIn: 0.8 }, src: u }); });
+          b.buff(u, 'cs_main', 4.5, { name: '에너지흡수', f: { onEnd(bb, uu) {
+            const t = uu.mem.soak; uu.mem.soak = null; if (!t || !uu.alive) return;
+            const dmg = Math.min(420, 40 + t.total * 1.4); ring(bb, uu.x, uu.y, 12, '#38bdf8'); ring(bb, uu.x, uu.y, 6, '#e0f2fe');
+            bb.inCircle(bb.foes(uu), uu.x, uu.y, 12).forEach(e => hit(bb, uu, e, 'magic', dmg, '에너지흡수', { splash: true }));
+          } } });
+        } },
+      { id: 'cs_s2', name: '벽부수기', cost: 45, cd: 13, range: 32, move: true, sfx: 'dash', desc: '1초 동안 멈춰 에너지를 모으며(받는 피해 45% 감소) 지정한 위치로 돌진해 경로의 적에게 피해를 주고 기절시킵니다.', plan: foeIn(32, 8),
+        cast(b, u, pl) {
+          const cx = pl.t.x, cy = pl.t.y; lock(b, u, 1.0);
+          b.buff(u, 'cs_brace', 1.0, { name: '에너지 응축', f: { dmgIn: 0.55 } });
+          slash(b, u.x, u.y, cx, cy, 4, '#94a3b8'); ring(b, u.x, u.y, 6, '#94a3b8');
+          b.later(1.0, bb => {
+            if (!u.alive || bb.stunned(u)) return;
+            const ox = u.x, oy = u.y, e = dashTo(bb, u, { x: cx, y: cy }, 36, -4); bb.slide(u, e.x, e.y); slash(bb, ox, oy, u.x, u.y, 5, '#cbd5e1');
+            bb.inLine(bb.foes(u), ox, oy, u.x, u.y, 3.6).forEach(x => { hit(bb, u, x, 'phys', bb.raw(u, 48, 0.9, 0.3), '벽부수기', { path: true }); bb.cc(u, x, 'stun', 1.3); });
+          });
+        } }
+    ],
+    ult: { id: 'cs_ult', name: '끝없는굶주림', cd: 44, range: 24, sfx: 'buff', desc: '7초 동안 최대 체력의 약 52%에 달하는 체력을 지속적으로 회복합니다.',
+      plan: (b, u, en) => (u.hp < u.maxHp * 0.65 && en.some(e => b.dist(u, e) <= 24) ? {} : null),
+      cast(b, u) {
+        b.buff(u, 'cs_hunger', 7, { name: '끝없는 굶주림', f: { regen: 0.075, onEnd(bb, uu) { uu.glow = null; } } });
+        u.glow = '#f43f5e'; ring(b, u.x, u.y, 9, '#f43f5e');
+      } }
+  };
+
+  /* ================= 50. 펙 ================= */
+  FD.peg = {
+    id: 'peg', name: '펙', role: 'hunter', color: '#f472b6', title: '펩맨의 자칭 사이드킥',
+    concept: '\"펩맨 님! 제가 도와드릴게요!\"',
+    stats: { hp: 760, mp: 280, aspd: 1.0, spd: 8.4, atk: 46, ap: 38, def: 16, res: 16, ten: 0, pen: 0.08, ls: 0, range: 18, crit: 0.08, critDmg: 1.5 },
+    basic: rangedBasic, ai: { backline: true, kite: 11, threat: 0.9 },
+    tac: { act: ['basic', 'retreat'], fight: ['coop', 'support'], pos: ['cover'], aim: ['carry', 'near'] },
+    look: { res: 2, pal: { h: '#2a1a14', H: '#5b3a2e', s: '#f6d9bd', S: '#e0b896', M: '#dc2626', N: '#7f1d1d', e: '#f8fafc', m: '#e11d48', b: '#0f766e', B: '#14b8a6', w: '#f8fafc', W: '#99f6e4', p: '#f472b6', g: '#64748b', X: '#cbd5e1', y: '#fde047', k: '#111827' },
+      rows: [
+        '................................',
+        '................h...............',
+        '............HhHhHhHh............',
+        '............hhhhhhhhh...........',
+        '.........hhhhhhhhhhhhh..........',
+        '.........hhhhhhhhhhhhhh.........',
+        '.........hhhhhhhhhhhhhh.........',
+        '.........hhMMMMMMMMMMhh.........',
+        '........HhMMMeeMMeeMMMhH........',
+        '.........hhMNMMMMMMNMhh.........',
+        '........hhhhsssssssshhhh........',
+        '........HhhhsssmmssshhhH........',
+        '........hhhhhsssssshhhhh........',
+        '........hh....SSSS...hhh........',
+        '.......hHhBBBBBBBBBBBBhH........',
+        '.......hbbbBBWBBBBWBBbbbh.......',
+        '...XXXXXXbb.bbbppbbb.bbXXXXXX...',
+        'Wyyygggggbb..bpbbpb..bbgggggyyyW',
+        '...ggggggb...bbppbb..hbgggggg...',
+        '.....kbbbb...bbppb...hbbbbk.....',
+        '......ssHh..wwwwwwww.hhHss......',
+        '......sshh...bbbbbb..hhhss......',
+        '.......hhh..bbbbbbb..hhhh.......',
+        '.......hHh.wwwwwwwwwwhhHh.......',
+        '.......hhhhBbbb..bbbBhhhh.......',
+        '.......hh..Bbbb..bbbB..hh.......',
+        '...........Bbbb..bbbB...........',
+        '...........Bbbb..bbbB...........',
+        '...........Bbbb..bbbB...........',
+        '...........wwww..wwww...........',
+        '...........Bbbb..bbbB...........',
+        '...........kkkk..kkkk...........',
+        '...........kkkk..kkkk...........',
+        '...........kkkk..kkkk...........'],
+      weapon: '' },
+    passive: { name: '팬심', desc: '근처(22)의 가장 가까운 아군을 자동으로 지정합니다. 지정된 아군과 같은 목표를 공격하면 주는 피해가 15% 증가합니다. 아군이 멀어지거나(30) 쓰러지면 해제되며 8초 뒤 다시 지정합니다.',
+      init(b, u) { u.mem.fan = null; u.mem.fanCd = 0; },
+      dmgMul(b, u, t) { const f = u.mem.fan; return f && f.alive && f.target === t ? 1.15 : 1; },
+      tick(b, u) {
+        const m = u.mem; let f = m.fan;
+        if (f && (!f.alive || b.dist(u, f) > 30)) { m.fan = f = null; m.fanCd = b.t + b.sec(8); }
+        if (!f && b.t >= (m.fanCd || 0)) { const a = b.nearest(u, b.friends(u).filter(x => x !== u && b.dist(u, x) <= 22)); if (a) { m.fan = f = a; } }
+        u.gauge = f ? { label: '팬심 ♥ ' + f.f.name, val: 1, max: 1, color: '#f472b6' } : { label: '팬심', val: Math.max(0, 1 - ((m.fanCd || 0) - b.t) / b.sec(8)), max: 1, color: '#64748b' };
+      } },
+    skills: [
+      { id: 'pg_s1', name: '찌릿찌릿', cost: 40, cd: 9, range: 22, sfx: 'pierce', desc: '다용도 석궁에서 볼트를 발사해 적에게 피해를 주고 1.1초 동안 기절시킵니다.', plan: foeIn(22),
+        cast(b, u, pl) {
+          const t = pl.t; slash(b, u.x, u.y, t.x, t.y, 2.4, '#fde047'); ring(b, t.x, t.y, 4, '#fde047');
+          hit(b, u, t, 'phys', b.raw(u, 38, 0.85, 0.25), '찌릿찌릿'); b.cc(u, t, 'stun', 1.1);
+        } },
+      { id: 'pg_s2', name: '위기탈출', cost: 45, cd: 13, range: 20, move: true, sfx: 'dash', desc: '즉시 체력을 회복하고 지정 위치로 굴러 이동합니다. 도착한 곳 주변(9)의 아군의 체력을 회복시키며, 팬심으로 지정된 아군은 회복량이 더 높습니다.',
+        plan: (b, u, en, al) => {
+          const n = b.nearest(u, en.filter(e => b.dist(u, e) <= 15)), a = b.lowest(al.filter(x => x !== u && x.alive && b.dist(u, x) <= 26 && x.hp < x.maxHp * 0.7));
+          if (!n && !a && u.hp > u.maxHp * 0.8) return null;
+          if (a && (!n || u.hp > u.maxHp * 0.45)) { const d = b.dir(u, a), g = Math.min(20, Math.max(0, b.dist(u, a) - 3)); return { x: u.x + d.x * g, y: u.y + d.y * g }; }
+          if (n) { const d = b.dir(n, u); return { x: u.x + d.x * 18, y: u.y + d.y * 18 }; }
+          return null;
+        },
+        cast(b, u, pl) {
+          b.heal(u, u, b.raw(u, 55, 0, 0.8), '위기탈출'); lock(b, u, 0.3);
+          const ox = u.x, oy = u.y, p = b.clampPos(pl.x, pl.y); b.slide(u, p.x, p.y); slash(b, ox, oy, u.x, u.y, 3, '#5eead4'); ring(b, u.x, u.y, 9, '#5eead4');
+          const fan = u.mem.fan;
+          b.inCircle(b.friends(u), u.x, u.y, 9).forEach(a => { if (a !== u) b.heal(u, a, b.raw(u, 50, 0, 0.7) * (a === fan ? 1.5 : 1), '위기탈출'); });
+        } }
+    ],
+    ult: { id: 'pg_ult', name: '힐팩난사', cd: 40, range: 14, sfx: 'buff', desc: '8초 동안 공격 속도가 45% 증가하고, 기본 공격이 적중할 때마다 주변(12)으로 힐파동이 퍼져 맞은 아군의 체력을 회복합니다. 팬심 대상은 회복량이 더 높습니다.',
+      plan: (b, u, en, al, strict) => {
+        const n = al.filter(a => a !== u && b.dist(u, a) <= 14); if (!n.length || !en.some(e => b.dist(u, e) <= u.role.range + 8)) return null;
+        if (strict && !n.some(a => a.hp < a.maxHp * 0.75)) return null;
+        return {};
+      },
+      cast(b, u) {
+        b.buff(u, 'pg_heal', 8, { name: '힐팩난사', mul: { aspd: 1.45 }, f: { onEnd(bb, uu) { uu.glow = null; } } });
+        u.glow = '#f472b6'; ring(b, u.x, u.y, 8, '#f472b6');
+        u.bm.push({ until: b.t + b.sec(8), always: true, fn(bb, uu) {
+          ring(bb, uu.x, uu.y, 12, '#f9a8d4');
+          bb.inCircle(bb.friends(uu), uu.x, uu.y, 12).forEach(a => { if (a !== uu) bb.heal(uu, a, bb.raw(uu, 14, 0, 0.3) * (a === uu.mem.fan ? 1.3 : 1), '힐팩난사'); });
+        } });
+      } }
+  };
+
+
+  const NEW = ['crush', 'viser', 'darkknight', 'shadow', 'redhood', 'reaper', 'press', 'jade', 'dark', 'biomachine', 'frost', 'shining', 'steamman', 'itrain', 'grainger', 'angel', 'oba', 'stardust', 'renegade', 'carcer', 'peg'];
   NEW.forEach(id => { CONFIG.fighterOrder.push(id); const f = FD[id], R = CONFIG.roles[f.role]; f.icon = R.icon; f.roleName = R.name; });
   Object.values(FD).forEach(f => { if (f.stats.crit === undefined) f.stats.crit = 0; if (f.stats.critDmg === undefined) f.stats.critDmg = 1.5; });     // 도감 표시용 기본값
 })();

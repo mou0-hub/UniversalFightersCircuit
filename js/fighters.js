@@ -500,8 +500,53 @@
     stats: { hp: 980, mp: 200, aspd: 1.0, spd: 9.4, atk: 66, ap: 24, def: 28, res: 24, ten: 0.10, pen: 0.10, ls: 0, range: 6.5 },
     basic: { type: 'phys', atk: 1, ap: 0, proj: 'melee' }, ai: { front: true, threat: 0.95 },
     tac: { act: ['rush'], fight: ['solo'], aim: ['weak'] },
-    look: { hair: '#ecfeff', skin: '#fde5cf', body: '#0f766e', acc: '#5eead4', hairStyle: '3,-1,H;5,-1,H;7,-1,H;2,2,H;2,3,H;9,2,H;9,3,H;2,4,H', feat: '3,6,W;8,6,W',
-      weapon: '10,-1,W;11,-1,W;12,0,W;11,0,W;11,1,K;11,2,K;11,3,K;11,4,K;11,5,K;11,6,K;11,7,K' },
+      look: {
+      hair: '#e6fbff', skin: '#fde5cf', body: '#0f766e', acc: '#5eead4', res: 2,
+      pal: {
+        H: '#e6fbff', J: '#9bdde6',                       // 머리카락 / 머리 그림자
+        S: '#fde5cf', D: '#e3b190',                       // 피부 / 피부 그림자
+        G: '#22d3ee', E: '#0f2f3a',                       // 눈동자 / 눈썹
+        B: '#0f766e', F: '#0b4a48', L: '#134e4a',         // 천(기본) / 천(어두움) / 바지
+        C: '#f0fdfa', A: '#5eead4', U: '#d9fdff',         // 흰 천 / 바람색 포인트 / 하이라이트
+        Y: '#fbbf24', N: '#1e293b'                        // 금 장식 / 부츠
+      },
+      rows: [
+        '.........................X......',
+        '.........................WW.....',
+        '........' + '.....HUH' + 'HHH.....' + '.KXWW...',
+        '........' + '.JHHHUHH' + 'HHHH....' + '.KXWUW..',
+        '......JH' + 'HHJHHJHH' + 'HHJH....' + '.KXWAWW.',
+        '....JHHH' + 'JHHHHHSS' + 'SSHH....' + '.KXAAUW.',
+        '...JHHHJ' + 'HHJHHSES' + 'SESH....' + '.KXAAWW.',
+        '..JHHHJH' + 'HJHHHSGS' + 'SGSH....' + '.KXWAWX.',
+        '...HJHHJ' + 'HHJHHSSS' + 'DSSH....' + '.KXWWW..',
+        'UA..HJHH' + 'JHHJJSSD' + 'DSSJ....' + '.KXWW...',
+        '.....HJH' + 'HJHJJDSS' + 'SSD.....' + '.KXX....',
+        '.....JHJ' + 'HJ..CCAC' + 'CACC....' + '.K......',
+        '...CCACC' + 'ACAFBBCB' + 'BBBBF...' + '.K......',
+        '..CACCAC' + '.SSBCCBB' + 'BBBBBSS.' + '.K......',
+        'AU.CCACA' + '.SDBBCCB' + 'BBBBB.YS' + '.K......',
+        '....CAC.' + '.SDBBBCC' + 'BABBB..S' + '.K......',
+        '.....CC.' + '.SDBBBBC' + 'CBBBB...' + 'SSS.....',
+        '.......X' + '.SDBBBBB' + 'BCCBF...' + 'DYD.....',
+        '....WWXK' + '.SDFFFFC' + 'CFFFF...' + '.K......',
+        '..WAWWXK' + '.SDLLLCC' + 'CLLLL...' + '.K......',
+        '.WWAAUXK' + '.SDLLLLC' + 'CLLLL...' + '.K......',
+        '.WWAAAXK' + '.SDLLLLC' + 'ALLLL...' + '.K......',
+        '.XWAWWXK' + '.SDLLLLC' + 'CLLLL...' + '.K......',
+        '..WWWWXK' + 'SDLLLL.C' + 'A.LLLL..' + '.K......',
+        '...WWXXK' + 'SDLLLL..' + '..LLLL..' + '.K......',
+        '....XXXY' + 'SSLLLL..' + '..LLLL..' + '.K......',
+        '.......K' + 'DYLLLL..' + '..LLLL..' + '.K......',
+        '.......K' + '.LLLL...' + '...LLLL.' + '.K......',
+        '.......K' + '.LYYL...' + '...LYYL.' + '.X......',
+        '.......X' + '.LLLL...' + '...LLLL.' + '........',
+        '........' + 'CACAC...' + '...CACAC' + '........',
+        '.......N' + 'NNNNN...' + '...NNNNN' + 'N.......',
+        '.....NNN' + 'NNNNN...' + '...NNNNN' + 'NNN.....',
+        '....KKKK' + 'KKKKK...' + '...KKKKK' + 'KKKK....'
+      ].map(r => r)
+    },
     passive: { name: '기류타기', desc: '기본 공격이 적중하면 2.5초간 이동속도가 20% 상승합니다. (중첩 불가)',
       onBasic(b, u, t, res) { if (res.dealt >= 0) b.buff(u, 'airflow', 2.5, { name: '기류타기', mul: { spd: 1.2 }, quiet: true }); } },
     skills: [
@@ -527,8 +572,53 @@
     stats: { hp: 820, mp: 230, aspd: 0.9, spd: 8.0, atk: 40, ap: 55, def: 28, res: 28, ten: 0.10, pen: 0.10, ls: 0, range: 9 },
     basic: { type: 'magic', atk: 0.6, ap: 0.5, proj: 'melee' }, ai: { front: true, kite: 0, threat: 1.0 },
     tac: { act: ['basic'], fight: ['coop'], pos: ['none', 'front'] },
-    look: { hair: '#fef08a', skin: '#fde5cf', body: '#1e3a8a', acc: '#facc15', hairStyle: '3,-1,H;4,-2,H;6,-2,H;8,-1,H;2,2,H;9,2,H', feat: '4,3,Y;7,3,Y',
-      weapon: '11,-3,Y;11,-2,W;11,-1,W;11,0,X;11,1,X;11,2,X;11,3,X;11,4,X;11,5,X;11,6,X;11,7,K;12,-2,Y' },
+  look: {
+  hair: '#e0f2fe', skin: '#38bdf8', body: '#1d4ed8', acc: '#fde047', res: 2,
+  pal: {
+    H: '#e0f2fe', J: '#7dd3fc',                       // 불꽃 머리 / 머리 음영
+    S: '#38bdf8', D: '#0ea5e9', I: '#1d4ed8',         // 전기 몸(기본) / 음영 / 근육 틈새
+    U: '#ffffff', V: '#bae6fd', Y: '#fde047',         // 코어·눈·창 중심 / 스파크 / 금빛 스파크·손목
+    A: '#334155', Q: '#1e293b', Z: '#94a3b8'          // 갑옷 / 갑옷 어두움 / 갑옷 하이라이트
+  },
+  rows: [
+    '..V.....' + '..H..H..' + '.H......' + '....U...',
+    '........' + '..HJHHJH' + 'H.......' + '...VUV..',
+    '........' + '.HJHHHHJ' + 'H.......' + '..VUUUV.',
+    '........' + '.JSSSSSS' + 'J.......' + '..VYUYV.',
+    '........' + '.SUUSSUU' + 'S.......' + '..VYUYV.',
+    '........' + '.SSSDDSS' + 'S.......' + '...VUV..',
+    '........' + '..SDSSDS' + '........' + '...VUV..',
+    '........' + '...SIIS.' + '........' + '.VYYUYV.',
+    '...ZAAAA' + 'AAAQUUQA' + 'AAAAAAZ.' + '....UV..',
+    '.V.AQAAQ' + 'AAQAUUAQ' + 'AAQAAQA.' + '.....UV.',
+    '....QAAA' + 'QAQAUUAQ' + 'AQAAAQ..' + '....UV..',
+    '....SDII' + 'SIAQUUQA' + 'ISIIDS..' + '...UV...',
+    '....SDID' + 'SIAAUUAA' + 'ISDIDS..' + '....UV..',
+    '....SDII' + 'SIDAUUAD' + 'ISDIIS..' + '.....UV.',
+    '....AQQA' + 'ZIDIUUID' + 'I.SDIDS.' + '....UV..',
+    '....AQAA' + 'ZIDSUUSD' + 'I....SDI' + 'YS.UV...',
+    '....AQQA' + 'ZIDIVVID' + 'I.......' + '.SDSS...',
+    '...VSDSV' + '.QAAYYAA' + 'Q.......' + '.DSUV...',
+    '..V.VSV.' + '.QASUUSA' + 'Q.......' + '....UV..',
+    '........' + 'ZAQSIISQ' + 'AZ......' + '.....UV.',
+    '..V.....' + '.SDIUUID' + 'S.......' + '....UV..',
+    '.......S' + 'DIISSSSI' + 'IDS.....' + '...UV...',
+    '.......S' + 'DIVSSSSV' + 'IDS..V..' + '..V.UV.V',
+    '.......S' + 'DIISSSSI' + 'IDS.....' + '.....UV.',
+    '......ZA' + 'QQAZ..ZA' + 'QQAZ....' + '....UV..',
+    '...V...S' + 'DIIS..SI' + 'IDS.....' + '...UV...',
+    '.......S' + 'DVIS..SI' + 'VDS.....' + '....UV..',
+    '.......S' + 'DIIS..SI' + 'IDS...Y.' + '.....UV.',
+    '.......Z' + 'AQAA..AA' + 'QAZ.....' + '....UV..',
+    '.......A' + 'QAQA..AQ' + 'AQA.....' + '...UV...',
+    '..V....Q' + 'AAQA..AQ' + 'AAQ.....' + '.V..UV..',
+    '.......S' + 'AQAS..SA' + 'QAS.V...' + '.....UV.',
+    '........' + 'SDIS..SI' + 'DS......' + '....UV..',
+    '.V......' + 'SIIS..SI' + 'IS......' + '...UV...',
+    '......SS' + 'SSSS..SS' + 'SSSS....' + '....U...',
+    '......DS' + 'SSSD..DS' + 'SSSD....' + '....V...'
+  ]
+},
     passive: { name: '충전격', desc: '5초마다 전기가 충전되며, 가득 차면 다음 기본 공격이 강화됩니다. (강화 후 초기화)',
       init(b, u) { u.mem.c = 0; },
       tick(b, u) { if (u.mem.c < 1) u.mem.c = Math.min(1, u.mem.c + 1 / 100); u.gauge = { label: '충전', val: u.mem.c * 100, max: 100, color: '#facc15' }; u.glow = u.mem.c >= 1 ? '#facc15' : null; },
