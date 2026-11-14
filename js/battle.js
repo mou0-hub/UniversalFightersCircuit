@@ -1630,8 +1630,11 @@ const Battle = (() => {
         return { id: u.id, team: u.team, slot, nick, ch: u.f, dmg: Math.round(u.dmg), healed: Math.round(u.healed), kills: u.kills, alive: u.alive,
           deaths: u.deaths, taken: Math.round(u.taken || 0), skills: u.skN || 0, ults: u.ultN || 0, deliv: u.deliv, coresIn: u.coresIn, dpts: u.dpts };
       });
-      const mv = Battle.pickMvp(units);
+      const mv = Battle.pickMvp(units), TC = CONFIG.tactics;
+      const tac = { st: this.strat.map(s => { const o = {}; TC.team.forEach(c => { o[c.id] = s[c.id]; }); return o; }),
+        sl: [0, 1].map(i => this.units.filter(u => u.team === i && !u.struct).sort((a, b) => (Number(a.id.split('-')[1]) || 0) - (Number(b.id.split('-')[1]) || 0)).map(u => { const o = {}; TC.categories.forEach(c => { o[c.id] = (u.tac && u.tac[c.id]) || c.neutral; }); return o; })) };
       return {
+        tac,
         winner, hp, score: sc, scoreText: sc[0] + ':' + sc[1], mvpTeam: mv ? mv.team : -1, mvpFighter: mv ? mv.ch.id : '', mvpName: mv ? (mv.nick || mv.ch.name) : '',
         target: 0, capTime: [0, 0], bossKills: this.bossKills.slice(), sudden: this.sudden, suddenWinner: this.suddenWinner, suddenLoser: this.suddenLoser, ticks: this.t, timeout: true,
         units, rec: this.rec

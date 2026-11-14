@@ -137,7 +137,7 @@ const Game = {
     const g = this.G, M = this.match, notes = [];
     M.finished = true;                       // 끝난 경기는 다시 시작/재처리되지 않도록 표시
     const when = League.when(g);             // 경기 날짜(상태가 바뀌기 전에 기록)
-    Stats.record(g, { ids: [M.m.a, M.m.b], picks: M.picks, bans: M.bans, winner: res.winner });      // 데이터 센터 집계
+    Stats.record(g, { ids: [M.m.a, M.m.b], picks: M.picks, bans: M.bans, winner: res.winner, tac: res.tac });      // 데이터 센터 집계
     MyData.record(g, M, res);
     let won, draw = false, tag;
     if (M.kind === 'league') {

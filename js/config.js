@@ -450,7 +450,8 @@ const CONFIG = {
     /* 선수 만족도: 출전 · 팀 성적 · 연봉 대우 · 성장 · 성향. 재계약 거부 / 이적 요구 기준 */
     morale: {
       base: 52, play: 60, team: 24, pay: 60, payMin: -20, payMax: 12, title: 8, growth: 3, growthMax: 8, trouble: 8,
-      refuseBelow: 45, demandBelow: 30, demandChance: 0.6, demandMax: 1, demandFeeMul: 1.0
+      refuseBelow: 45, demandBelow: 30, demandChance: 0.6, demandMax: 1, demandFeeMul: 1.0,
+      benchFloor: 12, recover: 0.35, recoverStep: 2, recoverMax: 14
     },
     styles: [ { id: 'balanced', name: '균형형' }, { id: 'capture', name: '힐 장악형' }, { id: 'slay', name: '교전형' }, { id: 'objective', name: '오브젝트형' }, { id: 'defend', name: '수비형' } ],
     contract: [1, 3],

@@ -1,6 +1,6 @@
 /* mydata.js — 데이터 센터 '내 데이터': 내 팀 경기(리그·플레이오프·MSI·월드)의 캐릭터/조합/선수/상대/시즌 집계 + 화면 */
 const MyData = (() => {
-  const blank = () => ({ v: 1, g: 0, w: 0, l: 0, d: 0, pf: 0, pa: 0, kf: 0, ka: 0, dmg: 0, heal: 0, deliv: 0, ch: {}, combo: {}, pair: {}, pro: {}, opp: {}, kind: {}, season: {}, log: [] });
+  const blank = () => ({ v: 1, g: 0, w: 0, l: 0, d: 0, pf: 0, pa: 0, kf: 0, ka: 0, dmg: 0, heal: 0, deliv: 0, ch: {}, combo: {}, pair: {}, pro: {}, opp: {}, kind: {}, season: {}, log: [], tac: {}, vtac: {}, slot: {} });
   const get = G => (G.mine = G.mine || blank());
   const bump = (o, k, init) => (o[k] = o[k] || init());
   const line = () => ({ g: 0, w: 0, d: 0, k: 0, de: 0, dmg: 0, heal: 0, pts: 0, deliv: 0, mvp: 0 });
@@ -30,6 +30,12 @@ const MyData = (() => {
     op.g++; if (win) op.w++; if (draw) op.d++; op.pf += pf; op.pa += pa; op.k += kf; op.ka += ka;
     const kd = bump(S.kind, M.kind, () => ({ g: 0, w: 0, d: 0 })); kd.g++; if (win) kd.w++; if (draw) kd.d++;
     const se = bump(S.season, G.season || 1, () => ({ g: 0, w: 0, d: 0, pf: 0, pa: 0, k: 0, ka: 0 })); se.g++; if (win) se.w++; if (draw) se.d++; se.pf += pf; se.pa += pa; se.k += kf; se.ka += ka;
+    if (res.tac) {
+      const put = (root, c, o, on) => { const row = ((root[c] = root[c] || {})[o] = root[c][o] || [0, 0]); row[0]++; if (on) row[1]++; };
+      S.tac = S.tac || {}; S.vtac = S.vtac || {}; S.slot = S.slot || {};
+      Object.keys(res.tac.st[p]).forEach(c => { put(S.tac, c, res.tac.st[p][c], win); put(S.vtac, c, res.tac.st[1 - p][c], win); });
+      (res.tac.sl[p] || []).forEach(s => Object.keys(s).forEach(c => put(S.slot, c, s[c], win)));
+    }
     S.log.unshift({ s: G.season || 1, kind: M.kind, opp: oppName, r: win ? 1 : draw ? 0 : -1, sc: pf + ':' + pa, k: kf + ':' + ka, picks });
     S.log.length = Math.min(S.log.length, 40);
   }
@@ -41,7 +47,7 @@ const MyData = (() => {
 
   function html(g, st, H) {
     const S = get(g), sub = st.sub || 'overview', FD = H.FD;
-    const subs = [['overview', '개요'], ['char', '캐릭터'], ['combo', '조합'], ['pro', '선수'], ['opp', '상대 팀'], ['log', '최근 경기']];
+    const subs = [['overview', '개요'], ['char', '캐릭터'], ['combo', '조합'], ['tac', '전술'], ['pro', '선수'], ['opp', '상대 팀'], ['log', '최근 경기']];
     const nav = `<div class="chips my-subs">${subs.map(([id, n]) => `<button class="chip ${sub === id ? 'on' : ''}" data-act="myTab" data-sub="${id}">${n}</button>`).join('')}</div>`;
     if (!S.g) return `${nav}<p class="empty">내 팀이 치른 경기가 아직 없습니다. 경기를 치르면 캐릭터·조합·선수별 기록이 여기에 쌓입니다. (이 기능 도입 이전 경기는 집계되지 않습니다)</p>`;
     const tile = (k, v, s) => `<div class="dc-tile"><small>${k}</small><b>${v}</b><span>${s || ''}</span></div>`;
@@ -66,6 +72,18 @@ const MyData = (() => {
       const plist = (l, cls) => `<table class="tbl dc-tbl"><tbody>${l.map(x => `<tr><td class="tn">${icons(x.ids)}</td><td>${x.g}경기</td><td><span class="dc-v">${pct(x.wr)}</span>${H.bar(x.wr, 1, cls)}</td></tr>`).join('') || '<tr><td>데이터 부족</td></tr>'}</tbody></table>`;
       body = H.panel('조합 승률', '3인 조합 · 경기 수 순', `<table class="tbl dc-tbl"><thead><tr><th>#</th><th>조합</th><th>경기</th><th>승률</th><th>평균 킬</th><th>평균 점수</th></tr></thead><tbody>${rows.map((x, i) => `<tr><td>${i + 1}</td><td class="tn">${icons(x.ids)}<small class="my-names">${x.ids.map(id => FD(id).name).join(' · ')}</small></td><td>${x.g}</td><td><span class="dc-v">${pct(x.wr)}</span>${H.bar(x.wr, 1, x.wr >= 0.5 ? '' : 'bad')}</td><td>${f1(div(x.k, x.g))}</td><td>${f1(div(x.pf, x.g))}:${f1(div(x.pa, x.g))}</td></tr>`).join('')}</tbody></table>`)
         + `<div class="dc-cols">${H.panel('잘 맞는 듀오', '2인 조합 승률 상위', plist(pairs.slice().sort((a, b) => b.wr - a.wr || b.g - a.g).slice(0, 5), ''))}${H.panel('안 맞는 듀오', '2인 조합 승률 하위', plist(pairs.slice().sort((a, b) => a.wr - b.wr || b.g - a.g).slice(0, 5), 'bad'))}</div>`;
+    } else if (sub === 'tac') {
+      const T = CONFIG.tactics, LT = Stats.tactics(g), cats = [...T.team.map(c => ({ ...c, key: c.id, root: 't' })), ...T.categories.map(c => ({ ...c, key: 's:' + c.id, root: 's', group: '슬롯' }))];
+      const cur = cats.find(c => c.key === (st.tcat || 'stance')) || cats[0];
+      const mineRoot = cur.root === 't' ? S.tac || {} : S.slot || {}, lgRoot = cur.root === 't' ? LT.team : LT.slot, id = cur.root === 't' ? cur.id : cur.id;
+      const chips = cats.map(c => `<button class="chip ${c.key === cur.key ? 'on' : ''}" data-act="myCat" data-c="${c.key}">${c.root === 's' ? '슬롯·' : ''}${c.name}</button>`).join('');
+      const rows = cur.options.map(o => { const m = (mineRoot[id] || {})[o.id] || [0, 0], v = cur.root === 't' ? ((S.vtac || {})[id] || {})[o.id] || [0, 0] : null, l = (lgRoot[id] || {})[o.id] || [0, 0]; return { o, m, v, l, wr: div(m[1], m[0]) }; });
+      const best = rows.filter(r => r.m[0] >= 3).sort((a, b) => b.wr - a.wr || b.m[0] - a.m[0])[0];
+      const cell = a => (a && a[0] ? `<span class="dc-v">${pct(div(a[1], a[0]))}</span>${H.bar(div(a[1], a[0]), 1, a[1] / a[0] >= 0.5 ? '' : 'bad')}<small class="my-names">${a[0]}경기</small>` : '-');
+      const unit = cur.root === 't' ? '경기' : '출전';
+      body = `<div class="glass panel dc-sel"><div class="chips my-cats">${chips}</div><small class="note">내 팀이 실제로 쓴 설정 기준입니다. 기본값(미설정)도 선택지로 집계되며, '리그 전체'는 AI 팀끼리의 경기까지 포함한 모든 팀의 기록입니다.</small></div>`
+        + H.panel(`${cur.name} 별 승률`, best ? `내 기록 중 가장 잘 맞은 선택: ${best.o.name} (${pct(best.wr)}, ${best.m[0]}${unit})` : `표본이 3${unit} 이상인 선택이 아직 없습니다`,
+          `<table class="tbl dc-tbl"><thead><tr><th>선택지</th><th>내 승률</th>${cur.root === 't' ? '<th>상대가 쓸 때 내 승률</th>' : ''}<th>리그 전체 승률</th></tr></thead><tbody>${rows.map(r => `<tr><td class="tn">${r.o.name}</td><td>${cell(r.m)}</td>${cur.root === 't' ? `<td>${cell(r.v)}</td>` : ''}<td>${cell(r.l)}</td></tr>`).join('')}</tbody></table>`);
     } else if (sub === 'pro') {
       const rows = Object.keys(S.pro).map(n => { const r = S.pro[n], fav = Object.keys(r.ch).sort((a, b) => r.ch[b] - r.ch[a])[0]; return { n, fav, ...r, wr: div(r.w, r.g), kd: div(r.k, Math.max(1, r.de)) }; }).sort((a, b) => b.g - a.g);
       body = H.panel('내 선수 기록', '프로게이머별 · 출전 경기 기준', rows.length ? `<table class="tbl dc-tbl"><thead><tr><th>선수</th><th>경기</th><th>승률</th><th>KDA</th><th>평균 킬</th><th>평균 피해</th><th>평균 제출점수</th><th>MVP</th><th>주 캐릭터</th></tr></thead><tbody>${rows.map(x => `<tr><td class="tn">${x.n}</td><td>${x.g}</td><td><span class="dc-v">${pct(x.wr)}</span>${H.bar(x.wr, 1, x.wr >= 0.5 ? '' : 'bad')}</td><td>${kda(x)}</td><td>${f1(div(x.k, x.g))}</td><td>${Math.round(div(x.dmg, x.g))}</td><td>${f1(div(x.pts, x.g))}</td><td>${x.mvp || '-'}</td><td>${x.fav && FD(x.fav) ? FD(x.fav).name : '-'}</td></tr>`).join('')}</tbody></table>` : '<p class="empty">선수 기록이 아직 없습니다.</p>');
@@ -81,13 +99,15 @@ const MyData = (() => {
 
   const actions = {
     myTab(el) { UI.dc({ sub: el.dataset.sub }); },
-    mySort(el) { UI.dc({ msort: el.dataset.k }); }
+    mySort(el) { UI.dc({ msort: el.dataset.k }); },
+    myCat(el) { UI.dc({ tcat: el.dataset.c }); }
   };
 
   if (typeof document !== 'undefined') {
     const css = document.createElement('style');
     css.textContent = [
       '.my-subs { margin-bottom: 12px; }',
+      '.my-cats { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }',
       '.my-combo { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; }',
       '.my-names { display: block; margin-top: 2px; font-size: 11px; color: var(--muted); }',
       '.my-scroll { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }',

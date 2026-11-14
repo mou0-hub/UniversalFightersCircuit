@@ -1,7 +1,7 @@
 /* stats.js — 데이터 센터: 경기 기록 집계(파이터 승률/상성/팀 선호도/리그 밴픽률) + 조회 */
 
 const Stats = (() => {
-  const blank = () => ({ n: 0, f: {}, vs: {}, team: {}, lg: {} });
+  const blank = () => ({ n: 0, f: {}, vs: {}, team: {}, lg: {}, tac: {}, slot: {} });
   const get = G => (G.stats = G.stats || blank());
   const roster = () => CONFIG.fighterOrder.filter(id => CONFIG.fighters[id] && !CONFIG.fighters[id].boss);
   const inc = (o, k) => { o[k] = (o[k] || 0) + 1; };
@@ -15,6 +15,12 @@ const Stats = (() => {
       for (const B of [bucket(S.team, key), bucket(S.lg, lg)]) { B.g++; r.picks[i].forEach(f => inc(B.p, f)); r.bans[i].forEach(f => inc(B.b, f)); }
       r.picks[i].forEach(f => { const F = S.f[f] = S.f[f] || { g: 0, w: 0, b: 0 }; F.g++; if (r.winner === i) F.w++; });
       r.bans[i].forEach(f => { const F = S.f[f] = S.f[f] || { g: 0, w: 0, b: 0 }; F.b++; });
+    }
+    if (r.tac) for (let i = 0; i < 2; i++) {
+      const win = r.winner === i, put = (root, c, o) => { const row = ((root[c] = root[c] || {})[o] = root[c][o] || [0, 0]); row[0]++; if (win) row[1]++; };
+      S.tac = S.tac || {}; S.slot = S.slot || {};
+      Object.keys(r.tac.st[i]).forEach(c => put(S.tac, c, r.tac.st[i][c]));
+      (r.tac.sl[i] || []).forEach(s => Object.keys(s).forEach(c => put(S.slot, c, s[c])));
     }
     for (const a of r.picks[0]) for (const b of r.picks[1]) {
       const x = (S.vs[a] = S.vs[a] || {})[b] = S.vs[a][b] || [0, 0], y = (S.vs[b] = S.vs[b] || {})[a] = S.vs[b][a] || [0, 0];
@@ -45,5 +51,6 @@ const Stats = (() => {
   const leagueRates = (G, lg) => { const B = get(G).lg[lg]; return { picks: rates(B, 'p'), bans: rates(B, 'b') }; };
   const teamRates = (G, lg, name) => { const B = get(G).team[lg + '|' + name]; return { picks: rates(B, 'p'), bans: rates(B, 'b') }; };
 
-  return { blank, get, record, fighters, topWin, botWin, topBy, matchups, leagueRates, teamRates, roster };
+  const tactics = G => ({ team: get(G).tac || {}, slot: get(G).slot || {} });
+  return { tactics, blank, get, record, fighters, topWin, botWin, topBy, matchups, leagueRates, teamRates, roster };
 })();

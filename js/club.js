@@ -55,7 +55,7 @@ const Club = (() => {
       Pros.remove(G, t.pros[wi]); t.pros[wi] = p.id; p.team = t.id; p.listed = false;
     });
     G.club.leavers = [];
-    if (G.club.sgSeason !== G.season) { G.club.sg = 0; G.club.sgSeason = G.season; roster(G).forEach(p => { p.sg = 0; p.sw = 0; }); }
+    if (G.club.sgSeason !== G.season) { G.club.sg = 0; G.club.sgSeason = G.season; roster(G).forEach(p => { p.sg = 0; p.sw = 0; p.moodAdj = 0; }); }
     Pros.purge(G); Market.refresh(G, true);
     /* 승계하지 못한 선수는 FA 풀로 환원 */
     (G.club.pool || []).forEach(id => { const p = Pros.get(G, id); if (p) { p.team = null; p.years = Pros.rnd(1, 2); Market.ensure(G).fa.push(id); } });
@@ -120,6 +120,8 @@ const Club = (() => {
     if (!G.club) return;
     G.club.sg = (G.club.sg || 0) + 1;
     G.club.lineup.forEach(id => { const p = id && Pros.get(G, id); if (p) { p.sg = (p.sg || 0) + 1; if (won) p.sw = (p.sw || 0) + 1; } });
+    const B = CONFIG.pro.morale;
+    G.club.roster.forEach(id => { const p = !G.club.lineup.includes(id) && Pros.get(G, id); if (p && Math.random() < B.recover) p.moodAdj = Math.min(B.recoverMax, (p.moodAdj || 0) + B.recoverStep); });
   }
   function shareOf(G, p) {
     const tg = G.club.sg || 0;
@@ -130,12 +132,13 @@ const Club = (() => {
     const B = CONFIG.pro.morale, n = CONFIG.league.teamCount || 12, rank = League.rankOf(G, 'player') || Math.ceil(n / 2);
     const share = shareOf(G, p), young = p.age <= 22 || (p.pot - p.ovr) >= 8, vet = p.age >= 27, star = p.grade === 'A' || p.grade === 'S';
     const parts = {
-      play: (share - 0.5) * B.play * (young ? 1.35 : 1),
+      play: Math.max((share - 0.5) * B.play * (young ? 1.35 : 1), -B.benchFloor),
       team: ((n + 1) / 2 - rank) / ((n - 1) / 2) * B.team * ((vet || star) ? 1.3 : 1),
       pay: clamp((p.salary / Math.max(1, Pros.marketSalary(p)) - 1) * B.pay, B.payMin, B.payMax) * (star ? 1.2 : 1),
       growth: clamp((p.dev || 0) * B.growth, -B.growthMax, B.growthMax),
       title: G.playoff && G.playoff.champion === 'player' ? B.title : 0,
-      trait: (p.trouble >= 60 ? -B.trouble : 0) + (p.mental >= 85 ? 3 : 0)
+      trait: (p.trouble >= 60 ? -B.trouble : 0) + (p.mental >= 85 ? 3 : 0),
+      adj: p.moodAdj || 0
     };
     const score = clamp(Math.round(B.base + Object.values(parts).reduce((t, v) => t + v, 0)), 0, 100);
     const names = { play: '출전 기회 부족', team: '팀 성적 부진', pay: '연봉 대우 불만', growth: '성장 정체' };

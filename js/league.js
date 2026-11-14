@@ -53,7 +53,7 @@ const League = (() => {
   function simulate(G, aId, bId, rule, series) {
     const d = autoDraft(team(G, aId), team(G, bId), series ? fearlessOf(series) : null), p = d.picks;
     const res = Battle.simulate([input(G, aId, p[0], p[1]), input(G, bId, p[1], p[0])], rule);
-    Stats.record(G, { ids: [aId, bId], picks: p, bans: d.bans, winner: res.winner });       // 데이터 센터 집계
+    Stats.record(G, { ids: [aId, bId], picks: p, bans: d.bans, winner: res.winner, tac: res.tac });       // 데이터 센터 집계
     res.picks = p;
     return res;
   }
