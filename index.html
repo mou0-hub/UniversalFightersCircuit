@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cosmic League</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="space" id="space"><i class="nebula n1"></i><i class="nebula n2"></i><i class="nebula n3"></i></div>
+
+  <div class="app">
+    <header class="topbar glass">
+      <div class="brand">
+        <span class="logo" aria-hidden="true"></span>
+        <div><b id="brandTitle"></b><small id="brandSub"></small></div>
+      </div>
+      <nav class="nav" id="nav"></nav>
+      <div class="status">
+        <span class="pill" id="seasonChip"></span>
+        <span class="pill" id="phaseChip"></span>
+        <span class="pill" id="streakChip"></span>
+        <button class="icon-btn snd-btn" id="soundBtn" title="소리 끄기">🔊</button>
+        <input type="range" id="volume" class="vol" min="0" max="100" step="5" value="60" title="볼륨" aria-label="볼륨">
+        <button class="icon-btn" data-act="reset" title="새 게임">↺</button>
+      </div>
+    </header>
+    <main class="view" id="view"></main>
+  </div>
+
+  <div class="toasts" id="toasts"></div>
+  <div class="modal" id="modal" hidden></div>
+
+  <!-- 로드 순서 중요: config → sounds → fighters → sprites → draft → battle → league → arena → ui → main -->
+  <script src="js/config.js"></script>
+  <script src="js/sounds.js"></script>
+  <script src="js/fighters.js"></script>
+  <script src="js/fighters2.js"></script>
+  <script src="js/fighters3.js"></script>
+  <script src="js/sprites.js"></script>
+  <script src="js/draft.js"></script>
+  <script src="js/tactics.js"></script>
+  <script src="js/stats.js"></script>
+  <script src="js/mydata.js"></script>
+  <script src="js/pros.js"></script>
+  <script src="js/market.js"></script>
+  <script src="js/club.js"></script>
+  <script src="js/battle.js"></script>
+  <script src="js/league.js"></script>
+  <script src="js/news.js"></script>
+  <script src="js/scout.js"></script>
+  <script src="js/arena.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/proui.js"></script>
+  <script src="js/main.js"></script>
+  <script src="js/trophies.js"></script>
+</body>
+</html>
