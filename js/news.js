@@ -623,9 +623,11 @@ const News = (() => {
       why = '패배';
     }
     // 여론은 평판이 낮을수록 패배에 더 가혹, 높을수록 승리에 가산
-    const r = ensureRep(G);
+    const r = ensureRep(G), R = CONFIG.fans.rep;
     if (!won && !draw && r.v < 35) d -= 1;
     if (won && r.v > 70) d += 1;
+    if (won) d = Math.max(1, Math.round(d * R.winMul));                                   // 승리: 상승폭 확대
+    else if (!draw) d = Math.random() < R.lossNone ? 0 : -Math.max(1, Math.floor(-d * R.lossMul));   // 패배: 하락폭 절반 이하, 일정 확률로 하락 없음
     return shiftRep(G, d, why);
   }
 
@@ -1189,8 +1191,9 @@ const News = (() => {
   function tourEnd(G, kind, date) {
     const t = G[kind], ch = t.champion, nm = League.name(G, ch), me = ch === 'player', pl = placing(t), mt = G.teamName, jb = josa(mt, '은', '는');
     const v = { ...base(G), cup: t.name, opp: nm, champ: nm, stage: pl.stage, mvp: '', score: '' };
-    if (me) shiftRep(G, kind === 'worlds' ? 12 : kind === 'msi' ? 8 : 6, `${t.name} 우승`);
-    else if (t.seeds && t.seeds.includes('player')) shiftRep(G, -3, `${t.name} 준우승 이하`);
+    const RR = CONFIG.fans.rep;
+    if (me) shiftRep(G, Math.round((kind === 'worlds' ? 12 : kind === 'msi' ? 8 : 6) * RR.titleMul), `${t.name} 우승`);
+    else if (t.seeds && t.seeds.includes('player')) shiftRep(G, Math.random() < RR.lossNone ? 0 : -Math.max(1, Math.floor(3 * RR.lossMul)), `${t.name} 준우승 이하`);
     const rep = ensureRep(G);
     const itv = (kindQ, head, lines, cmKind, cv) => { const [h, q] = quoteFor(kindQ, cv, null); return mk(G, date, 'interview', 'intl', head(h), lines(q), eventComments(cmKind, cv, 6)); };
     if (pl.k === 'champ') {

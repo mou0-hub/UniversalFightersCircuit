@@ -55,7 +55,7 @@ const ProUI = (() => {
   }
 
   function club() {
-    const g = G(), c = g.club, ros = Club.roster(g), lu = Club.lineup(g), rank = League.rankOf(g, 'player');
+    const g = G(), c = g.club, ros = Club.roster(g), lu = Club.lineup(g), rank = League.rankOf(g, 'player'), fi = Club.fanInfo(g);
     const exp = Club.ownerPay(g, rank).reduce((s, x) => s + x.v, 0), pay = Club.payroll(g), net = exp - pay, capV = Club.cap(g), capLeft = capV - pay;
     const tile = (k, v, sub, cls) => `<div class="dc-tile ${cls || ''}"><small>${k}</small><b>${v}</b><span>${sub || ''}</span></div>`;
     const slots = [0, 1, 2].map(i => { const p = lu[i];
@@ -89,7 +89,7 @@ const ProUI = (() => {
     const chs = Club.challenges(g), chBox = `<div class="glass panel"><h3>🏅 도전과제 <small>${chs.filter(x => x.done).length}/${chs.length}</small></h3><div class="ch-grid">${chs.map(x => `<div class="ch-item ${x.done ? 'done' : ''}"><b>${x.icon} ${x.name}</b><small>${x.desc}</small>${bar(Math.round(x.value / x.n * 100))}<em>${x.done ? '달성 완료' : `${Math.min(x.value, x.n)}/${x.n}`} · 보상 ${money(x.reward)}</em></div>`).join('')}</div></div>`;
     return `<section class="pro-view"><div class="glass panel team-head"><div><h2>${CONFIG.nav.club}</h2><p>이적시장·FA 시장에서 프로게이머를 영입해 3명을 라인업(1·2·3번)에 배치하세요. 1번 선수가 첫 번째 픽, 2번이 두 번째 픽, 3번이 세 번째 픽 파이터를 맡습니다. 선수의 등급(C~S)이 높을수록 전투 AI가 정교합니다.</p></div>
       <button class="btn" data-act="proAuto">라인업 자동 채우기</button></div>
-      ${goalBox}${spBox}<div class="dc-tiles">${tile('구단 자금', money(c.funds), '시즌 종료 시 정산', c.funds < 0 ? 'neg' : '')}${tile('선수단 연봉 / 셀러리캡', money(pay), `${ros.length}/${CONFIG.club.maxRoster}명 · 상한 ${money(capV)} · ${capLeft >= 0 ? '여유 ' + money(capLeft) : '초과 ' + money(-capLeft)}${capBar(pay, capV)}`, capLeft < 0 ? 'neg' : '')}${tile('예상 구단주 지급', money(exp), `현재 ${rank}위 기준`)}${tile('예상 순수익', (net >= 0 ? '+' : '') + money(net), '지급 − 연봉', net < 0 ? 'neg' : 'pos')}</div>
+      ${goalBox}${spBox}<div class="dc-tiles">${tile('구단 자금', money(c.funds), '시즌 종료 시 정산', c.funds < 0 ? 'neg' : '')}${tile('선수단 연봉 / 셀러리캡', money(pay), `${ros.length}/${CONFIG.club.maxRoster}명 · 상한 ${money(capV)} · ${capLeft >= 0 ? '여유 ' + money(capLeft) : '초과 ' + money(-capLeft)}${capBar(pay, capV)}`, capLeft < 0 ? 'neg' : '')}${tile('예상 구단주 지급', money(exp), `현재 ${rank}위 기준`)}${tile('예상 순수익', (net >= 0 ? '+' : '') + money(net), '지급 − 연봉', net < 0 ? 'neg' : 'pos')}${tile('팬 수', fi.fans.toLocaleString('ko-KR') + '명', `최대 ${fi.max.toLocaleString('ko-KR')}명 · 이번 시즌 ${fi.seasonGain >= 0 ? '+' : ''}${fi.seasonGain.toLocaleString('ko-KR')}`)}${tile('이번 시즌 티켓 수입', money(fi.tix), `${fi.games}경기 · 경기당 평균 ${money(fi.avg)} · 관중 ${Math.round(fi.fill * 100)}% (수용 ${fi.stadium.toLocaleString('ko-KR')}명)`)}</div>
       <div class="lineup">${slots}</div>
       <div class="glass panel"><h3>선수단 <small>${ros.length}명</small></h3>${list || '<p class="empty">선수가 없습니다. 이적시장에서 영입하세요.</p>'}${ros.length < 3 ? '<p class="note">경기를 하려면 최소 3명이 필요합니다.</p>' : ''}</div>${fin}${chBox}</section>`;
   }
@@ -214,6 +214,9 @@ const ProUI = (() => {
     if (!c) { c = document.createElement('span'); c.id = 'fundsChip'; c.className = 'pill'; const ref = document.getElementById('seasonChip'); ref.parentNode.insertBefore(c, ref); }
     let rc = document.getElementById('repChip');
     if (!rc) { rc = document.createElement('span'); rc.id = 'repChip'; rc.className = 'pill'; const ref = document.getElementById('seasonChip'); ref.parentNode.insertBefore(rc, ref); }
+    let fc = document.getElementById('fanChip');
+    if (!fc) { fc = document.createElement('span'); fc.id = 'fanChip'; fc.className = 'pill'; const ref = document.getElementById('seasonChip'); ref.parentNode.insertBefore(fc, ref); }
+    if (g.club) { const fi = Club.fanInfo(g); fc.textContent = `👥 ${fi.fans.toLocaleString('ko-KR')}${fi.last ? (fi.last > 0 ? ' ▲' : ' ▼') : ''}`; fc.title = `팬 최대 ${fi.max.toLocaleString('ko-KR')}명 · 수용 인원 ${fi.stadium.toLocaleString('ko-KR')}명`; fc.classList.toggle('hot', fi.last > 0); } else fc.textContent = '';
     c.textContent = g.club ? `💰 ${money(g.club.funds)}` : ''; c.classList.toggle('hot', !!g.club && g.club.funds < 0);
     const rep = (typeof News !== 'undefined' && News.ensureRep) ? News.ensureRep(g) : (g.rep || { v: 50, last: 0 });
     rc.textContent = '평판 ' + rep.v + (rep.last ? (rep.last > 0 ? ' ▲' : ' ▼') : '');

@@ -1025,6 +1025,7 @@ header.top, header.app-header, #topbar, .topbar{
     modal(`<div class="res-head ${won ? 'win' : draw ? 'draw' : 'lose'}"><h2>${won ? '승리' : draw ? '무승부' : '패배'}</h2>
       <p>점수 ${M.teams[0].name} <b>${Math.floor(res.score[0])}</b> : <b>${Math.floor(res.score[1])}</b> ${M.teams[1].name} · ${(res.ticks * CONFIG.battle.tickMs / 1000).toFixed(1)}초${res.sudden ? ' · 서든데스 결정' : ' · 시간 종료 판정'}</p><p class="note">코어 제출 ${dl(0)}회 : ${dl(1)}회 · 보스 처치 ${(res.bossKills || [0, 0])[0]} : ${(res.bossKills || [0, 0])[1]} · 남은 체력 ${pct(0)} : ${pct(1)}</p></div>
       ${G().streak >= 2 ? `<p class="note">${G().streak}연승 중!</p>` : ''}
+      ${info.fan ? `<p class="note">${info.fan.ticket ? `🎟 티켓 수입 +${Pros.money(info.fan.ticket.income)} · ` : ''}👥 ${info.fan.fans.d ? `팬 ${info.fan.fans.d > 0 ? '+' : ''}${info.fan.fans.d.toLocaleString('ko-KR')}명(${info.fan.fans.pct > 0 ? '+' : ''}${(info.fan.fans.pct * 100).toFixed(1)}%)` : '팬 변동 없음'}</p>` : ''}
       ${info.notes && info.notes.length ? `<ul class="notes">${info.notes.map(n => `<li>${n}</li>`).join('')}</ul>` : ''}
       <table class="tbl small"><thead><tr><th>파이터</th><th>타입</th><th>피해</th><th>치유</th><th>처치</th><th>코어 제출</th><th>상태</th></tr></thead><tbody>${rows}</tbody></table>
       <div class="modal-actions">${info.analysisId ? `<button class="btn big" data-ui="resOpen" data-id="${info.analysisId}">전투 분석 보기</button>` : ''}<button class="btn primary big" data-act="resultContinue">계속</button></div>`, 'result', false);

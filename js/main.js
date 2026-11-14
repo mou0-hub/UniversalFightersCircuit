@@ -33,6 +33,7 @@ const Game = {
       const plan = Club.carryPlan(prev, leagueId, []);
       initOpts = { pool: prev.club.roster.map(id => Pros.get(prev, id)).filter(Boolean), keepFunds: plan.keep };
     }
+    if (prev && prev.club) initOpts.moved = true;
     Club.init(G, initOpts); League.newSeason(G); News.seasonStart(G, League.when(G)); this.match = null; this.draft = null; this.battleOn = false; clearTimeout(this.aiTimer);
     this.save(); UI.closeModal(); UI.go('league'); UI.toast(`${lg.name} 리그 · ${teamName} 감독으로 부임했습니다.`, 'good');
   },
@@ -139,6 +140,7 @@ const Game = {
     const when = League.when(g);             // 경기 날짜(상태가 바뀌기 전에 기록)
     Stats.record(g, { ids: [M.m.a, M.m.b], picks: M.picks, bans: M.bans, winner: res.winner, tac: res.tac });      // 데이터 센터 집계
     MyData.record(g, M, res);
+    const opp0 = this.opponent(), myRank0 = League.rankOf(g, 'player'), oppRank0 = opp0 ? opp0.rank : 0;      // 순위 반영 전(경기 직전) 기준
     let won, draw = false, tag;
     if (M.kind === 'league') {
       tag = `${g.league.round + 1}R`;
@@ -152,6 +154,7 @@ const Game = {
     if (won) { g.streak++; g.bestStreak = Math.max(g.bestStreak, g.streak); } else g.streak = 0;
     g.totals.games++; if (won) g.totals.wins++;
     Club.trackGame(g, won);
+    const fan = Club.afterMatch(g, { kind: M.kind, home: M.kind !== 'league' || M.m.a === 'player', won: res.winner === M.pIdx, draw: res.winner === -1, myRank: myRank0, oppRank: oppRank0 });
     Club.checkChallenges(g).forEach(c => notes.push(`🏅 도전과제 달성: ${c.name} (+${Pros.money(c.reward)})`));
     const oppId = M.m.a === 'player' ? M.m.b : M.m.a;
     g.league.playerLog.push({ tag: M.kind === 'league' ? tag : ({ playoff: 'PO ', msi: 'MSI ', worlds: 'WC ' }[M.kind] || '') + tag, opp: League.name(g, oppId), won, draw, picks: M.picks[M.pIdx] });
@@ -173,7 +176,7 @@ const Game = {
       if (t.champion) this.finishTour(M.kind, notes);
     }
     this.save();
-    return { won, draw, res, M, notes, analysisId: an ? an.id : null };
+    return { won, draw, res, M, notes, analysisId: an ? an.id : null, fan };
   },
 
   /* ---------- MSI / 플레이오프 / 월드 챔피언십 / 시즌 종료 ---------- */
@@ -212,7 +215,10 @@ const Game = {
   finishTour(kind, notes) {
     const g = this.G, t = g[kind]; News.tourEnd(g, kind, League.when(g));
     if (t.seeds.includes('player')) g.seasonLines.push(`${t.name}: ${this.tourText(t)}`);
-    if (t.champion === 'player') { notes.push(`${t.name} 우승!`); this.award(kind); }
+    if (t.champion === 'player') {
+      notes.push(`${t.name} 우승!`); this.award(kind);
+      const ft = Club.fanTitle(g, kind === 'playoff' ? 'league' : kind); notes.push(`👥 우승 효과로 팬 ${ft.d >= 0 ? '+' : ''}${ft.d.toLocaleString('ko-KR')}명 (${(ft.pct * 100).toFixed(1)}%)`);
+    }
     else if (t.champion) notes.push(`${t.name} 우승: ${League.name(g, t.champion)}`);
     if (kind === 'msi') g.phase = 'season';                              // MSI 가 끝나면 정규시즌 후반부로 복귀
     else if (kind === 'playoff') this.startWorlds(notes);

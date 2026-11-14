@@ -540,6 +540,26 @@ const CONFIG = {
       '갤럭시 뱅크', '하이퍼카 코리아', '루나 스포츠', '에이펙스 헤드셋', '보이드 스트리밍'
     ]
   },
+  /* 팬 · 티켓 수입 · 평판 증감 (코드는 이 값을 읽기만 합니다) */
+  fans: {
+    start: [1200, 2000, 3200, 5000, 8000],            // 구단 등급 1~5 시작 팬 수
+    leagueMul: { easy: 0.6, normal: 1, hard: 1.6, master: 2.5 },
+    floor: 300, floorPeak: 0.5,                        // 팬 최소값 = max(floor, 역대 최고 × floorPeak)
+    carryRep: 0.3,                                     // 커리어 이동 시 평판 100 기준 최대 가산 비율
+    repCapDiv: 200,                                    // 팬 최댓값 = 수용 인원 × (1 + 평판 / repCapDiv)
+    minDelta: 50,                                      // 변동이 있을 때 최소 증감 인원
+    win: { min: 0.015, max: 0.03, upset: 0.01, streakAt: 3, streak: 0.005 },
+    loss: { min: 0.003, max: 0.008, none: 0.4, streakAt: 3, streakMul: 1.3, cap: 0.012 },
+    draw: { min: 0, max: 0.005 },
+    tour: { min: 0.03, max: 0.06 },                    // 플레이오프·MSI·월드 승리
+    title: { league: 0.12, msi: 0.10, worlds: 0.20 },  // 우승 보너스
+    season: { bottom: 2, bottomPct: -0.02, top: 3, topPct: 0.02 },
+    stadium: { easy: 6000, normal: 12000, hard: 20000, master: 32000 },
+    mob: { base: 0.55, form: 0.35, recent: 5 },        // 동원율 = base + form × 최근 recent경기 승률
+    unit: { easy: 1.5, normal: 1.5, hard: 1.4, master: 1.25 },   // 관중 100명당 크레딧
+    kindMul: { league: 1, playoff: 1.5, msi: 1.8, worlds: 2.5 },
+    rep: { winMul: 1.5, lossMul: 0.5, lossNone: 0.35, titleMul: 1.5 }
+  },
   club: {
     currency: '크레딧', maxRoster: 6,
     /* 셀러리캡: 선수단 연봉 합 상한 (이적료·계약금은 자금에서 별도). 초과 시 영입·재계약·이동 승계 불가 */
