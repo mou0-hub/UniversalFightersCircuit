@@ -2092,3 +2092,308 @@ small {
 .lgm-team { position: relative; } .lgm-team:disabled { opacity: .38; cursor: not-allowed; }
 .lgm-team.offered:disabled, .lgm-team.offered { opacity: 1; border-color: var(--gold, #fbbf24); }
 .lgm-offer { position: absolute; top: 4px; right: 8px; font-style: normal; font-size: 10.5px; color: var(--gold, #fbbf24); }
+
+/* ---------- 모바일 레이아웃 보강 ---------- */
+
+/* 모달 닫기 버튼 (모바일·태블릿에서만 표시) */
+.modal-x {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .modal-x {
+    position: fixed;
+    top: max(10px, env(safe-area-inset-top));
+    right: 10px;
+    z-index: 110;
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border: 1px solid rgba(255,255,255,.35);
+    border-radius: 50%;
+    background: rgba(6,9,20,.82);
+    font-size: 18px;
+    line-height: 1;
+    color: var(--text);
+    box-shadow: 0 4px 16px rgba(0,0,0,.5);
+    cursor: pointer;
+  }
+}
+
+@media (max-width: 720px) {
+  /* 모달 공통: 주소창을 뺀 실제 높이(dvh) 기준, 안전영역 반영 */
+  #modal {
+    place-items: stretch center;
+    padding: max(10px, env(safe-area-inset-top)) 10px max(10px, env(safe-area-inset-bottom));
+  }
+
+  #modal .modal-box {
+    align-self: center;
+    width: 100%;
+    max-height: calc(100vh - 20px);
+    max-height: calc(100dvh - 20px);
+    padding: 18px 14px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  #modal .modal-box.wide,
+  #modal .modal-box.tm-box,
+  #modal .modal-box.scout-modal {
+    width: 100%;
+    max-height: calc(100vh - 20px);
+    max-height: calc(100dvh - 20px);
+  }
+
+  #modal .modal-actions {
+    flex-wrap: wrap;
+  }
+
+  #modal .modal-actions .btn {
+    flex: 1 1 140px;
+  }
+
+  /* 리그 선택(팀 고르기) 팝업: 목록만 스크롤, 닫기 버튼은 하단 고정 */
+  #modal .modal-box.lgm {
+    height: calc(100vh - 20px);
+    height: calc(100dvh - 20px);
+    padding: 0;
+    overflow: hidden;
+  }
+
+  #modal .lgm-wrap {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    height: 100%;
+    min-height: 0;
+    max-height: none;
+  }
+
+  #modal .lgm-banner {
+    min-height: 88px;
+  }
+
+  #modal .lgm-code {
+    top: 12px;
+    left: 16px;
+    font-size: 30px;
+  }
+
+  #modal .lgm-vname {
+    bottom: 10px;
+    left: 16px;
+    font-size: 16px;
+  }
+
+  #modal .lgm-main {
+    gap: 10px;
+    min-height: 0;
+    padding: 14px 14px 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  #modal .lgm-main header h2 {
+    font-size: 22px;
+  }
+
+  #modal .lgm-main header p {
+    font-size: 12px;
+  }
+
+  #modal .lgm-h {
+    flex-wrap: wrap;
+    gap: 2px 10px;
+    font-size: 14px;
+  }
+
+  #modal .lgm-teams {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  #modal .lgm-team {
+    min-width: 0;
+    padding: 8px 10px;
+  }
+
+  #modal .lgm-team b {
+    overflow-wrap: anywhere;
+  }
+
+  #modal .logo-b {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+  }
+
+  #modal .lgm-main footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    margin: auto -14px 0;
+    padding: 10px 14px max(10px, env(safe-area-inset-bottom));
+    border-top: 1px solid var(--line);
+    background: rgba(10,14,32,.96);
+  }
+
+  #modal .lgm-main footer small {
+    flex: 1 1 0;
+    min-width: 0;
+    font-size: 11px;
+  }
+
+  #modal .lgm-main footer .btn {
+    flex: none;
+    white-space: nowrap;
+  }
+
+  /* 파이터 도감 상세: 화살표는 박스 아래 두 모서리로 */
+  #modal .modal-box.cxd-box {
+    align-self: start;
+    height: calc(100vh - 84px);
+    height: calc(100dvh - 84px);
+    padding: 12px;
+  }
+
+  #modal .cx-arrow {
+    top: auto;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    width: 56px;
+    height: 48px;
+    border-radius: 12px;
+    font-size: 28px;
+    transform: none;
+  }
+
+  #modal .cx-arrow.prev {
+    left: 14px;
+  }
+
+  #modal .cx-arrow.next {
+    right: 14px;
+  }
+
+  /* 뉴스 팝업 */
+  #modal .modal-box.newsm {
+    width: 100%;
+    height: calc(100vh - 20px);
+    height: calc(100dvh - 20px);
+    padding: 12px;
+  }
+
+  /* 상단바: 브랜드 한 줄 + 상태칩 한 줄(가로 스크롤) */
+  body .topbar {
+    top: 6px;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    padding: 8px 10px;
+  }
+
+  .brand {
+    gap: 8px;
+  }
+
+  .brand b {
+    font-size: 14px;
+  }
+
+  .brand small {
+    display: none;
+  }
+
+  .logo {
+    width: 26px;
+    height: 26px;
+  }
+
+  body .status {
+    flex: 1 1 100%;
+    flex-wrap: nowrap;
+    gap: 6px;
+    margin-left: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .status::-webkit-scrollbar {
+    display: none;
+  }
+
+  .status > * {
+    flex: none;
+  }
+
+  .pill {
+    padding: 4px 10px;
+    white-space: nowrap;
+  }
+
+  /* 메뉴 */
+  .nav-bar {
+    scrollbar-width: none;
+  }
+
+  .nav-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nav-btn {
+    flex: none;
+    padding: 7px 12px;
+    font-size: 13px;
+  }
+
+  /* 표는 줄바꿈 대신 패널 안에서 가로 스크롤 */
+  .glass.panel {
+    overflow-x: auto;
+  }
+
+  .tbl th,
+  .tbl td {
+    padding: 7px 6px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  /* 리그 선택 화면 */
+  .lg-grid,
+  .team-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mgr-card,
+  .cur-run {
+    flex-wrap: wrap;
+  }
+
+  .mgr-card > div {
+    flex: 1 1 160px;
+    min-width: 0;
+  }
+
+  .mgr-card .btn,
+  .cur-run .btn {
+    flex: 1 1 100%;
+  }
+
+  .btn {
+    white-space: nowrap;
+  }
+
+  .res-head h2 {
+    font-size: 30px;
+  }
+
+  .dc-fs {
+    flex-wrap: wrap;
+    gap: 14px 22px;
+  }
+}
+
+@media (max-width: 380px) {
+  .dc-tiles {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

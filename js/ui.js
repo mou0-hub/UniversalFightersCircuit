@@ -425,7 +425,7 @@ header.top, header.app-header, #topbar, .topbar{
   }
   function modal(html, cls = '', closable = true) {
     const m = $('#modal'); m.hidden = false; m.dataset.closable = closable ? '1' : '';
-    m.innerHTML = `<div class="modal-bg" ${closable ? 'data-act="closeModal"' : ''}></div><div class="modal-box glass ${cls}">${html}</div>`;
+    m.innerHTML = `<div class="modal-bg" ${closable ? 'data-act="closeModal"' : ''}></div><div class="modal-box glass ${cls}">${html}</div>${closable ? '<button class="modal-x" data-act="closeModal" aria-label="닫기">✕</button>' : ''}`;
   }
   function closeModal() { const m = $('#modal'); m.hidden = true; m.innerHTML = ''; }
 
