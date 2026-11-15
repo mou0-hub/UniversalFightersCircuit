@@ -1,7 +1,7 @@
 /* stats.js — 데이터 센터: 경기 기록 집계(파이터 승률/상성/팀 선호도/리그 밴픽률) + 조회 */
 
 const Stats = (() => {
-  const blank = () => ({ n: 0, f: {}, vs: {}, team: {}, lg: {}, tac: {}, slot: {} });
+  const blank = () => ({ n: 0, f: {}, vs: {}, team: {}, lg: {}, tac: {}, slot: {}, ord: {} });
   const get = G => (G.stats = G.stats || blank());
   const roster = () => CONFIG.fighterOrder.filter(id => CONFIG.fighters[id] && !CONFIG.fighters[id].boss);
   const inc = (o, k) => { o[k] = (o[k] || 0) + 1; };
@@ -21,6 +21,14 @@ const Stats = (() => {
       S.tac = S.tac || {}; S.slot = S.slot || {};
       Object.keys(r.tac.st[i]).forEach(c => put(S.tac, c, r.tac.st[i][c]));
       (r.tac.sl[i] || []).forEach(s => Object.keys(s).forEach(c => put(S.slot, c, s[c])));
+    }
+    if (r.ord) {
+      const S2 = S.ord = S.ord || {}, max = (CONFIG.battle && CONFIG.battle.maxTicks) || 3600;
+      r.ord.forEach(o => {
+        const win = r.winner === o.team, row = (S2[o.scope + ':' + o.id] = S2[o.scope + ':' + o.id] || {});
+        ['all', 'ph:' + (o.t < max * 0.25 ? 'early' : o.t < max * 0.65 ? 'mid' : 'late'), 'ld:' + (o.lead <= -2 ? 'behind' : o.lead >= 2 ? 'ahead' : 'even'), o.boss ? 'boss:on' : 'boss:off'].concat(o.sudden ? ['sd'] : [])
+          .forEach(tg => { const c = (row[tg] = row[tg] || [0, 0]); c[0]++; if (win) c[1]++; });
+      });
     }
     for (const a of r.picks[0]) for (const b of r.picks[1]) {
       const x = (S.vs[a] = S.vs[a] || {})[b] = S.vs[a][b] || [0, 0], y = (S.vs[b] = S.vs[b] || {})[a] = S.vs[b][a] || [0, 0];
@@ -51,6 +59,15 @@ const Stats = (() => {
   const leagueRates = (G, lg) => { const B = get(G).lg[lg]; return { picks: rates(B, 'p'), bans: rates(B, 'b') }; };
   const teamRates = (G, lg, name) => { const B = get(G).team[lg + '|' + name]; return { picks: rates(B, 'p'), bans: rates(B, 'b') }; };
 
+  /* 지시별 사용 횟수·승률과 상황별 최고/최저 (표본 min회 이상) */
+  function orders(G, min = 3) {
+    const S = get(G).ord || {}, wr = c => c[1] / c[0];
+    return Object.keys(S).map(key => {
+      const row = S[key], all = row.all || [0, 0], tags = Object.keys(row).filter(t => t !== 'all' && row[t][0] >= min).map(t => ({ tag: t, g: row[t][0], wr: wr(row[t]) })).sort((a, b) => b.wr - a.wr || b.g - a.g);
+      const [scope, id] = key.split(':');
+      return { key, scope, id, g: all[0], w: all[1], wr: all[0] ? wr(all) : 0, best: tags[0] || null, worst: tags.length > 1 ? tags[tags.length - 1] : null };
+    }).sort((a, b) => b.g - a.g);
+  }
   const tactics = G => ({ team: get(G).tac || {}, slot: get(G).slot || {} });
-  return { tactics, blank, get, record, fighters, topWin, botWin, topBy, matchups, leagueRates, teamRates, roster };
+  return { orders, tactics, blank, get, record, fighters, topWin, botWin, topBy, matchups, leagueRates, teamRates, roster };
 })();

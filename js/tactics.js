@@ -43,7 +43,7 @@
 
   const PRESETS = {
     balanced: {
-      name: '균형', desc: '기본 기조에 가벼운 팀플레이(집결·포커스·역할 이동)를 얹습니다.',
+      name: '균형', desc: '무난한 기본 운영입니다. 상황에 맞게 경기 중 지시로 바꿔 보세요.',
       set: { gather: ['two', 3], hurry: ['normal', 4], focus: ['weak', 3], chain: ['follow', 3], roleMove: ['split', 3], podCycle: ['cover', 3] }
     },
     scavenger: {
@@ -141,10 +141,37 @@
     return { strategy: S, tactics: tac };
   }
 
+  /* 사전 전술 정리: 숨긴 팀 항목은 고정값, 정도는 모두 pre.level */
+  function normalizeStrategy(S) {
+    const P = T.pre; Object.entries(P.fixed).forEach(([k, v]) => { S[k] = [v, P.level]; });
+    P.team.forEach(k => { if (S[k]) S[k][1] = P.level; }); return S;
+  }
+  function normalizeSlots(arr) {
+    const P = T.pre; arr.forEach(t => T.categories.forEach(c => { if (t[c.id]) t[c.id][1] = P.level; })); return arr;
+  }
+
+  /* 슬롯 역할: 역할 프리셋 / 프리셋 전략을 반영한 자동 슬롯 / 최종 슬롯 */
+  function roleTactic(id) {
+    const r = T.roles.find(x => x.id === id), t = neutralTactic();
+    if (r) Object.entries(r.set).forEach(([k, v]) => set(t, k, v)); return t;
+  }
+  function autoSlots(name, ids) {
+    const p = PRESETS[name];
+    return ids.map((fid, i) => {
+      const t = presetTactic(fid), f = FD(fid);
+      if (p && p.tac) Object.entries(p.tac(i, f || null)).forEach(([k, v]) => { t[k] = v.slice(); });
+      return t;
+    });
+  }
+  function slotsFor(G, ids) {
+    const roles = G.slotRole || [], auto = autoSlots(G.slotPreset, ids);
+    return normalizeSlots(ids.map((fid, i) => (roles[i] && roles[i] !== 'auto' && G.slotTactics && G.slotTactics[i] ? JSON.parse(JSON.stringify(G.slotTactics[i])) : auto[i])));
+  }
+
   function neutralSlots() { return [0, 1, 2].map(i => presetSlot(i)); }
 
   Object.assign(Draft, {
     neutralTactic, neutralStrategy, presetTactic, presetSlot, presetSlots, presetStrategy,
-    aiTactic: presetTactic, aiTeam, strategyPresets: PRESETS, neutralSlots
+    aiTactic: presetTactic, aiTeam, strategyPresets: PRESETS, neutralSlots, normalizeStrategy, normalizeSlots, roleTactic, autoSlots, slotsFor
   });
 })();

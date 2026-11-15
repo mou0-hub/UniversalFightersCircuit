@@ -84,14 +84,44 @@ const Club = (() => {
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
   const round10 = n => Math.round(n / 10) * 10;
   const capOfDiff = d => (C().cap || {})[d] || C().cap.normal;
-  const cap = G => capOfDiff(G.difficulty || (League.lgOf(G) && League.lgOf(G).diff) || 'normal');
+  const KR = () => C().capRule;
+  const capBase = G => capOfDiff(diffOf(G));
+  function nextCap(G) {
+    const ord = C().promotion.order, base = capBase(G);
+    for (let i = ord.indexOf(G.leagueId) + 1; i > 0 && i < ord.length; i++) { const lg = CONFIG.leagues.find(l => l.id === ord[i]); if (lg && capOfDiff(lg.diff) > base) return capOfDiff(lg.diff); }
+    return Infinity;
+  }
+  const capMaxGrow = G => { const nx = nextCap(G); return nx === Infinity ? KR().maxGrow : Math.max(0, Math.min(KR().maxGrow, nx * KR().nextRatio / capBase(G) - 1)); };
+  const capGrow = G => Math.min((G.club && G.club.capGrow) || 0, capMaxGrow(G));
+  const cap = G => round10(capBase(G) * (1 + capGrow(G)));
+  const hardCap = G => round10(cap(G) * (1 + KR().hardOver));
+  const capFloor = G => round10(cap(G) * KR().floor);
   const capLeft = G => cap(G) - payroll(G);
+  const taxOf = (G, pay) => round10(Math.max(0, pay - cap(G)) * KR().tax);
+  function capInfo(G) {
+    const c = G.club, pay = payroll(G), cp = cap(G), avg = c.pN ? c.pSum / c.pN : pay;
+    return { cap: cp, base: capBase(G), grow: capGrow(G), maxGrow: capMaxGrow(G), hard: hardCap(G), floor: capFloor(G), pay, left: cp - pay, avg, taxNow: taxOf(G, pay), atMax: capGrow(G) >= capMaxGrow(G) - 1e-9 };
+  }
+  /* 시즌 정산 때 캡 성장: 기본 + 순위·우승 + 수입(경상 수입 / 기준) → 상한 maxStep, 총 성장은 maxGrow·다음 단계 캡 × nextRatio 이하 */
+  function capSeason(G, rec, rank) {
+    const K = KR(), S = K.step, o = C().owner, mul = o.leagueMul[League.lgOf(G).diff] || 1, ref = (o.base + (o.rank[3] || 0)) * mul * K.refUp, c = G.club;
+    let step = S.base; if (rank >= 1 && rank <= S.topRank) step += S.top;
+    [['playoff', S.league], ['msi', S.msi], ['worlds', S.worlds]].forEach(([k, v]) => { if (G[k] && G[k].champion === 'player') step += v; });
+    step = clamp(step + clamp((ref ? rec / ref : 1) - 1, -1, 1) * K.revW, 0, K.maxStep);
+    const from = cap(G), mx = capMaxGrow(G), g0 = Math.min(c.capGrow || 0, mx), g1 = Math.min(mx, g0 + step);
+    c.capGrow = g1; return { from, to: cap(G), step: g1 - g0, atMax: g1 >= mx - 1e-9 };
+  }
+  /* 자기 선수 재계약: 소프트캡 초과를 하드캡까지 허용(사치세 부과) */
+  function renewRoom(G, add, minus) {
+    const after = payroll(G) - (minus || 0) + add, cp = cap(G), hard = hardCap(G);
+    return { after, ok: after <= hard, over: after > cp, tax: taxOf(G, after), hard, cap: cp };
+  }
 
   /* 새 커리어: opts.carry = 승계 선수(이전 구단 객체), opts.pool = 미승계 선수(FA 풀로 환원), opts.carryFee, opts.keepFunds */
   function init(G, opts = {}) {
     G.pros = { seq: 0, by: {} }; G.market = { fa: [], round: -99 };
     const funds = (C().startFunds[G.difficulty] || C().startFunds.normal) + (opts.keepFunds || 0) - (opts.carryFee || 0);
-    G.club = { funds, fans: 0, fanPeak: 0, recent: [], lossStreak: 0, roster: [], lineup: [null, null, null], finance: null, sponsorEarned: 0, sponsorCD: 0, pendingSponsor: null, ownerGoal: null, sg: 0, sgSeason: null, leavers: [], pool: [] };
+    G.club = { funds, fans: 0, fanPeak: 0, recent: [], lossStreak: 0, roster: [], lineup: [null, null, null], finance: null, sponsorEarned: 0, sponsorCD: 0, pendingSponsor: null, ownerGoal: null, sg: 0, sgSeason: null, leavers: [], pool: [], capGrow: 0, sIn: 0, pSum: 0, pN: 0 };
     const level = G.difficulty || 'normal', lgId = G.leagueId || 'kr', by = G.pros.by;
     const copy = (src, team) => { const p = JSON.parse(JSON.stringify(src)); p.id = 'p' + (++G.pros.seq); p.team = team; p.sg = 0; p.sw = 0; p.refused = null; p.listed = false; p.fee = 0; by[p.id] = p; return p; };
     const carried = (opts.carry || []).map(src => copy(src, 'player'));
@@ -133,7 +163,7 @@ const Club = (() => {
       Pros.remove(G, t.pros[wi]); t.pros[wi] = p.id; p.team = t.id; p.listed = false;
     });
     G.club.leavers = [];
-    if (G.club.sgSeason !== G.season) { G.club.sg = 0; G.club.sgSeason = G.season; roster(G).forEach(p => { p.sg = 0; p.sw = 0; p.moodAdj = 0; }); }
+    if (G.club.sgSeason !== G.season) { G.club.sg = 0; G.club.pSum = 0; G.club.pN = 0; G.club.sgSeason = G.season; roster(G).forEach(p => { p.sg = 0; p.sw = 0; p.moodAdj = 0; }); }
     Pros.purge(G); Market.refresh(G, true);
     /* 승계하지 못한 선수는 FA 풀로 환원 */
     (G.club.pool || []).forEach(id => { const p = Pros.get(G, id); if (p) { p.team = null; p.years = Pros.rnd(1, 2); Market.ensure(G).fa.push(id); } });
@@ -152,6 +182,9 @@ const Club = (() => {
     if (G.club.ownerGoal === undefined) G.club.ownerGoal = null;
     if (G.club.sponsorEarned == null) G.club.sponsorEarned = 0;
     if (G.club.sg == null) G.club.sg = 0;
+    if (G.club.capGrow == null) G.club.capGrow = 0;
+    if (G.club.sIn == null) G.club.sIn = 0;
+    if (G.club.pN == null) { G.club.pSum = 0; G.club.pN = 0; }
     if (!G.club.leavers) G.club.leavers = [];
     if (!G.club.pool) G.club.pool = [];
     if (G.pros) Object.values(G.pros.by).forEach(p => { Pros.ensurePot(p); if (p.sg == null) { p.sg = 0; p.sw = 0; } });
@@ -199,7 +232,7 @@ const Club = (() => {
   /* ----- 선수 만족도 / 출전 기록 ----- */
   function trackGame(G, won) {
     if (!G.club) return;
-    G.club.sg = (G.club.sg || 0) + 1;
+    G.club.sg = (G.club.sg || 0) + 1; G.club.pSum = (G.club.pSum || 0) + payroll(G); G.club.pN = (G.club.pN || 0) + 1;
     G.club.lineup.forEach(id => { const p = id && Pros.get(G, id); if (p) { p.sg = (p.sg || 0) + 1; if (won) p.sw = (p.sw || 0) + 1; } });
     const B = CONFIG.pro.morale;
     G.club.roster.forEach(id => { const p = !G.club.lineup.includes(id) && Pros.get(G, id); if (p && Math.random() < B.recover) p.moodAdj = Math.min(B.recoverMax, (p.moodAdj || 0) + B.recoverStep); });
@@ -263,9 +296,12 @@ const Club = (() => {
     const sponsorSum = G.club.sponsorEarned || 0;
     if (sponsorSum > 0) pay.push({ k: '시즌 스폰서·광고 수입', v: sponsorSum });
     if (ticketSum > 0) pay.push({ k: `시즌 티켓 수입 (${tix.games}경기)`, v: ticketSum });
-    const income = pay.reduce((s, x) => s + x.v, 0), cost = payroll(G), capNow = cap(G), out = [];
+    const income = pay.reduce((s, x) => s + x.v, 0), cost = payroll(G), capNow = cap(G), out = [], K = KR(), cc = G.club;
+    const avgPay = cc.pN ? cc.pSum / cc.pN : cost, tax = taxOf(G, avgPay), floorV = capFloor(G);
+    const pen = (cc.sIn || 0) >= K.floorGrace && avgPay < floorV ? round10((floorV - avgPay) * K.floorPen) : 0;
     const before = G.club.funds, paid = sponsorSum + ticketSum;        // 스폰서·티켓은 이미 입금됨
-    G.club.funds += (income - paid) - cost;
+    G.club.funds += (income - paid) - cost - tax - pen;
+    const cs = capSeason(G, pay.filter(x => !/우승 보너스/.test(x.k)).reduce((s, x) => s + x.v, 0), rank); cc.sIn = (cc.sIn || 0) + 1;
     const B = CONFIG.pro.morale, ros = roster(G), left = [], expired = [];
     const growth = ros.map(p => Pros.develop(G, p, { share: shareOf(G, p), rank }));
     const mo = {}; ros.forEach(p => { mo[p.id] = mood(G, p); });
@@ -291,11 +327,14 @@ const Club = (() => {
     const ev = evaluateGoal(G);
     if (ev && ev.success) pay.push({ k: `구단주 목표 달성 (${ev.goal.label})`, v: ev.bonus });
     const chDone = checkChallenges(G);
-    G.club.finance = { season: G.season, income: pay, cost, before, after: G.club.funds, expired: toFA.map(p => p.nick), sponsor: sponsorSum, cap: capNow, growth, left };
+    G.club.finance = { season: G.season, income: pay, cost, before, after: G.club.funds, expired: toFA.map(p => p.nick), sponsor: sponsorSum, cap: capNow, avgPay, tax, pen, capTo: cs.to, growth, left };
     out.push(`💰 구단주 지급 +${Pros.money(income - paid)} · 연봉 −${Pros.money(cost)} → 자금 ${Pros.money(G.club.funds)}`);
     out.push(`🎟 티켓 수입 합계 +${Pros.money(ticketSum)} (이미 입금됨) · 경기당 평균 ${Pros.money(fi.avg)} · 관중률 ${Math.round(fi.fill * 100)}%`);
     out.push(`👥 팬 ${fi.seasonGain >= 0 ? '+' : ''}${fi.seasonGain.toLocaleString('ko-KR')}명 (시즌 시작 ${(G.club.fansStart || 0).toLocaleString('ko-KR')} → ${fi.fans.toLocaleString('ko-KR')})${fs.d ? ` · 시즌 순위 반영 ${fs.d > 0 ? '+' : ''}${fs.d.toLocaleString('ko-KR')}` : ''}`);
-    out.push(`📊 셀러리캡 사용 ${Pros.money(cost)} / ${Pros.money(capNow)} (${cost > capNow ? '초과' : '여유 ' + Pros.money(capNow - cost)})`);
+    out.push(`📊 셀러리캡 사용(시즌 평균) ${Pros.money(Math.round(avgPay))} / ${Pros.money(capNow)} (${avgPay > capNow ? '초과' : '여유 ' + Pros.money(Math.round(capNow - avgPay))})`);
+    if (tax > 0) out.push(`💸 사치세 −${Pros.money(tax)} (캡 초과분 ${Pros.money(Math.round(avgPay - capNow))}의 ${Math.round(K.tax * 100)}%)`);
+    if (pen > 0) out.push(`📉 최소 연봉 미달 벌금 −${Pros.money(pen)} (하한 ${Pros.money(floorV)} · 시즌 평균 ${Pros.money(Math.round(avgPay))})`);
+    out.push(cs.step > 0.0005 ? `📈 셀러리캡 상승 ${Pros.money(cs.from)} → ${Pros.money(cs.to)} (+${(cs.step * 100).toFixed(1)}%)${cs.atMax ? ' · 이 리그의 성장 한계' : ''}` : `📈 셀러리캡 ${Pros.money(cs.to)} · 이 리그의 성장 한계에 도달했습니다. 상위 리그로 승격하면 더 큰 캡을 쓸 수 있습니다.`);
     growth.forEach(g => out.push(`📈 ${g.nick} ${g.from}→${g.to} (${g.d >= 0 ? '+' : ''}${g.d}) · 잠재 ${g.pot}${g.promoted ? ` · ${g.oldGrade}급→${g.grade}급 승급!` : ''}${g.note ? ' · ' + g.note : ''}`));
     if (ev) out.push(ev.success ? `🎯 구단주 목표 「${ev.goal.label}」 달성! 보너스 +${Pros.money(ev.bonus)}` : `🎯 구단주 목표 「${ev.goal.label}」 미달성 — 평판이 하락했습니다.`);
     chDone.forEach(c => out.push(`🏅 도전과제 「${c.name}」 달성 +${Pros.money(c.reward)}`));
@@ -623,5 +662,5 @@ const Club = (() => {
     spDecline() { done(declineSponsor(Game.G)); }
   };
 
-  return { afterMatch, fanTitle, fanInfo, ensureFans, cap, capLeft, mood, trackGame, moveCheck, promoLines, startAllowed, carryPlan, carryDefault, tierOf, init, seasonSetup, migrate, challenges, checkChallenges, goalReward, ensureRoster, roster, lineup, ready, brains, moods, payroll, setSlot, autoFill, ownerPay, settle, assignGoal, goalProgress, checkPressure, evaluateGoal, trySponsor, acceptSponsor, declineSponsor, actions };
+  return { afterMatch, fanTitle, fanInfo, ensureFans, capInfo, hardCap, capFloor, renewRoom, cap, capLeft, mood, trackGame, moveCheck, promoLines, startAllowed, carryPlan, carryDefault, tierOf, init, seasonSetup, migrate, challenges, checkChallenges, goalReward, ensureRoster, roster, lineup, ready, brains, moods, payroll, setSlot, autoFill, ownerPay, settle, assignGoal, goalProgress, checkPressure, evaluateGoal, trySponsor, acceptSponsor, declineSponsor, actions };
 })();

@@ -696,27 +696,49 @@
     stats: { hp: 700, mp: 260, aspd: 1.0, spd: 7.8, atk: 47, ap: 20, def: 12, res: 11, ten: 0, pen: 0.08, ls: 0, range: 14, crit: 0.05, critDmg: 1.5 },
     basic: rangedBasic, ai: { backline: true, kite: 12, threat: 1.0 },
     tac: { act: ['basic', 'retreat'], fight: ['coop'], pos: ['cover'], aim: ['near', 'weak'] },
-    look: { pal: { h: '#e0f2fe', s: '#fde4d0', i: '#bae6fd', I: '#38bdf8', n: '#1e3a8a', w: '#f0f9ff', k: '#0b1b3a', e: '#0ea5e9', c: '#67e8f9', C: '#0891b2' },
-      rows: [
-        '.....hhhhhh.....',
-        '....hhhhhhhh....',
-        '...hhhhhhhhhh...',
-        '...hhssssssh....',
-        '...hsesssesh....',
-        '....sssssss.....',
-        '...iiInnnnIii...',
-        '..iinnnwwnnnii.c',
-        '.ssnnnnwwnnnns.C',
-        '.sknnnnnnnnkcCCc',
-        '..knnnIIInnn.cC.',
-        '...nnnnnnnn..c..',
-        '....nnnnnnn.....',
-        '....nnn..nnn....',
-        '....nnn..nnn....',
-        '....iin..nii....',
-        '...iiii..iiii...',
-        '...kkkk..kkkk...'],
-      weapon: '' },
+    look: {
+  res: 2,
+  pal: {
+    B: '#1e5a9e', b: '#123a6b', A: '#7dd3fc',                  // 재킷 / 재킷 음영 / 하늘색 포인트
+    N: '#e8f4ff', F: '#cfe1ef', f: '#93b5cf',                  // 목도리 / 모피 단 / 모피 음영
+    H: '#e0f2fe', h: '#8fc9ee',                                // 머리 / 머리 음영
+    S: '#ffe0c8', s: '#e8b894', E: '#101428', I: '#38bdf8',   // 피부 / 피부 음영 / 눈 / 홍채
+    p: '#ffb3c7', P: '#e87fa0',                                // 볼터치 / 입
+    G: '#2b4f7a',                                              // 장갑
+    L: '#2a3f66', l: '#1b2a47', D: '#0f2338',                  // 바지 / 바지 음영 / 부츠
+    Q: '#f0ffff', C: '#a5f3fc', c: '#22a6d6'                   // 결정 하이라이트 / 본체 / 음영
+  },
+  rows: [
+    '.......H..H.H..................',
+    '......HHhHHhHH..................',
+    '.....hHHHHHHHHh.................',
+    '.....HHHhHHhHHH.................',
+    '.....HHSSSSSSHH.................',
+    '.....HhSESSEShH.................',
+    '.....HhSISSIShH.................',
+    '......hpSSSSph..................',
+    '......hSSPPSSh..................',
+    '........sSSs........QQ..........',
+    '......NNANNANN.....cQQc..QQ.....',
+    '.....NANNNNNNAN.....QQ..cQQc....',
+    '...bBBNNBBBBBBBBB......cCQQCc.A.',
+    '...bBBNABAABBBBBBAGG..cCCQQCCc..',
+    '...bBBNNBAABBBBBBAGG..cCCQQCCc..',
+    '...bBBBBBAABBBB........cCQQCc...',
+    '...bBBBBBAABBBB.....QQ..cQQc....',
+    '...GGAAAAQQAAAA....cQQc..QQ.....',
+    '...GGFFfFFFFfFF.....QQ..........',
+    '......LLl..lLL..................',
+    '......LLl..lLL..................',
+    '......LLl..lLL..................',
+    '......LLl..lLL..................',
+    '......LLl..lLL..................',
+    '.....FFFF..FFFF.................',
+    '.....DDDD..DDDD.................',
+    '.....DDDD..DDDD.................',
+    '....DDDDD..DDDDD................'
+  ]
+},
     passive: { name: '얼음덩어리', desc: '기본 공격이 적을 1.5초간 15% 둔화시킵니다. 얼음지대 위에서는 이동속도가 크게 늘어납니다.',
       onBasic(b, u, t) { if (t.alive) b.cc(u, t, 'slow', 1.5, { amt: 0.15, quiet: true }); },
       tick(b, u) {

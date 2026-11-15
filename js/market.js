@@ -33,9 +33,11 @@ const Market = (() => {
 
   function canAfford(G, cost) { return G.club.funds >= cost; }
   function rosterFull(G) { return G.club.roster.length >= CONFIG.club.maxRoster; }
-  function capFail(G, add, minus) {
+  function capFail(G, add, minus, own) {
     const cap = Club.cap(G), after = Club.payroll(G) - (minus || 0) + add;
-    return after > cap ? `셀러리캡 초과입니다. (연봉 합 ${Pros.money(after)} / 상한 ${Pros.money(cap)})` : null;
+    if (after <= cap) return null;
+    if (own) { const hard = Club.hardCap(G); return after <= hard ? null : `하드캡 초과입니다. (연봉 합 ${Pros.money(after)} / 재계약 한도 ${Pros.money(hard)})`; }
+    return `셀러리캡 초과입니다. (연봉 합 ${Pros.money(after)} / 상한 ${Pros.money(cap)})`;
   }
 
   function signFA(G, id) {
@@ -68,12 +70,13 @@ const Market = (() => {
     const p = Pros.get(G, id); if (!p || !G.club.roster.includes(id)) return { ok: false, msg: '선수단에 없는 선수입니다.' };
     if (p.refused === G.season) return { ok: false, msg: `${p.nick} 선수는 이번 시즌 재계약을 거부한 상태입니다.` };
     const fee = renewFee(p), ns = renewSalary(p);
-    const cf = capFail(G, ns, p.salary); if (cf) return { ok: false, msg: `재계약 제한 — ${cf}` };
+    const cf = capFail(G, ns, p.salary, true); if (cf) return { ok: false, msg: `재계약 제한 — ${cf}` };
     if (!canAfford(G, fee)) return { ok: false, msg: `재계약금이 부족합니다. (필요 ${Pros.money(fee)})` };
     const mo = Club.mood(G, p), B = CONFIG.pro.morale, chance = Math.max(0, Math.min(0.95, (B.refuseBelow - mo.score) / B.refuseBelow));
     if (chance > 0 && Math.random() < chance) { p.refused = G.season; return { ok: false, msg: `${p.nick} 선수가 재계약을 거부했습니다. (${mo.why})` }; }
     G.club.funds -= fee; p.years = 2; p.salary = ns;
-    return { ok: true, msg: `${p.nick} 재계약 (2년, 연봉 ${Pros.money(p.salary)})` };
+    const rr = Club.renewRoom(G, 0, 0);
+    return { ok: true, msg: `${p.nick} 재계약 (2년, 연봉 ${Pros.money(p.salary)})${rr.over ? ` · 캡 초과분에 사치세가 부과됩니다 (현재 기준 시즌당 약 ${Pros.money(rr.tax)})` : ''}` };
   }
   return { refresh, listed, signFA, buyListed, release, renew, signFee, releaseFee, renewFee, renewSalary, ensure };
 })();

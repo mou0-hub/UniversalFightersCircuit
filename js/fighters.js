@@ -120,8 +120,97 @@
     basic: { type: 'magic', atk: 0.5, ap: 0.55, proj: 'bolt' }, ai: { backline: true, kite: 14, threat: 0.95 },
     tac: { act: ['basic', 'retreat'], fight: ['coop'], pos: ['none', 'cover'] },
     form0: 'normal',
-    look: { hair: '#14532d', skin: '#a3e635', body: '#365314', acc: '#84cc16', hairStyle: '', feat: '5,-1,Y;6,-1,Y;5,-2,A;6,-2,A;3,3,K;8,3,K', weapon: '11,6,A;11,7,A;12,6,W' },
-    looks: { super: { hair: '#be185d', skin: '#f9a8d4', body: '#831843', acc: '#f472b6', hairStyle: '2,2,H;2,3,H;9,2,H;9,3,H;3,-1,H;8,-1,H', feat: '4,-1,Y;5,-2,Y;6,-2,Y;7,-1,Y;5,3,K;7,3,K', weapon: '0,7,Y;0,8,Y;11,7,Y;11,8,Y;1,6,A;10,6,A' } },
+  look: {
+  hair: '#e2e8f0', skin: '#e2e8f0', body: '#cbd5e1', acc: '#a3e635', res: 2,
+  pal: {
+    T: '#e2e8f0', D: '#94a3b8', E: '#0b0f1f',          // 회백색 피부 / 피부 그림자 / 눈
+    G: '#a3e635', U: '#ecfccb',                        // 라임 에너지 / 에너지 중심광
+    A: '#f8fafc', B: '#cbd5e1', C: '#64748b'           // 갑옷 흰색 / 회색 / 어두운 회색
+  },
+  rows: [
+    '..............TTTT..............',
+    '.............TTTTTT.............',
+    '............TTTTTTTT............',
+    '...........TTTTTTTTTT...........',
+    '..........TTTTTTTTTTTT..........',
+    '..........TEEETTTTEEET..........',
+    '..........TEEGETTEGEET..........',
+    '..........TTEEETTEEETT..........',
+    '...........TTTTTTTTTT...........',
+    '............DTTTTTTD............',
+    '..............DTTD..............',
+    '............CBBBBBBC............',
+    '.......CBBBBAAAAAAAABBBBC.......',
+    '......CBBBBBAAAAAAAABBBBBC.GG...',
+    '......CBBBBCAAGGGGAACBBBBCGUUG..',
+    '......DTD.CBAAGGGGAABC.DTDGUUG..',
+    '......DTD.CBAGGAAGGABC.DTD.GG...',
+    '......TD..CBBAAAAAABBC..DTTT....',
+    '......TTT.CCKGGCCGGKCC.TTT......',
+    '..........CBBBAAAABBBC..........',
+    '.........CAAAAB..BAAAAC.........',
+    '.........CAAAAB..BAAAAC.........',
+    '.........CBBGBB..BBGBBC.........',
+    '.........CBAAAC..CAAABC.........',
+    '.........CBAAAC..CAAABC.........',
+    '.........CBAAAC..CAAABC.........',
+    '.........CBAAAC..CAAABC.........',
+    '.........CBAAAC..CAAABC.........',
+    '.........CBAAAC..CAAABC.........',
+    '.........CBBBBB..BBBBBC.........',
+    '........XXCCCCC..CCCCCXX........',
+    '.......XXXXKKKK..KKKKXXXX.......'
+  ]
+},
+looks: {
+  super: {
+    hair: '#be185d', skin: '#fce7f3', body: '#9d174d', acc: '#f472b6', res: 2,
+    pal: {
+      T: '#fce7f3', D: '#f9a8d4', E: '#2a0a1e',        // 연분홍 피부 / 그림자 / 눈
+      Y: '#fde047', P: '#f472b6',                      // 금빛 뿔·코어 / 분홍 하이라이트
+      A: '#be185d', B: '#9d174d', C: '#500724',        // 갑옷 주색 / 어두운색 / 가장 어두운색
+      G: '#fde047'                                     // 가슴 코어
+    },
+    rows: [
+      '.......YY......YY......YY.......',
+      '........YY....YYYY....YY........',
+      '.........YY..PYYYYP..YY.........',
+      '.........ACBAAPYYPAABCA.........',
+      '.........CATTTTTTTTTTAC.........',
+      '.........CATEETTTTEETAC.........',
+      '.........CAEEYETTEYEEAC.........',
+      '.........CATEEETTEEETAC.........',
+      '.........BATTTTDDTTTTAB.........',
+      '.........CBAATDDDDTAABC.........',
+      '....Y.....CBBAADDAABBC.....Y....',
+      '....YY....BBCCCCCCCCBB....YY....',
+      '..CBAAAAAAAABBCCCCBBAAAAAAAABC..',
+      '.CBAAPPAAAAAAABBBBAAAAAAAPPAABC.',
+      '.CBAPYPAAAAABBCCCCBBAAAAAPYPABC.',
+      '.CBAAPAAAABBAGGGGGGABBAAAAPAABC.',
+      '..CBAAATD.CBAAGGGGAABC.DTAAABC..',
+      '..CBAAATD.CBPAGGGGAPBC.DTAAABC..',
+      '..CBBBATD.CBAAAGGAAABC.DTABBBC..',
+      '..CAPPAAC.CBBAAAAAABBC.CAAPPAC..',
+      '..CAAAAAC.CCBBAAAABBCC.CAAAAAC..',
+      '..CAPPAAC.CKCCGGGGCCKC.CAAPPAC..',
+      '..DTTTD.CBAAAPBAABPAAABC.DTTTD..',
+      '..PTTTP.CBAAAAABBAAAAABC.PTTTP..',
+      '...DTD.CBAAAPAB..BAPAAABC.DTD...',
+      '.......CBAAAPAB..BAPAAABC.......',
+      '.......CBAAAAAB..BAAAAABC.......',
+      '......YYCBPPAAB..BAAPPBCYY......',
+      '.......CBAAAAAB..BAAAAABC.......',
+      '.......CBAAAPAB..BAPAAABC.......',
+      '.......CBAAAAAB..BAAAAABC.......',
+      '.......CBAAAAAB..BAAAAABC.......',
+      '.......CBAAAAAB..BAAAAABC.......',
+      '.....CCBBBBBBBB..BBBBBBBBCC.....',
+      '....CCCBBBBBBBB..BBBBBBBBCCC....',
+      '....KKKKKKKKKKK..KKKKKKKKKKK....'
+    ]
+  }
+},
     passive: { name: '코스믹 진화', desc: '적에게 피해를 주면 에너지가 충전됩니다. 가득 차면 14초간 슈퍼 에일리언으로 변신하고 궁극기가 활성화됩니다.',
       init(b, u) { u.mem.en = 0; },
       onDealt(b, u, t, res) { if (u.form === 'super') return; u.mem.en = Math.min(100, u.mem.en + res.dealt * 0.14); if (u.mem.en >= 100) alienEvolve(b, u); },
@@ -380,11 +469,54 @@
   FD.warrior = {
     id: 'warrior', name: '워리어', role: 'warrior', color: '#f59e0b', title: '정직한 대검 전사',
     concept: '"정의로움은 가장 큰 가치이지."',
-    stats: { hp: 940, mp: 160, aspd: 0.8, spd: 7.6, atk: 52, ap: 0, def: 40, res: 30, ten: 0.15, pen: 0.10, ls: 0, range: 7 },
+    stats: { hp: 940, mp: 160, aspd: 0.8, spd: 7.6, atk: 61, ap: 0, def: 40, res: 30, ten: 0.15, pen: 0.10, ls: 0, range: 7 },
     basic: { type: 'phys', atk: 1, ap: 0, proj: 'melee' }, ai: { front: true, threat: 1.4 },
     tac: { act: ['basic', 'rush'], fight: ['coop'], pos: ['front'] },
-    look: { hair: '#7c2d12', skin: '#f0c9a0', body: '#92400e', acc: '#fbbf24', hairStyle: '3,-1,H;5,-1,H;7,-1,H;8,0,H', feat: '3,6,X;8,6,X;2,7,X;9,7,X',
-      weapon: '11,-2,W;11,-1,W;11,0,W;11,1,W;11,2,W;11,3,W;11,4,W;12,-1,W;12,0,W;12,1,W;12,2,W;12,3,W;11,5,Y;10,5,Y;12,5,Y;11,6,K;11,7,K' },
+    look: {
+  res: 2,
+  pal: {
+    G: '#fff1b0', Y: '#ffd166', D: '#c98a1e', O: '#7a4a10',   // 황금 하이라이트 / 본체 / 음영 / 가장 어두운 면
+    W: '#f4f8ff', X: '#8a9bb2', B: '#5ad1ff', K: '#1b1f33',   // 칼날 / 칼날 가장자리 / 성스러운 룬·보석 / 손잡이
+    S: '#f0c9a0', s: '#d29a6c', E: '#101428',                  // 피부 / 피부 음영 / 눈
+    C: '#c8323c', c: '#7f1d28', T: '#f7efd8'                   // 망토·깃털 / 망토 음영 / 흰 타바드
+  },
+  rows: [
+    '...........CCCC..........WW.....',
+    '........cCCCCCC.........XWWX....',
+    '.......cCCDYGGYYD.......XWWX....',
+    '......ccCDYGGYYYYD......XBWX....',
+    '......cCDYYGGYYYYYD.....XWWX....',
+    '........DYYYYGYYYYD.....XWWX....',
+    '........DYSSEsSESYD.....XBWX....',
+    '........DYSSSsSSSYD.....XWWX....',
+    '.........DYSSsSSYD......XWWX....',
+    '.........DYYSSSYYD......XBWX....',
+    '........DYYYGGGYYYD.....XWWX....',
+    '....DYGGYYYYGGGYYYYGGYD.XWWX....',
+    '...DYGGGYDYYYBYYYDYGGYD.XBWX....',
+    '...DYYYYYDYGYYYGYDYYYYD.XWWX....',
+    '...cCDYYDDYYYTYYYDDYYD..XWWX....',
+    '..cCCDYYDDYYTTTYYDDYYDD.XWWX.D..',
+    '..cCCDYYDDYYYTYYYDDYYDDYYGGYYD..',
+    '..cCCDYYDDYYYTYYYD.DYYDDYBBYD...',
+    '..cCCDYYDDYYYTYYYD.DYYGYYYYD....',
+    '..cCCDYYDKKKYBYKKK.DYYYYGYYD....',
+    '..cCCDYDDYYGYYYGYYD.....DYYD....',
+    '..cCC..DYYGYTTTYGYYD....DKKD....',
+    '.cCCCc.DYYOYTTTYOYYD.....KK.....',
+    '.cCCCCc.DYYYTTTYYYD.....DGGD....',
+    '.cCCCCCc.DYYDTDYYD.......DD.....',
+    '.cCCCCc..DYGD.DGYD..............',
+    '.cCCCc..DYGYD.DYGYD.............',
+    '..cCCc...DYYD.DYYD..............',
+    '...cCc...DYGD.DGYD..............',
+    '....cc...DYYD.DYYD..............',
+    '.........DYYD.DYYD..............',
+    '.......DYYYYD.DYYYYD............',
+    '.......DGYYYD.DGYYYD............',
+    '.......OOOOOO.OOOOOO............'
+  ]
+},
     passive: { name: '전사의 긍지', desc: '스킬을 사용한 뒤 4초간 방어력과 저항력이 25% 상승합니다.',
       onSkill(b, u) { b.buff(u, 'pride', 4, { name: '전사의 긍지', mul: { def: 1.25, res: 1.25 } }); } },
     skills: [
@@ -656,8 +788,52 @@
     stats: { hp: 1060, mp: 200, aspd: 0.85, spd: 7.6, atk: 62, ap: 0, def: 38, res: 30, ten: 0.15, pen: 0.08, ls: 0, range: 6 },
     basic: { type: 'phys', atk: 1, ap: 0, proj: 'melee' }, ai: { front: true, threat: 1.3 },
     tac: { act: ['rush', 'basic'], fight: ['coop'], pos: ['front'] },
-    look: { hair: '#475569', skin: '#cbd5e1', body: '#9a3412', acc: '#fb923c', hairStyle: '4,-1,X;5,-2,X;6,-2,X;7,-1,X', feat: '4,3,A;7,3,A;1,10,A;10,10,A;1,11,A;10,11,A',
-      weapon: '0,7,X;0,8,X;11,7,X;11,8,X;12,7,A;12,8,A' },
+    look: {
+  hair: '#475569', skin: '#94a3b8', body: '#334155', acc: '#fb923c', res: 2,
+  pal: {
+    L: '#94a3b8', M: '#475569', N: '#334155', O: '#1e293b',   // 강철 하이라이트 / 장갑 / 어두운 장갑 / 가장 어두운색
+    R: '#ef4444',                                             // 붉은 바이저 눈
+    F: '#fb923c', Q: '#fde047', Z: '#38bdf8'                  // 제트 화염 외곽 / 화염 중심 / 푸른 불꽃·가슴 라이트
+  },
+  rows: [
+    '..............LLLL..............',
+    'LLLLLL......LMMMMMML......LLLLLL',
+    'LMMMMN.....LMMMMMMMML.....NMMMML',
+    'LMMMMN....NMMLMMMMLMMN....NMMMML',
+    'LMFFMN....NORRRMMRRRON....NMFFML',
+    'LMQQMN....NOOOMMMMOOON....NMQQML',
+    'LMQQMN....NMMLMMMMLMMN....NMQQML',
+    'LMFFMN.....ONNLNNLNNO.....NMFFML',
+    'LMFFMNLLLLLLLLLNNLLLLLLLLLNMFFML',
+    'LMMMMLMMMMMMNLLLLLLNMMMMMMLMMMML',
+    'LMMMMNLLLMMMMMMMMMMMMMMLLLNMMMML',
+    'LMMMMNMMOOMMZZMMMMZZMMOOMMNMMMML',
+    '.NNNNNMMMMMMZZFFFFZZMMMMMMNNNNN.',
+    '.OFFONMMMNNMMMMLLMMMMNNMMMNOFFO.',
+    'ZFQQFNLLM.NMLMMMMMMLMN.MLLNFQQFZ',
+    '.FQQFNMMM.NMMNMLLMNMMN.MMMNFQQF.',
+    '.FQQFNOOM.NMMNMMMMNMMN.MOONFQQF.',
+    '..FQFNMMM.NOMMNMMNMMON.MMMNFQF..',
+    '..LLLLLLL.NMMNMMMMNMMN.LLLLLLL..',
+    '..NLLLLLMLLLLLLNNLLLLLLMLLLLLN..',
+    '..NOFFFOMNMFFMNNNNMFFMNMOFFFON..',
+    '..NOFQFOMNMMMMMNNMMMMMNMOFQFON..',
+    '..NONNNOMNLLLLLNNLLLLLNMONNNON..',
+    '...LMLMLMNMMMMMNNMMMMMNMLMLML...',
+    '...MLMLMLNMMMMMNNMMMMMNLMLMLM...',
+    '...NMNMNMNLMMMM..MMMMLNMNMNMN...',
+    '...NMMMMMNMMMMN..NMMMMNMMMMMN...',
+    '...NOOOOONMMMMN..NMMMMNOOOOON...',
+    '....OFFO.LLLLLL..LLLLLL.OFFO....',
+    '...ZFQQFZNMLMMN..NMMLMNZFQQFZ...',
+    '....FQQF.NMLMMN..NMMLMN.FQQF....',
+    '....FQQF.NMMMMN..NMMMMN.FQQF....',
+    '.....FQF.NMLLMN..NMLLMN.FQF.....',
+    '.....QF..NMMMMN..NMMMMN..FQ.....',
+    '......F.NMMMMMM..MMMMMMN.F......',
+    '.......OOOOOOOO..OOOOOOOO.......'
+  ]
+},
     passive: { name: '제트엔진', desc: '돌진(이동) 스킬 사용 후 4초간 방어력이 25%, 관통력이 20%p 상승합니다.',
       onSkill(b, u, sk) { if (sk.move) b.buff(u, 'jet', 4, { name: '제트엔진', mul: { def: 1.25 }, add: { pen: 0.2 } }); } },
     skills: [
@@ -690,10 +866,105 @@
     basic: { type: 'phys', atk: 1, ap: 0, proj: 'melee' }, ai: { front: true, threat: 1.1 },
     tac: { act: ['basic'], fight: ['coop', 'support'], pos: ['none', 'front'] },
     form0: 'ground',
-    look: { hair: '#fbcfe8', skin: '#fbe0d0', body: '#9d174d', acc: '#f472b6', hairStyle: '3,-1,H;5,-1,H;7,-1,H;2,2,H;2,3,H;2,4,H;9,2,H;9,3,H;9,4,H;9,5,H', feat: '4,3,A;7,3,A;1,6,X;10,6,X',
-      weapon: '0,2,X;0,3,X;0,4,X;0,5,X;0,6,X;1,2,A;1,3,A;10,2,X;11,2,X' },
-    looks: { air: { hair: '#bae6fd', skin: '#fbe0d0', body: '#0e7490', acc: '#67e8f9', hairStyle: '3,-1,H;5,-1,H;7,-1,H;2,2,H;2,3,H;2,4,H;9,2,H;9,3,H;9,4,H;9,5,H', feat: '4,3,A;7,3,A;1,6,X;10,6,X',
-      weapon: '-1,5,X;-2,6,X;-1,6,A;0,6,X;12,5,X;13,6,X;12,6,A;11,6,X' } },
+    look: {
+  hair: '#1f2937', skin: '#fbe0d0', body: '#9ca3af', acc: '#fb923c', res: 2,
+  pal: {
+    H: '#1f2937', J: '#0b1220', G: '#4b5563',          // 검정 머리 / 머리 음영 / 머리 윤기
+    S: '#fbe0d0', D: '#e8b9a3', E: '#0b0f1f', P: '#f472b6',   // 피부 / 음영 / 눈 / 눈동자·입술
+    L: '#d1d5db', M: '#9ca3af', N: '#6b7280', O: '#374151',   // 회색 장갑 (밝음 → 어두움)
+    K: '#111827', X: '#f3f4f6',                        // 관절 어둠 / 관절 링 하이라이트
+    F: '#fb923c', Y: '#fde047'                         // 제트 발광 / 중심광
+  },
+  rows: [
+    '..............HHHH..............',
+    '............JHHHHHHJ............',
+    '..........JHHHGHHGHHHJ..........',
+    '.........JHHGHHHHHHGHHJ.........',
+    '.........JHHHSSSSSSHHHJ......LL.',
+    '.........JHHSPESSEPSHHJ.....LMMN',
+    '.........JHHSSSSSSSSHHJ.....LFFN',
+    '.........JHHSDSPPSDSHHJ.....LYYN',
+    '.........JHHH.DSSD.HHHJ.....LFFN',
+    '........JHHH..SSSS..HHHJ....LMMN',
+    '...LLLLLLHHH.NOOOON.HHHLLLLLLMMN',
+    '..LMMKKMMJH.NMLOOLMN.HJMMKKMLMMN',
+    '..LMKXXKMHJNMMLOOLMMNJHMKXXKNNNN',
+    '...NKXN..NMMLLMNNMLLMMN..NXKNLMN',
+    '...NMLN..NLLMMMNNMMMLLN..NLMN.MN',
+    '...NMMN...NLLMMNNMMLLN...NMMN.MN',
+    '...NMLN....NMMMNNMMMN....NLMN.NN',
+    '...NMMN....NLMLNNLMLN..NLLLLLLN.',
+    '...NMLN....NKOKOOKOKN.NLMMMMMMLN',
+    '...NKXN....NOKOOOOKON.NMMXXXXMMN',
+    '...NMLN....NKOKOOKOKN.NMMOOOOMMN',
+    '...NMLN..NMMLLLOOLLLMMNMOFFFFOMN',
+    '...NMMN.NMMLOLMOOMLOLMNMOFYYFOMN',
+    '...NMLN.NMKXKMLOOLMKXKNMOFFFFOMN',
+    '...NMMN.NMMLLMMOOMMLLMNMMOOOOMMN',
+    '...NKKN.NMMLMMN..NMMLMNMMMMMMMMN',
+    '...NMMN.NMLOLMN..NMLOLNLMLMLMLMN',
+    '....NN..NMMLMMN..NMMLMNMLMLMLMMN',
+    '.........NKXKN....NKXKNMXXXXXXMN',
+    '.........NMMLMN..NMLMMNNMLLLLMN.',
+    '.........NMLLMN..NMLLMNNMMMMMMN.',
+    '.........NMOLMN..NMLOMN.NMMMMN..',
+    '..........NMMN....NMMN...NNNN...',
+    '.........NKXKN....NKXKN.........',
+    '........NMMMMMN..NMMMMMN........',
+    '.......NNMMMMMN..NMMMMMNN.......'
+  ]
+},
+looks: {
+  air: {
+    hair: '#1f2937', skin: '#fbe0d0', body: '#9ca3af', acc: '#67e8f9', res: 2,
+    pal: {
+      H: '#1f2937', J: '#0b1220', G: '#4b5563',
+      S: '#fbe0d0', D: '#e8b9a3', E: '#0b0f1f', P: '#f472b6',
+      L: '#d1d5db', M: '#9ca3af', N: '#6b7280', O: '#374151',
+      K: '#111827', X: '#f3f4f6',
+      F: '#fb923c', Y: '#fde047',
+      Z: '#67e8f9', W: '#ffffff'                        // 비행 화염(청백)
+    },
+    rows: [
+      '.PP...........HHHH...........PP.',
+      'LPPL........JHHHHHHJ........LPPL',
+      'LMMNLLL...JHHHGHHGHHHJ...LLLNMML',
+      'LOONLMMN.JHHGHHHHHHGHHJ.NMMLNOOL',
+      'LMMNLMMN.JHHHSSSSSSHHHJ.NMMLNMML',
+      'LOONLMMN.JHHSPESSEPSHHJ.NMMLNOOL',
+      'LMMNLFFN.JHHSSSSSSSSHHJ.NFFLNMML',
+      'LFFNLFFN.JHHSDSPPSDSHHJ.NFFLNFFL',
+      'LYYNLYYN.JHHH.DSSD.HHHJ.NYYLNYYL',
+      'LFFNLFFNJHHH..SSSS..HHHJNFFLNFFL',
+      'LMMLLLLLLHHH.NOOOON.HHHLLLLLLMML',
+      'LMLMMKKMMJH.NMLOOLMN.HJMMKKMMLML',
+      'NNLMKXXKMHJNMMLOOLMMNJHMKXXKMLNN',
+      'OFFONKXN.NMMLLMNNMLLMMN.NXKNOFFO',
+      'ZWWZNMLN.NLLMMMNNMMMLLN.NLMNZWWZ',
+      'ZWWZNMMN..NLLMMNNMMLLN..NMMNZWWZ',
+      'ZWWZNMLN...NMMMNNMMMN...NLMNZWWZ',
+      '.ZWZNMMN...NLMLNNLMLN...NMMNZWZ.',
+      '.ZWZNMLN...NKOKOOKOKN...NLMNZWZ.',
+      '.ZZ.NKXN...NOKOOOOKON...NXKN.ZZ.',
+      '..Z.NMLN...NKOKOOKOKN...NLMN.Z..',
+      '....NMMN.NMMLLLOOLLLMMN.NMMN....',
+      '....NMLNNMMLOLMOOMLOLMMNNLMN....',
+      '....NMMNNMKXKMLOOLMKXKMNNMMN....',
+      '....NKKNNMMLLMMOOMMLLMMNNKKN....',
+      '....NMMNNMMLMMN..NMMLMMNNMMN....',
+      '.....NN.NMLOLMN..NMLOLMN.NN.....',
+      '........NMMLMMN..NMMLMMN........',
+      '.........NKXKN....NKXKN.........',
+      '.........NMMLMN..NMLMMN.........',
+      '.........NMLLMN..NMLLMN.........',
+      '.........NMOLMN..NMLOMN.........',
+      '..........NMMN....NMMN..........',
+      '.........NKXKN....NKXKN.........',
+      '........NMMMMMN..NMMMMMN........',
+      '........NMMMMMN..NMMMMMN........'
+    ]
+  }
+},
     passive: { name: '기동기체 아리아', desc: '스킬을 쓸 때마다 중첩이 쌓이며 스킬 피해량이 6%씩 증가합니다(최대 6중첩). 지상 모드: 방어·저항 +30% / 공중 모드: 이동속도 +30%.',
       init(b, u) { u.mem.n = 0; },
       skillMul(b, u) { return 1 + 0.06 * u.mem.n; },
@@ -742,8 +1013,55 @@
     stats: { hp: 1060, mp: 180, aspd: 1.0, spd: 8.2, atk: 64, ap: 0, def: 38, res: 30, ten: 0.15, pen: 0.08, ls: 0, range: 6 },
     basic: { type: 'phys', atk: 1, ap: 0, proj: 'melee' }, ai: { front: true, threat: 1.2 },
     tac: { act: ['rush', 'basic'], fight: ['support', 'coop'], pos: ['front'] },
-    look: { hair: '#451a03', skin: '#f0c9a0', body: '#b91c1c', acc: '#fde047', hairStyle: '3,-1,H;5,-1,H;7,-1,H;8,0,H', feat: '3,3,K;4,3,K;7,3,K;8,3,K;0,7,Y;11,7,Y;0,8,Y;11,8,Y',
-      weapon: '0,6,R;11,6,R' },
+    look: {
+  hair: '#1e2a4a', skin: '#e6b89c', body: '#1e2a4a', acc: '#b91c1c', res: 2,
+  pal: {
+    N: '#1e2a4a', n: '#141c33',                       // 남색 슈트 / 어두운 남색
+    G: '#6b7280', g: '#8b93a1',                       // 회색 소매·복근 / 하이라이트
+    R: '#7f1d1d', r: '#b91c1c',                       // 암적색 파이핑 / 밝은 붉은색(엠블럼 주먹)
+    M: '#5b1a2a', m: '#7a2638',                       // 와인색 장갑·부츠 / 하이라이트
+    K: '#151a2b', O: '#3a4150',                       // 벨트 / 파우치
+    S: '#e6b89c', D: '#b9826a', E: '#0b0f1f'          // 턱 피부 / 입 / 눈
+  },
+  rows: [
+    '............NNNNNNNN............',
+    '...........NRNNNNNNRN...........',
+    '..........NRRNNNNNNRRN..........',
+    '.........NNRRNNNNNNRRNN.........',
+    '.........NNNEENNNNEENNN.........',
+    '.........NNNNNNNNNNNNNN.........',
+    '.........NNSSSSSSSSSSNN.........',
+    '.........NNSSDDDDDDSSNN.........',
+    '..........NSSSSSSSSSSN..........',
+    '...........NNNNNNNNNN...........',
+    '.......NNNNNNNNNNNNNNNNNN.......',
+    '.NNNNNNNNNRRRRRRRRRRRRNNNNNNNNN.',
+    '.NNNNNNNNNNNNNNNNNNNNNNNNNNNNNN.',
+    '.NNNNNNNNRRRRRRRRRRRRRRNNNNNNNN.',
+    '.NRGGGGGNRRnnrrrrrrnnRRNGGGGGRN.',
+    '.NRGgGGGNRRnnrrrrrrnnRRNGGGgGRN.',
+    '.NRGGGGGNRNRnnrrrrnnRNRNGGGGGRN.',
+    '.NRGGgGGNRNNRnnrrnnRNNRNGGgGGRN.',
+    '.NRGGGGGNRNNNNNRRNNNNNRNGGGGGRN.',
+    '.NRGGGGNNNRGGGGnnGGGGRNNNGGGGRN.',
+    '.NRGgGGN.NRgGGGnnGGGgRN.NGGgGRN.',
+    '..NRGGGN.NRGGGGnnGGGGRN.NGGGRN..',
+    '..NRGGGN.NRGgGGnnGGgGRN.NGGGRN..',
+    '..NRGGGN.KKKKKKKKKKKKKK.NGGGRN..',
+    '..NRGgGN.KOOKKRRRRKKOOK.NGgGRN..',
+    '..MMMMMM.KKKKKKKKKKKKKK.MMMMMM..',
+    '.MMmMMMMNRNNNNNNNNNNNNRNMMMMmMM.',
+    '.MMMMMMMNRNNNNN..NNNNNRNMMMMMMM.',
+    '..MMMMM.NRNNNNN..NNNNNRN.MMMMM..',
+    '........NRNNNNN..NNNNNRN........',
+    '........NRnNNNn..nNNNnRN........',
+    '.........NRNNNn..nNNNRN.........',
+    '.........NRNNNn..nNNNRN.........',
+    '.........MMMMMM..MMMMMM.........',
+    '.......MMMMMMMM..MMMMMMMM.......',
+    '......MMMMMMMMM..MMMMMMMMM......'
+  ]
+},
     passive: { name: '체술', desc: '디버프(상태이상)에 걸려 있는 동안 저항력이 35% 상승합니다.',
       stat(b, u, k, v) { return k === 'res' && u.st.some(s => s.good === false && s.key !== 'knock') ? v * 1.35 : v; } },
     skills: [
@@ -779,8 +1097,57 @@
     stats: { hp: 650, mp: 320, aspd: 0.85, spd: 7.4, atk: 25, ap: 52, def: 20, res: 28, ten: 0, pen: 0.12, ls: 0, range: 24 },
     basic: { type: 'magic', atk: 0.6, ap: 0.45, proj: 'bolt' }, ai: { backline: true, kite: 14, threat: 0.85 },
     tac: { act: ['basic', 'retreat'], fight: ['coop'], pos: ['none', 'cover'], aim: ['carry', 'near'] },
-    look: { hair: '#e0f2fe', skin: '#e6f4ff', body: '#0e7490', acc: '#7dd3fc', hairStyle: '3,-1,H;5,-1,H;7,-1,H;2,2,H;2,3,H;9,2,H;9,3,H', feat: '4,-1,A;5,-2,A;7,-1,A;4,3,A;7,3,A',
-      weapon: '0,1,A;0,2,A;0,3,W;0,4,W;0,5,W;0,6,W;0,7,W;0,8,W;0,9,W;0,10,W;1,0,W' },
+    look: {
+  res: 2,
+  pal: {
+    B: '#0e7490', b: '#0a5568', A: '#7dd3fc',                  // 코트 / 코트 음영 / 하늘색 포인트
+    F: '#cfe1ef', f: '#93b5cf',                                // 흰 모피 / 모피 음영
+    H: '#ffffff', h: '#c4def2',                                // 흰 머리 / 머리 음영
+    S: '#ffe3d1', s: '#ecbfa0', E: '#101428', I: '#38bdf8',   // 피부 / 피부 음영 / 눈선 / 홍채
+    p: '#ffb3c7', P: '#e87fa0',                                // 볼터치 / 입술
+    Q: '#f0ffff', C: '#a5f3fc', c: '#22a6d6',                  // 결정 하이라이트 / 본체 / 음영
+    T: '#b9c8dd', t: '#6b7fa0',                                // 봉 / 봉 음영
+    L: '#cfe9f7', l: '#8fbdd6', D: '#164e63'                   // 타이츠 / 타이츠 음영 / 부츠
+  },
+  rows: [
+    '......................QQ........',
+    '.....................cQQc.......',
+    '....................cCQQCc......',
+    '...................cCCQQCCc.....',
+    '..................AcCCQQCCcA....',
+    '.........BBBB......cCCQQCCc.....',
+    '.......BBBBBBBB.....cCQQCc......',
+    '......BFFFFFFFFB.....cQQc.......',
+    '......BFHHhhHHFB......QQ........',
+    '......BFHSSSSHFB.....tAAt.......',
+    '......BFEESSEEFB......Tt........',
+    '......BFSISSISFB......Tt........',
+    '......BFpSSSSpFB......Tt........',
+    '......BFSSPPSSFB......Tt........',
+    '......BFFsSSsFFB......Tt........',
+    '.....FfFFFFFFFFfF.....Tt........',
+    '....FFHHBBBBBBHHFF....Tt........',
+    '....BFHhBBAABBhHFB....Tt........',
+    '....bBHHBBAABBHHBB....Tt........',
+    '....bBHhBBAABBhHBBB...Tt........',
+    '....bBhhBBAABBhhBBBBB.Tt........',
+    '....fFBhBBAABBhBBBBBBfFFf.......',
+    '....fFBAAAQQAAABBb...fFFf.......',
+    '.....BBBBBAABBBBB.....Tt........',
+    '....BBBBBBAABBBBBB....Tt........',
+    '....BBBABBAABBABBB....Tt........',
+    '...bBBBBBBAABBBBBBb...Tt........',
+    '...bBBABBBAABBBABBb...Tt........',
+    '..FFFFFFFFFFFFFFFFFF..Tt........',
+    '...fFfFfFfFfFfFfFfF...Tt........',
+    '.......LLl..lLL.......Tt........',
+    '.......LLl..lLL.......Tt........',
+    '.......LLl..lLL.......Tt........',
+    '......FFFF..FFFF......Tt........',
+    '......DDDD..DDDD......Tt........',
+    '.....DDDDD..DDDDD.....tt........'
+  ]
+},
     passive: { name: '분쇄', desc: '빙결 상태인 적에게 스킬이 적중하면 추가 피해를 줍니다.',
       onDealt(b, u, t, res, o) { if (o.skill && t.alive && t.st.some(s => s.key === 'freeze')) { ring(b, t.x, t.y, 4, '#e0f2fe'); b.deal(u, t, { type: 'magic', raw: b.raw(u, 28, 0, 0.35), via: '분쇄', noPassive: true, noLeech: true }); } } },
     skills: [

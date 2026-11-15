@@ -18,10 +18,10 @@ const Game = {
   startCareer(leagueId, teamName, carryIds) {
     const prev = this.G, lg = CONFIG.leagues.find(l => l.id === leagueId);
     const G = { v: 4, leagueId, baseTeam: teamName, teamName, season: (prev && prev.phase === 'seasonEnd') ? (prev.season || 0) + 1 : 1, streak: 0, bestStreak: 0, totals: { games: 0, wins: 0 },
-      seasonLines: [], usage: {}, slotTactics: Draft.neutralSlots(), strategy: Draft.neutralStrategy(), difficulty: lg.diff, trophies: [], stats: Stats.blank() };
+      seasonLines: [], usage: {}, slotTactics: Draft.neutralSlots(), slotRole: ['auto', 'auto', 'auto'], slotPreset: null, strategy: Draft.neutralStrategy(), difficulty: lg.diff, trophies: [], stats: Stats.blank() };
     if (prev) {
       G.trophies = prev.trophies || [];
-      G.slotTactics = prev.slotTactics || Draft.neutralSlots();
+      G.slotTactics = prev.slotTactics || Draft.neutralSlots(); G.slotRole = prev.slotRole || ['auto', 'auto', 'auto']; G.slotPreset = prev.slotPreset || null;
       G.strategy = prev.strategy; G.usage = prev.usage; G.totals = prev.totals; G.bestStreak = prev.bestStreak; G.stats = prev.stats; G.mine = prev.mine;
     }
     G.news = prev && prev.news ? prev.news : []; G.rep = (prev && prev.rep) || { v: 50, peak: 50, last: 0 }; this.G = G;
@@ -52,6 +52,8 @@ const Game = {
       });
       const st = s.strategy = s.strategy || Draft.neutralStrategy();
       CONFIG.tactics.team.forEach(c => { if (!st[c.id] || !c.options.some(o => o.id === st[c.id][0])) st[c.id] = [c.neutral, 4]; });
+      Draft.normalizeStrategy(st); Draft.normalizeSlots(s.slotTactics);
+      if (!Array.isArray(s.slotRole) || s.slotRole.length !== 3) s.slotRole = s.slotTactics.map(t => (CONFIG.tactics.categories.some(c => t[c.id][0] !== c.neutral) ? 'custom' : 'auto'));
       s.teamName = String(s.teamName || '').replace(/[<>&"'`]/g, '') || s.baseTeam; s.difficulty = League.lgOf(s).diff; s.trophies = s.trophies || []; s.ext = s.ext || {}; s.stats = s.stats || Stats.blank(); s.news = s.news || []; s.rep = s.rep || { v: 50, peak: 50, last: 0 };
       Club.migrate(s);
       if (s.phase === 'seasonEnd') Scout.ensure(s);          // 시즌 종료 상태의 세이브에 스카웃 제안이 없으면 생성
@@ -122,8 +124,8 @@ const Game = {
     M.teams.forEach((tm, i) => {
       const isMe = tm.id === 'player';
       tm.fighters = d.picks[i]; tm.brains = League.brainsOf(g, tm.id); tm.moods = League.moodsOf(g, tm.id);
-      if (isMe) { tm.tactics = (g.slotTactics || Draft.neutralSlots()).map(x => x); tm.strategy = g.strategy; }
-      else { const ai = Draft.aiTeam(League.team(g, tm.id).level || g.difficulty, tm.fighters, d.picks[1 - i]); tm.tactics = ai.tactics; tm.strategy = ai.strategy; }
+      if (isMe) { tm.tactics = Draft.slotsFor(g, tm.fighters); tm.strategy = Draft.normalizeStrategy(g.strategy); }
+      else { const ai = Draft.aiTeam(League.team(g, tm.id).level || g.difficulty, tm.fighters, d.picks[1 - i]); tm.tactics = ai.tactics; tm.strategy = ai.strategy; tm.cmd = League.team(g, tm.id).level || g.difficulty; }
     });
     this.save(); UI.go('match');
   },
@@ -138,7 +140,7 @@ const Game = {
     const g = this.G, M = this.match, notes = [];
     M.finished = true;                       // 끝난 경기는 다시 시작/재처리되지 않도록 표시
     const when = League.when(g);             // 경기 날짜(상태가 바뀌기 전에 기록)
-    Stats.record(g, { ids: [M.m.a, M.m.b], picks: M.picks, bans: M.bans, winner: res.winner, tac: res.tac });      // 데이터 센터 집계
+    Stats.record(g, { ids: [M.m.a, M.m.b], picks: M.picks, bans: M.bans, winner: res.winner, tac: res.tac, ord: res.rec && res.rec.orders });      // 데이터 센터 집계
     MyData.record(g, M, res);
     const opp0 = this.opponent(), myRank0 = League.rankOf(g, 'player'), oppRank0 = opp0 ? opp0.rank : 0;      // 순위 반영 전(경기 직전) 기준
     let won, draw = false, tag;
@@ -292,7 +294,12 @@ const Game = {
     tacOpt(el) {
       const slot = +el.dataset.slot;
       const t = this.G.slotTactics[slot], c = el.dataset.cat;
-      t[c] = [el.dataset.id, t[c][1]]; this.save(); UI.refresh();
+      t[c] = [el.dataset.id, CONFIG.tactics.pre.level]; this.G.slotRole[slot] = 'custom'; this.save(); UI.refresh();
+    },
+    tacRole(el) {
+      const slot = +el.dataset.slot, id = el.dataset.role; this.G.slotRole[slot] = id;
+      if (id !== 'auto') this.G.slotTactics[slot] = Draft.normalizeSlots([Draft.roleTactic(id)])[0];
+      this.save(); UI.refresh();
     },
     tacLv(el) {
       const slot = +el.dataset.slot;
@@ -301,7 +308,7 @@ const Game = {
     },
     tacReset(el) {
       const slot = +el.dataset.slot;
-      this.G.slotTactics[slot] = Draft.presetSlot(slot); this.save(); UI.refresh();
+      this.G.slotRole[slot] = 'auto'; this.save(); UI.refresh();
     },
     selLeague(el) { UI.setSelLeague(el.dataset.id); },
     dcTab(el) { UI.dc({ tab: el.dataset.tab }); },
@@ -323,10 +330,10 @@ const Game = {
       if (!Scout.allowed(this.G, lg.id, name)) { UI.toast('스카웃 제안이 온 팀만 선택할 수 있습니다.', 'warn'); return; }
       this.beginMove(lg.id, name);
     },
-    strOpt(el) { const S = this.G.strategy, c = el.dataset.cat; S[c] = [el.dataset.id, S[c][1]]; this.save(); UI.refresh(); },
+    strOpt(el) { const S = this.G.strategy, c = el.dataset.cat; S[c] = [el.dataset.id, CONFIG.tactics.pre.level]; this.save(); UI.refresh(); },
     strLv(el) { const S = this.G.strategy, c = el.dataset.cat; S[c][1] = +el.value; const b = el.parentElement.querySelector('.val, b'); if (b) b.textContent = el.value; this.save(); },
-    strPreset(el) { this.G.strategy = Draft.presetStrategy(el.dataset.p); this.save(); UI.refresh(); },
-    strReset() { this.G.strategy = Draft.neutralStrategy(); this.save(); UI.refresh(); },
+    strPreset(el) { this.G.strategy = Draft.normalizeStrategy(Draft.presetStrategy(el.dataset.p)); this.save(); UI.refresh(); },
+    strReset() { this.G.strategy = Draft.normalizeStrategy(Draft.neutralStrategy()); this.save(); UI.refresh(); },
     ult(el) { const r = Arena.castUlt(el.dataset.u); if (!r.ok) UI.toast(r.msg, 'warn'); },
     autoUlt() {
       this.autoUlt = !this.autoUlt; UI.setAutoLabel(this.autoUlt);

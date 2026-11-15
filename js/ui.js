@@ -322,7 +322,7 @@ header.top, header.app-header, #topbar, .topbar{
       const k = el.dataset.ui;
       if (k === 'cxNav') cxNav(+el.dataset.d);
       else if (k === 'cxSlide') cxGoSlide(+el.dataset.i, true);
-      else if (k === 'strPresetAll') { const g = G(); g.strategy = Draft.presetStrategy(el.dataset.p); g.slotTactics = Draft.presetSlots(el.dataset.p); Game.save(); refresh(); }
+      else if (k === 'strPresetAll') { const g = G(); g.strategy = Draft.normalizeStrategy(Draft.presetStrategy(el.dataset.p)); g.slotRole = ['auto', 'auto', 'auto']; g.slotPreset = el.dataset.p; Game.save(); refresh(); }
       else if (k === 'tacTab') { tacTab = el.dataset.t === 'slot' ? 'slot' : 'team'; tacPage = 0; refresh(); }
       else if (k === 'tacPage') {
         let max;
@@ -514,7 +514,7 @@ header.top, header.app-header, #topbar, .topbar{
   const dcPanel = (title, sub, body) => `<div class="glass panel dc-panel"><header><h4>${title}</h4>${sub ? `<small>${sub}</small>` : ''}</header>${body}</div>`;
   views.data = () => {
     const g = G(), S = Stats.get(g), all = Stats.fighters(g), top = Stats.topWin(g, 5), roster = Stats.roster();
-    const tabs = [['overview', '종합'], ['mine', '내 데이터'], ['fighter', '파이터 승률'], ['matchup', '상성'], ['team', '팀 선호도'], ['league', '리그 밴픽률']];
+    const tabs = [['overview', '종합'], ['mine', '내 데이터'], ['fighter', '파이터 승률'], ['matchup', '상성'], ['team', '팀 선호도'], ['league', '리그 밴픽률'], ['order', '지시']];
     const tabHtml = `<nav class="dc-tabs">${tabs.map(([id, n]) => `<button class="dc-tab ${dcS.tab === id ? 'on' : ''}" data-act="dcTab" data-tab="${id}">${n}</button>`).join('')}</nav>`;
     const hero = `<section class="dc-hero"><div class="dc-hero-h"><h3>승률 TOP 5</h3><small>총 ${S.n}경기 집계${S.n ? ' · 표본이 적은 파이터는 제외' : ''}</small></div>${top.length
       ? `<div class="dc-top5">${top.map((x, i) => { const f = FD(x.id); return `<button class="dc-card r${i + 1}" style="--ec:${f.color}" data-act="dcFighter" data-id="${x.id}"><span class="dc-rank">${i + 1}</span>${mini(f)}<b>${f.name}</b><em>${CONFIG.roles[f.role].icon} ${CONFIG.roles[f.role].name}</em><strong>${pct(x.wr)}</strong><small>${x.w}승 ${x.g - x.w}패 · ${x.g}전</small>${dcBar(x.wr, 1)}</button>`; }).join('')}</div>`
@@ -536,6 +536,13 @@ header.top, header.app-header, #topbar, .topbar{
       const th = (key, n) => `<th><button class="dc-th ${k === key ? 'on' : ''}" data-act="dcSort" data-k="${key}">${n}${k === key ? ' ▾' : ''}</button></th>`;
       body = `<div class="filter-row"><h3>파이터 ${rows.length}명</h3><div class="chips">${roles}</div></div><div class="glass panel dc-panel"><table class="tbl dc-tbl"><thead><tr><th>#</th><th>파이터</th>${th('g', '경기')}${th('wr', '승률')}${th('pr', '픽률')}${th('br', '밴률')}</tr></thead><tbody>
         ${rows.map((x, i) => `<tr data-act="dcFighter" data-id="${x.id}"><td>${i + 1}</td><td class="tn dc-tn">${dcName(x.id)}</td><td>${x.g || '-'}</td><td>${x.g ? `<span class="dc-v">${pct(x.wr)}</span>${dcBar(x.wr, 1, x.wr >= 0.5 ? '' : 'bad')}` : '-'}</td><td>${x.g ? pct(x.pr) : '-'}</td><td>${x.b ? pct(x.br) : '-'}</td></tr>`).join('')}</tbody></table></div>`;
+    } else if (dcS.tab === 'order') {
+      const O = CONFIG.orders, TG = { 'ph:early': '초반', 'ph:mid': '중반', 'ph:late': '후반', 'ld:behind': '뒤질 때', 'ld:even': '비슷할 때', 'ld:ahead': '앞설 때', 'boss:on': '보스 있을 때', 'boss:off': '보스 없을 때', sd: '서든데스' };
+      const nm = r => { const d = (r.scope === 'team' ? O.team : O.unit).find(x => x.id === r.id); return d ? `${d.icon} ${d.name}` : r.id; }, cell = x => (x ? `${TG[x.tag] || x.tag} <span class="dc-v">${pct(x.wr)}</span> <small>${x.g}회</small>` : '-');
+      const rows = Stats.orders(g);
+      body = dcPanel('지시 사용 기록', '양 팀 지시 합산 · 지시 시점 기준 · 전체 승률보다 상황별 승률을 비교하세요', rows.length
+        ? `<table class="tbl dc-tbl"><thead><tr><th>구분</th><th>지시</th><th>사용</th><th>전체 승률</th><th>가장 잘 통한 상황</th><th>가장 안 통한 상황</th></tr></thead><tbody>${rows.map(r => `<tr><td>${r.scope === 'team' ? '팀' : '개인'}</td><td class="tn">${nm(r)}</td><td>${r.g}</td><td>${pct(r.wr)}</td><td>${cell(r.best)}</td><td>${cell(r.worst)}</td></tr>`).join('')}</tbody></table>`
+        : '<p class="empty">경기 중 지시를 쓰면 기록이 쌓입니다. (상황별 표본은 3회 이상부터 표시)</p>');
     } else if (dcS.tab === 'matchup') {
       const fid = dcS.fid || (top[0] && top[0].id) || roster[0], F = all.find(x => x.id === fid) || { g: 0, w: 0, wr: 0, pr: 0, br: 0 }, ms = Stats.matchups(g, fid);
       const strong = ms.filter(x => x.wr >= 0.5).sort((a, b) => b.wr - a.wr || b.g - a.g).slice(0, 5), weak = ms.filter(x => x.wr < 0.5).sort((a, b) => a.wr - b.wr || b.g - a.g).slice(0, 5);
@@ -697,7 +704,7 @@ header.top, header.app-header, #topbar, .topbar{
 
   const tacRow = (cat, id, lv, a) => {
     const T = CONFIG.tactics, neutral = id === cat.neutral, opt = cat.options.find(o => o.id === id) || cat.options[0];
-    const meter = cat.noLevel ? '' : `<div class="tac-meter ${neutral ? 'off' : ''}"><span class="lab">정도</span><input type="range" min="1" max="${T.maxLevel}" value="${lv}" data-input="${a.lv}" ${a.attr} data-cat="${cat.id}" ${neutral ? 'disabled' : ''}><span class="val">${neutral ? '–' : lv}</span></div>`;
+    const meter = true ? '' : `<div class="tac-meter ${neutral ? 'off' : ''}"><span class="lab">정도</span><input type="range" min="1" max="${T.maxLevel}" value="${lv}" data-input="${a.lv}" ${a.attr} data-cat="${cat.id}" ${neutral ? 'disabled' : ''}><span class="val">${neutral ? '–' : lv}</span></div>`;
     return `<article class="tac-card">
       <div class="tac-card-top"><h4>${cat.name}<span class="cur">${opt.name}</span></h4></div>
       <div class="tac-opts">${cat.options.map(o => `<button class="tac-opt ${o.id === id ? 'on' : ''}" data-act="${a.opt}" ${a.attr} data-cat="${cat.id}" data-id="${o.id}" title="${o.desc || ''}">${o.name}</button>`).join('')}</div>
@@ -722,8 +729,8 @@ header.top, header.app-header, #topbar, .topbar{
     const presets = Object.entries(Draft.strategyPresets).map(([id, p]) =>
       `<button class="btn small ghost" data-ui="strPresetAll" data-p="${id}" title="${p.desc}">${p.name}</button>`).join('');
 
-    const teamGroups = [...new Set(T.team.map(c => c.group))];
-    const slotCats = T.categories;
+    const teamCats = T.team.filter(c => T.pre.team.includes(c.id)), teamGroups = [...new Set(teamCats.map(c => c.group))];
+    const slotCats = T.categories.filter(c => T.pre.slot.includes(c.id));
     let page, max, items, groupLabel = '';
 
     if (tacTab === 'team') {
@@ -731,19 +738,18 @@ header.top, header.app-header, #topbar, .topbar{
       page = Math.max(0, Math.min(max - 1, tacPage | 0));
       tacPage = page;
       groupLabel = teamGroups[page];
-      items = T.team.filter(c => c.group === groupLabel);
+      items = teamCats.filter(c => c.group === groupLabel);
     } else {
       page = 0; max = 1; items = slotCats;
     }
 
-    const slotHint = [
-      '코어 수집 · 보통 전방 · 보스전 선봉',
-      '코어 수집 · 측면 교전 · 운반자 사냥',
-      '후방 지원 · 운반자 호위'
-    ][slot];
+    const lineup = g.club && typeof Club !== 'undefined' ? Club.lineup(g) : [], roleOf = (g.slotRole || [])[slot] || 'auto';
+    const slotHint = roleOf === 'auto' ? '픽한 파이터에 맞춰 경기 시작 때 자동으로 정해집니다.' : roleOf === 'custom' ? '직접 설정한 값입니다.' : (T.roles.find(r => r.id === roleOf) || {}).desc || '';
     const slotBtns = [0, 1, 2].map(i =>
-      `<button class="tac-slot-btn ${i === slot ? 'on' : ''}" data-act="tacSlot" data-slot="${i}"><span class="n">${i + 1}</span>${i + 1}픽</button>`).join('');
-    const groupTabs = teamGroups.map((gr, i) =>
+      `<button class="tac-slot-btn ${i === slot ? 'on' : ''}" data-act="tacSlot" data-slot="${i}"><span class="n">${i + 1}</span>${lineup[i] ? lineup[i].nick : (i + 1) + '번'}</button>`).join('');
+    const roleBtns = [{ id: 'auto', name: '자동', desc: '픽한 파이터에 맞춰 자동 결정' }, ...T.roles].map(r =>
+      `<button class="${roleOf === r.id ? 'on' : ''}" data-act="tacRole" data-slot="${slot}" data-role="${r.id}" title="${r.desc}">${r.name}</button>`).join('');
+    const groupTabs = teamGroups.length < 2 ? '' : teamGroups.map((gr, i) =>
       `<button class="${i === page ? 'on' : ''}" data-ui="tacPage" data-p="${i}">${gr}</button>`).join('');
 
     let body;
@@ -762,18 +768,18 @@ header.top, header.app-header, #topbar, .topbar{
         <div class="tac-toolbar">
           <div class="left">
             <div class="tac-slots">${slotBtns}</div>
-            <span class="tac-hint">${slotHint}</span>
+            <div class="tac-subtabs">${roleBtns}</div>
           </div>
-          <div class="right"><button class="btn small ghost" data-act="tacReset" data-slot="${slot}">이 슬롯 추천값</button></div>
+          <div class="right"><span class="tac-hint">${slotHint}</span><button class="btn small ghost" data-act="tacReset" data-slot="${slot}">자동으로</button></div>
         </div>
-        <div class="tac-body"><div class="tac-grid">${rows || '<p class="tac-empty">항목 없음</p>'}</div></div>
+        <div class="tac-body"><div class="tac-grid" ${roleOf === 'auto' ? 'style="opacity:.5"' : ''}>${rows || '<p class="tac-empty">항목 없음</p>'}</div></div>
       </section>`;
     }
 
     return `<section class="tac-view">
       <div class="glass panel tac-hero"><div class="tac-hero-inner">
         <div><h2>${CONFIG.nav.tactics}</h2>
-          <p>팀 전체 기조와 1·2·3픽 슬롯 지시를 나눕니다. 선택한 값과 정도(1~7)가 전투 AI 판단에 반영됩니다.</p></div>
+          <p>팀 기조와, 배치한 선수별 역할을 정합니다. 경기 중에는 지시로 상황에 맞게 바꿀 수 있고, 지시가 없으면 여기서 정한 대로 움직입니다.</p></div>
         <div class="tac-seg">
           <button class="${tacTab === 'team' ? 'on' : ''}" data-ui="tacTab" data-t="team">팀 전략</button>
           <button class="${tacTab === 'slot' ? 'on' : ''}" data-ui="tacTab" data-t="slot">픽 슬롯 전술</button>
@@ -970,26 +976,63 @@ header.top, header.app-header, #topbar, .topbar{
         ${CONFIG.battle.speeds.map((s, i) => `<button class="btn speed ${i === 0 ? 'on' : ''}" data-act="speed" data-s="${s}">${s}배속</button>`).join('')}
         <button class="btn" data-act="autoUlt" id="btnAuto">궁극기 자동: ${Game.autoUlt ? '켜짐' : '꺼짐'}</button>
         <button class="btn ghost" data-act="skipBattle" id="btnSkip" disabled>결과까지 건너뛰기</button></div>
-        <div class="controls glass dirbar"><small style="align-self:center;opacity:.7">팀 지시</small>${[['auto', '자동'], ['kill', '운반자 사냥'], ['boss', '보스 집중'], ['retreat', '후퇴'], ['regroup', '중앙 집결']].map(([k, n], i) => `<button class="btn dirbtn${i === 0 ? ' on' : ''}" data-dir="${k}" disabled>${n}</button>`).join('')}</div></div>
+        <div class="cmd glass off" id="cmdPanel"><div class="cmd-head"><b>지휘</b><span class="cmd-cp" id="cmdCp"></span><small id="cmdNow">자동 (설정한 전술)</small><button class="btn ghost cmd-off" data-cmd="auto:" id="cmdAuto">자동 지휘: 꺼짐</button><button class="btn ghost cmd-off" data-cmd="off:">지시 해제</button></div><div id="cmdBody"></div></div></div>
       <aside class="log-col glass"><div class="log-head"><h3>전투 로그</h3><div class="chips">${cats.map(([k, n]) => `<button class="chip on" data-act="logFilter" data-cat="${k}">${n}</button>`).join('')}</div></div><div class="log" id="log"></div></aside></section>`;
   };
   const after = {};
   let liveBattle = null;
+  /* ---------- 경기 중 지휘 패널 ---------- */
+  let cmdTab = 'team', cmdPick = null, cmdSig = '';
+  const myUnits = b => b.units.filter(x => x.team === Game.match.pIdx && !x.struct).sort((p, q) => (Number(p.id.split('-')[1]) || 0) - (Number(q.id.split('-')[1]) || 0));
+  const roleIcon = f => (CONFIG.roles[f.role] || {}).icon || '';
+  function cmdBody(b) {
+    const O = CONFIG.orders, M = Game.match, us = myUnits(b), me = us[cmdTab], btn = (cmd, id, label, desc) => `<button class="cmd-btn" data-cmd="${cmd}" data-id="${id}" title="${desc || ''}">${label}${desc ? `<small>${desc}</small>` : ''}</button>`;
+    const tabs = `<button class="chip ${cmdTab === 'team' ? 'on' : ''}" data-cmd="tab:team">팀</button>` + us.map((x, i) => `<button class="chip ${cmdTab === i ? 'on' : ''}${x.alive ? '' : ' dead'}" data-cmd="tab:${i}">${roleIcon(x.f)} ${x.f.name}</button>`).join('');
+    let grid;
+    if (cmdTab === 'team') grid = O.team.map(o => btn('team:' + o.id, o.id, `${o.icon} ${o.name}`, o.desc)).join('');
+    else if (!me || !me.alive) grid = '<p class="cmd-hint">쓰러진 선수에게는 지시할 수 없습니다.</p>';
+    else if (cmdPick) {
+      const list = cmdPick.target === 'ally' ? us.filter(x => x !== me && x.alive) : b.units.filter(x => x.team === 1 - M.pIdx && !x.struct && x.alive);
+      grid = `<p class="cmd-hint">${cmdPick.name} 대상을 고르세요</p>` + list.map(x => `<button class="cmd-btn" data-cmd="pick:${x.id}">${roleIcon(x.f)} ${x.f.name}</button>`).join('') + '<button class="cmd-btn" data-cmd="pick:">취소</button>';
+    } else grid = O.unit.map(o => btn('unit:' + o.id, o.id, `${o.icon} ${o.name}`, o.desc)).join('');
+    return `<div class="cmd-tabs">${tabs}</div><div class="cmd-grid">${grid}</div>`;
+  }
+  function syncCmd(b) {
+    const box = $('#cmdBody'); if (!box || !Game.match || !b.cp) return;
+    const O = CONFIG.orders, M = Game.match, p = M.pIdx, us = myUnits(b), cp = b.cp[p], sig = [cmdTab, cmdPick && cmdPick.id, us.map(x => (x.alive ? 1 : 0)).join('')].join('|');
+    if (sig !== cmdSig) { cmdSig = sig; box.innerHTML = cmdBody(b); }
+    const ms = CONFIG.battle.tickMs, sec = t => Math.max(0, Math.ceil(t * ms / 1000));
+    $('#cmdCp').innerHTML = Array.from({ length: O.cpMax }, (_, i) => `<i class="cmd-pip${i < cp.v ? ' on' : ''}"></i>`).join('') + (cp.v < O.cpMax ? `<small>다음 +1 · ${sec(O.regenSec * 1000 / ms - cp.prog)}초</small>` : '');
+    const to = b.ord[p], me = us[cmdTab], uo = me && me.ord, act = o => o && b.t < o.until ? o : null, nm = (list, o) => (list.find(d => d.id === o.id) || {}).name || o.id;
+    const lines = [act(to) && `${nm(O.team, to)} ${b.t < to.applyAt ? '전달 중' : sec(to.until - b.t) + '초'}`, act(uo) && `${me.f.name}: ${nm(O.unit, uo)} ${b.t < uo.applyAt ? '전달 중' : sec(uo.until - b.t) + '초'}`].filter(Boolean);
+    $('#cmdAuto').textContent = '자동 지휘: ' + (b.autoCmd[p] ? '켜짐' : '꺼짐');
+    $('#cmdNow').textContent = lines.length ? lines.join(' · ') : '자동 (설정한 전술)';
+    box.querySelectorAll('.cmd-btn[data-id]').forEach(x => {
+      const cur = cmdTab === 'team' ? act(to) : act(uo), def = (cmdTab === 'team' ? O.team : O.unit).find(d => d.id === x.dataset.id);
+      x.disabled = !def || cp.v < def.cost; x.classList.toggle('on', !!cur && cur.id === x.dataset.id);
+    });
+  }
   document.addEventListener('click', e => {
-    const el = e.target.closest('[data-dir]'); if (!el || el.disabled) return;
-    const M = Game.match; if (!M || !liveBattle || liveBattle.over || !Game.battleOn) return;
-    liveBattle.setDir(M.pIdx, el.dataset.dir);
-    $$('.dirbtn').forEach(x => { const on = x === el; x.classList.toggle('on', on); x.style.outline = on ? '2px solid #ffd54a' : ''; });
+    const el = e.target.closest('[data-cmd]'); if (!el || el.disabled) return;
+    const M = Game.match, b = liveBattle; if (!M || !b || b.over || !Game.battleOn) return;
+    const [kind, a] = el.dataset.cmd.split(':'), us = myUnits(b), me = us[cmdTab], done = r => { if (r && !r.ok) toast(r.msg, 'warn'); };
+    if (kind === 'tab') { cmdTab = a === 'team' ? 'team' : Number(a); cmdPick = null; }
+    else if (kind === 'team') done(b.order(M.pIdx, 'team', a));
+    else if (kind === 'unit') { const def = CONFIG.orders.unit.find(o => o.id === a); if (def.target) cmdPick = def; else done(b.order(M.pIdx, 'unit', a, { uid: me.id })); }
+    else if (kind === 'pick') { const def = cmdPick; cmdPick = null; if (a && def) done(b.order(M.pIdx, 'unit', def.id, { uid: me.id, target: a })); }
+    else if (kind === 'auto') b.autoCmd[M.pIdx] = b.autoCmd[M.pIdx] ? null : 'normal';
+    else if (kind === 'off') done(cmdTab === 'team' || !me ? b.order(M.pIdx, 'team', 'auto') : b.order(M.pIdx, 'unit', 'auto', { uid: me.id }));
+    cmdSig = ''; syncCmd(b);
   });
   after.draft = () => draftUpdate();
   after.match = () => {
     const M = Game.match; if (!M) return;
-    liveBattle = null; Arena.mount($('#arena'));
+    liveBattle = null; cmdTab = 'team'; cmdPick = null; cmdSig = ''; Arena.mount($('#arena'));
     Arena.prepare(M.teams, M.rule, { hud: updateHud, log: addLog, end: res => Game.onBattleEnd(res), ult: id => { const r = Arena.castUlt(id); if (!r.ok) toast(r.msg, 'warn'); } }, { manual: [0, 1].map(i => i === M.pIdx && !Game.autoUlt) });
     logOff.forEach(c => $('#log').classList.add('hide-' + c));
   };
   function updateHud(b) {
-    liveBattle = b;
+    liveBattle = b; syncCmd(b);
     const c = $('#clock'); if (c) c.textContent = b.clockText ? b.clockText() : (b.t * CONFIG.battle.tickMs / 1000).toFixed(1) + 's';
     const tc = CONFIG.ui.teamColors, ch = $('#coreHud');
     if (!ch || !b.cores) return;
@@ -1010,7 +1053,7 @@ header.top, header.app-header, #topbar, .topbar{
     $('#log').classList.toggle('hide-' + cat, off); el.classList.toggle('on', !off);
   }
   function battleStarted() {
-    $('#arenaOverlay').classList.add('hide'); $('#btnPause').disabled = false; $('#btnSkip').disabled = false; $$('.dirbtn').forEach(x => { x.disabled = false; });
+    $('#arenaOverlay').classList.add('hide'); $('#btnPause').disabled = false; $('#btnSkip').disabled = false; const cp = $('#cmdPanel'); if (cp) cp.classList.remove('off');
   }
   function setPauseLabel(p) { const b = $('#btnPause'); if (b) b.textContent = p ? '재개' : '일시정지'; }
   function setAutoLabel(on) { const b = $('#btnAuto'); if (b) b.textContent = '궁극기 자동: ' + (on ? '켜짐' : '꺼짐'); }

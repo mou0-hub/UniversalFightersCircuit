@@ -73,9 +73,9 @@ const MyData = (() => {
       body = H.panel('조합 승률', '3인 조합 · 경기 수 순', `<table class="tbl dc-tbl"><thead><tr><th>#</th><th>조합</th><th>경기</th><th>승률</th><th>평균 킬</th><th>평균 점수</th></tr></thead><tbody>${rows.map((x, i) => `<tr><td>${i + 1}</td><td class="tn">${icons(x.ids)}<small class="my-names">${x.ids.map(id => FD(id).name).join(' · ')}</small></td><td>${x.g}</td><td><span class="dc-v">${pct(x.wr)}</span>${H.bar(x.wr, 1, x.wr >= 0.5 ? '' : 'bad')}</td><td>${f1(div(x.k, x.g))}</td><td>${f1(div(x.pf, x.g))}:${f1(div(x.pa, x.g))}</td></tr>`).join('')}</tbody></table>`)
         + `<div class="dc-cols">${H.panel('잘 맞는 듀오', '2인 조합 승률 상위', plist(pairs.slice().sort((a, b) => b.wr - a.wr || b.g - a.g).slice(0, 5), ''))}${H.panel('안 맞는 듀오', '2인 조합 승률 하위', plist(pairs.slice().sort((a, b) => a.wr - b.wr || b.g - a.g).slice(0, 5), 'bad'))}</div>`;
     } else if (sub === 'tac') {
-      const T = CONFIG.tactics, LT = Stats.tactics(g), cats = [...T.team.map(c => ({ ...c, key: c.id, root: 't' })), ...T.categories.map(c => ({ ...c, key: 's:' + c.id, root: 's', group: '슬롯' }))];
+      const T = CONFIG.tactics, LT = Stats.tactics(g), cats = [...T.team.filter(c => T.pre.team.includes(c.id)).map(c => ({ ...c, key: c.id, root: 't' })), ...T.categories.filter(c => T.pre.slot.includes(c.id)).map(c => ({ ...c, key: 's:' + c.id, root: 's', group: '슬롯' }))]; /* 전술 화면에 노출되는 항목만 */
       const cur = cats.find(c => c.key === (st.tcat || 'stance')) || cats[0];
-      const mineRoot = cur.root === 't' ? S.tac || {} : S.slot || {}, lgRoot = cur.root === 't' ? LT.team : LT.slot, id = cur.root === 't' ? cur.id : cur.id;
+      const mineRoot = cur.root === 't' ? S.tac || {} : S.slot || {}, lgRoot = cur.root === 't' ? LT.team : LT.slot, id = cur.id;
       const chips = cats.map(c => `<button class="chip ${c.key === cur.key ? 'on' : ''}" data-act="myCat" data-c="${c.key}">${c.root === 's' ? '슬롯·' : ''}${c.name}</button>`).join('');
       const rows = cur.options.map(o => { const m = (mineRoot[id] || {})[o.id] || [0, 0], v = cur.root === 't' ? ((S.vtac || {})[id] || {})[o.id] || [0, 0] : null, l = (lgRoot[id] || {})[o.id] || [0, 0]; return { o, m, v, l, wr: div(m[1], m[0]) }; });
       const best = rows.filter(r => r.m[0] >= 3).sort((a, b) => b.wr - a.wr || b.m[0] - a.m[0])[0];

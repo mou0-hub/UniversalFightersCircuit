@@ -33,7 +33,7 @@ const MAP_CORE = {
   pickR: 3, lockSec: 1.0, senseR: 28,
   startSmall: 3, startRing: [22, 48],
   wave: { every: 8, count: 2, max: 14, bigEvery: 4, finalSec: 30, finalEveryMul: 0.5, bigRing: [35, 60] },
-  deposit: { r: 12, channelSec: 1.2, comboAt: 4, comboBonus: 1 },
+  deposit: { r: 12, channelSec: 1.2, perCoreSec: 0.3, comboAt: 4, comboBonus: 1 }, /* 제출 시간 = channelSec + perCoreSec × (든 코어 수-1) */
   boss: {
     first: 8, late: 12, scatterR: 10, lockSec: 1.5,
     buff: { sec: 40, atk: 0.25, ap: 0.25, spd: 0.15, taken: -0.15, healPct: 0.3, noCarrySlow: true },
@@ -129,6 +129,22 @@ const CONFIG = {
      난이도는 파이터 개별 AI(이동·스킬·타게팅)를 바꾸지 않고, AI 팀이 '어떤 전술을 짜는가'만 바꿉니다. */
   tactics: {
     maxLevel: 7,
+    /* 사전 전술(경기 전 설정): 화면에 보이는 항목만 조정, 나머지는 fixed 값으로 고정. 정도(단계)는 level 로 고정 */
+    /* 슬롯 역할: 배치한 선수(1·2·3번)마다 고르는 역할. 'auto' 는 픽한 파이터에 맞춰 경기 시작 때 자동 결정 */
+    roles: [
+      { id: 'vanguard', name: '선봉', desc: '앞에서 교전을 열고 보스전 선봉에 섭니다.', set: { mission: 'boss', pos: 'front', entry: 'first', aim: 'near', ult: 'save', act: 'rush', fight: 'coop' } },
+      { id: 'collector', name: '수집가', desc: '코어를 모으며 약한 적을 노립니다.', set: { mission: 'collect', pos: 'none', entry: 'none', aim: 'weak', ult: 'normal', act: 'basic', fight: 'coop' } },
+      { id: 'hunter', name: '사냥꾼', desc: '코어를 든 적과 후열을 쫓습니다.', set: { mission: 'hunt', pos: 'none', entry: 'flank', aim: 'back', ult: 'burst', act: 'rush', fight: 'solo' } },
+      { id: 'guard', name: '호위', desc: '코어 든 아군을 따라다니며 지킵니다.', set: { mission: 'escort', pos: 'front', entry: 'none', aim: 'carry', ult: 'clutch', act: 'basic', fight: 'support' } },
+      { id: 'carry', name: '후방 화력', desc: '뒤에서 코어를 모으며 고화력 적을 노립니다.', set: { mission: 'collect', pos: 'cover', entry: 'support', aim: 'carry', ult: 'save', act: 'retreat', fight: 'coop' } },
+      { id: 'ambusher', name: '매복', desc: '상대 제출 길목에서 기다립니다.', set: { mission: 'ambush', pos: 'cover', entry: 'late', aim: 'carry', ult: 'burst', act: 'basic', fight: 'none' } }
+    ],
+    pre: {
+      level: 4,
+      team: ['stance', 'boss', 'formation', 'deposit', 'retreat', 'ultT'],
+      slot: ['mission', 'entry', 'pos', 'aim', 'ult'],
+      fixed: { gather: 'two', hurry: 'normal', focus: 'weak', chain: 'follow', roleMove: 'split', podCycle: 'cover', early: 'follow', mid: 'follow', late: 'follow', lead: 'keep', trail: 'keep', react: 'adapt' }
+    },
     phases: [40, 100],
     marginBase: 4, marginStep: 0.4,
     stances: {
@@ -159,6 +175,12 @@ const CONFIG = {
         { id: 'none',  name: '기본', desc: '파이터 기본 포지션을 따릅니다.' },
         { id: 'front', name: '전방', desc: '아군보다 앞에서 교전을 엽니다. 보스 진입·선제 교전에 유리합니다.' },
         { id: 'cover', name: '후방', desc: '아군 뒤·엄폐물 쪽에서 딜합니다. 암살·누킹에 덜 노출됩니다.' } ] },
+      { id: 'entry', name: '교전 진입', neutral: 'none', options: [
+        { id: 'none',    name: '기본',     desc: '파이터 기본 진입 방식을 따릅니다.' },
+        { id: 'first',   name: '선진입',   desc: '아군보다 먼저 뛰어들어 교전을 엽니다.' },
+        { id: 'late',    name: '후진입',   desc: '아군이 교전을 시작할 때까지 기다렸다 합류합니다.' },
+        { id: 'support', name: '후방지원', desc: '전열 뒤에서 맞는 아군 쪽 적을 끊으며 지원합니다.' },
+        { id: 'flank',   name: '우회',     desc: '측면으로 돌아 적의 옆·뒤를 칩니다.' } ] },
       { id: 'aim', name: '표적 우선', neutral: 'near', options: [
         { id: 'near',   name: '가까운 적', desc: '가장 가까운 적을 기본 목표로 잡습니다.' },
         { id: 'weak',   name: '체력 낮은 적', desc: '체력 비율이 낮은 적을 우선해 처치를 노립니다.' },
@@ -268,6 +290,38 @@ const CONFIG = {
   },
 
   /* ---------- 전투 ---------- */
+  /* ---------- 경기 중 지휘(지시) ----------
+     지휘 포인트(CP)를 써서 팀/개인에게 지시합니다. 지시는 반응 지연 뒤 적용되고 지속 시간이 지나면 자동(설정한 전술)으로 돌아옵니다. */
+  orders: {
+    cpMax: 3, cpStart: 2, regenSec: 15,
+    teamSec: 15, unitSec: 12, recallSec: 3,
+    delay: { min: 0.5, max: 2 },
+    ai: {                                                                 // AI 지휘: every 판단 간격(초) · p 지시 확률 · keep 아껴 둘 CP
+      easy: { every: 6, p: 0.3, keep: 1 }, normal: { every: 4, p: 0.55, keep: 0 },
+      hard: { every: 2.5, p: 0.8, keep: 0 }, master: { every: 1.5, p: 1, keep: 0 }
+    },
+    team: [
+      { id: 'boss', name: '보스 총공', icon: '👹', cost: 1, desc: '전원이 보스를 공격합니다.' },
+      { id: 'bossWait', name: '보스 길목 대기', icon: '🕓', cost: 1, desc: '중앙에서 기다리다 상대가 보스 체력을 깎으면 가로챕니다.' },
+      { id: 'wave', name: '웨이브 선점', icon: '🌊', cost: 1, desc: '아는 코어(큰 코어 우선)를 전원이 먼저 줍습니다.' },
+      { id: 'convoy', name: '제출 호송', icon: '🛡', cost: 1, desc: '셋이 붙어 코어를 든 아군을 호위하고 일찍 제출합니다.' },
+      { id: 'ambush', name: '길목 매복', icon: '🕸', cost: 1, desc: '상대 제출 지점 길목에서 기다립니다.' },
+      { id: 'kill', name: '운반자 사냥', icon: '🎯', cost: 1, desc: '코어를 든 적을 우선 노립니다.' },
+      { id: 'retreat', name: '후퇴', icon: '↩', cost: 1, desc: '우리 제출 지점으로 물러나 수비합니다.' },
+      { id: 'regroup', name: '중앙 집결', icon: '✚', cost: 1, desc: '중앙에 모입니다.' }
+    ],
+    unit: [
+      { id: 'core', name: '코어 줍기', icon: '◆', cost: 1, desc: '가장 가까운 코어를 줍습니다.' },
+      { id: 'deposit', name: '지금 제출', icon: '⬇', cost: 1, desc: '들고 있는 코어를 바로 제출하러 갑니다.' },
+      { id: 'escort', name: '호위', icon: '🛡', cost: 1, target: 'ally', desc: '지정한 아군을 따라다니며 지킵니다.' },
+      { id: 'hunt', name: '사냥', icon: '🎯', cost: 1, target: 'foe', desc: '지정한 적을 쫓습니다.' },
+      { id: 'ambush', name: '매복', icon: '🕸', cost: 1, desc: '상대 제출 지점 길목에서 기다립니다.' },
+      { id: 'pod', name: '회복', icon: '✚', cost: 1, desc: '가까운 회복 펄스로 갑니다.' },
+      { id: 'ultNow', name: '궁 즉발', icon: '⚡', cost: 1, desc: '궁극기가 준비되면 바로 씁니다.' },
+      { id: 'ultHold', name: '궁 대기', icon: '⏸', cost: 1, desc: '지시가 끝날 때까지 궁극기를 아낍니다.' }
+    ]
+  },
+
   battle: {
     tickMs: 50, maxTicks: 3600, retargetTicks: 12,
     arena: { w: 225, h: 150 }, unitRadius: 2.2,
@@ -564,6 +618,14 @@ const CONFIG = {
     currency: '크레딧', maxRoster: 6,
     /* 셀러리캡: 선수단 연봉 합 상한 (이적료·계약금은 자금에서 별도). 초과 시 영입·재계약·이동 승계 불가 */
     cap: { easy: 5200, normal: 8200, hard: 11500, master: 15500 },
+    /* 캡 운영: 같은 리그에 머무는 동안 성적·수입에 따라 매 시즌 정산 때 성장(maxGrow 또는 다음 단계 캡 × nextRatio 까지).
+       재계약(자기 선수)만 소프트캡을 hardOver 비율까지 넘길 수 있고, 초과분에는 시즌 평균 연봉 기준 tax 비율의 사치세. 시즌 평균 연봉이 하한(floor)보다 낮으면 부족분 × floorPen 벌금(floorGrace 시즌 유예) */
+    capRule: {
+      maxGrow: 0.3, nextRatio: 0.9, maxStep: 0.08,
+      step: { base: 0.02, top: 0.015, topRank: 4, league: 0.03, msi: 0.01, worlds: 0.02 },
+      revW: 0.15, revMin: -0.01, revMax: 0.03, refUp: 1.1,
+      hardOver: 0.15, tax: 0.5, floor: 0.4, floorPen: 0.5, floorGrace: 1
+    },
     startSize: 5,
     startMix: { easy: { C: 0.7, B: 0.3, A: 0, S: 0 }, normal: { C: 0.55, B: 0.4, A: 0.05, S: 0 }, hard: { C: 0.4, B: 0.5, A: 0.1, S: 0 }, master: { C: 0.3, B: 0.55, A: 0.15, S: 0 } },
     startLeagues: ['sea', 'jp', 'na'],            // 새 커리어를 처음 시작할 수 있는 리그

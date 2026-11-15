@@ -45,6 +45,7 @@ const Arena = (() => {
   function skip() {
     if (!battle || !running) return;
     battle.manual = [false, false];      // 건너뛰기 시 궁극기는 자동 사용
+    battle.autoCmd = battle.autoCmd.map(c => c || 'normal');      // 지휘도 자동으로 맡김
     fast = true; let n = 0;
     while (!battle.over && n++ < 20000) battle.tick();
     fast = false;
@@ -66,6 +67,7 @@ const Arena = (() => {
     }
     if (ev.type === 'heal') return { cat: 'heal', html: `${sec}${nm(ev.src)} ${ev.drain ? '흡혈' : '치유'}${via} <em class="hl">+${ev.amt}</em>${ev.drain || ev.src === ev.dst ? '' : ' → ' + nm(ev.dst)}${ev.reduced ? ' <i class="dis">감소</i>' : ''}` };
     if (ev.type === 'skill') return { cat: 'skill', html: `${sec}${nm(ev.src)} <i class="sk-${ev.slot}">${ev.slot === 'ult' ? '궁극기' : '스킬'}</i> <b>${ev.name}</b> 발동` };
+    if (ev.type === 'order') return { cat: 'sys', html: `${sec}<b style="color:${tcol(ev.team)}">${names[ev.team]}</b> 지시 <i class="crit">${ev.name}</i>${ev.unit ? ' → ' + nm(ev.unit) : ''}` };
     if (ev.type === 'ace') return { cat: 'sys', html: `${sec}<b style="color:${tcol(ev.team)}">${names[ev.team]}</b> 상대 전멸!` };
     if (ev.type === 'sudden') return { cat: 'sys', html: `${sec}<b>서든데스</b> — 전원 체력이 줄고, 먼저 코어를 제출하는 팀이 승리합니다! <i class="crit">SUDDEN DEATH</i>` };
     if (ev.type === 'boss') {

@@ -11,9 +11,9 @@ const League = (() => {
   /* 밴픽 없이 즉시 진행하는 경기(AI 대 AI)용 입력 — AI 난이도는 팀이 속한 리그 기준 */
   function input(G, id, picks, opp) {
     const t = team(G, id);
-    if (id === 'player') return { name: name(G, id), fighters: picks, tactics: (G.slotTactics || Draft.neutralSlots()).map(x => x), strategy: G.strategy, brains: brainsOf(G, id), moods: moodsOf(G, id) };
+    if (id === 'player') return { name: name(G, id), fighters: picks, tactics: Draft.slotsFor(G, picks), strategy: G.strategy, brains: brainsOf(G, id), moods: moodsOf(G, id), cmd: 'normal' };
     const ai = Draft.aiTeam(t.level || lgOf(G).diff, picks, opp);
-    return { name: name(G, id), fighters: picks, tactics: ai.tactics, strategy: ai.strategy, brains: brainsOf(G, id), moods: moodsOf(G, id) };
+    return { name: name(G, id), fighters: picks, tactics: ai.tactics, strategy: ai.strategy, brains: brainsOf(G, id), moods: moodsOf(G, id), cmd: t.level || lgOf(G).diff };
   }
   /* 슬롯(1/2/3번) 순서의 선수 등급 = 전투 AI 지능 단계. 내 팀은 라인업, AI 팀은 보유 선수, 국제대회 팀은 미리 뽑은 등급 */
   function brainsOf(G, id) {
@@ -53,7 +53,7 @@ const League = (() => {
   function simulate(G, aId, bId, rule, series) {
     const d = autoDraft(team(G, aId), team(G, bId), series ? fearlessOf(series) : null), p = d.picks;
     const res = Battle.simulate([input(G, aId, p[0], p[1]), input(G, bId, p[1], p[0])], rule);
-    Stats.record(G, { ids: [aId, bId], picks: p, bans: d.bans, winner: res.winner, tac: res.tac });       // 데이터 센터 집계
+    Stats.record(G, { ids: [aId, bId], picks: p, bans: d.bans, winner: res.winner });       // 데이터 센터 집계
     res.picks = p;
     return res;
   }
