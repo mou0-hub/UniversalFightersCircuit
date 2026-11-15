@@ -30,7 +30,7 @@ const MAP_ROADS = [
 const MAP_CORE = {
   small: { value: 1, slots: 1 }, big: { value: 3, slots: 2 },
   carryCap: 6, slowPer: 0.03, slowMax: 0.18,
-  pickR: 3, lockSec: 1.0, senseR: 28,
+  pickR: 6, grabR: 14, lockSec: 1.0, senseR: 45,   /* pickR 줍는 거리 · grabR 다른 일 중에도 코어를 주우러 틀어 가는 거리 · senseR 코어 발견 거리 */
   startSmall: 3, startRing: [22, 48],
   wave: { every: 8, count: 2, max: 14, bigEvery: 4, finalSec: 30, finalEveryMul: 0.5, bigRing: [35, 60] },
   deposit: { r: 12, channelSec: 1.2, perCoreSec: 0.3, comboAt: 4, comboBonus: 1 }, /* 제출 시간 = channelSec + perCoreSec × (든 코어 수-1) */
@@ -47,6 +47,7 @@ const MAP_CORE = {
     early: { base: 2, step: -0.34 },
     full: { base: 6, step: 0, low: 3, lowStep: 0.34 }
   },
+  caution: { outMul: 0.65, holdHome: 34 },   /* outMul: 수적 열세 시 교전 허용 배율(클수록 덜 도망) · holdHome: 본진 제출 지점에서 이 거리 안이면 더 도망치지 않고 싸움(0=끔) */
   danger: { foeR: 26, reachR: 48, reachW: 0.5, mateR: 26, safe: 1.0, cap: 3, pen: 1.1, veto: 2.2, vetoPen: 4, carryMul: 0.25, brave: 0.6, careful: 1.4, soloLim: 1.5 },
   ai: {
     coreMul: 1.2, distDiv: 100, cap: 2,
@@ -538,6 +539,7 @@ const CONFIG = {
       faSize: 16, listedSize: 6, refreshRounds: 6,
       feeMul: { C: [1.3, 2.0], B: [1.5, 2.4], A: [1.9, 3.0], S: [2.4, 3.8] },
       signMul: { C: 0.3, B: 0.4, A: 0.55, S: 0.8 },
+      sellMul: { C: 0.9, B: 1.1, A: 1.4, S: 1.8 }, sellMinRoster: 3, sellMax: 2,   /* 판매가 = 시장 연봉 × sellMul / 선수단 최소 인원 / 시즌당 판매 상한(0=무제한) */
       releaseMul: 0.5, renewMul: { C: 0.25, B: 0.3, A: 0.4, S: 0.5 }, renewRaise: 0.08, renewMarket: 0.85,
       faMix: { easy: { C: 0.55, B: 0.4, A: 0.05, S: 0.0 }, normal: { C: 0.4, B: 0.38, A: 0.19, S: 0.03 }, hard: { C: 0.22, B: 0.38, A: 0.3, S: 0.1 }, master: { C: 0.12, B: 0.33, A: 0.38, S: 0.17 } },
       faMaxS: { easy: 0, normal: 1, hard: 1, master: 2 }
@@ -686,23 +688,51 @@ const CONFIG = {
     }
   },
 
+  /* 도전과제: 시리즈별 단계(tiers). 달성한 단계 + 다음 단계 하나만 보이고, 단계는 계속 이어집니다.
+     id 는 기본 '시리즈id_n' (기존 저장 호환용으로 id 를 직접 지정한 단계도 있음) */
   challenges: [
-    { id: 'first_win', icon: '🌱', name: '첫 승리', desc: '통산 1승 달성', type: 'wins', n: 1, reward: 300 },
-    { id: 'wins_10', icon: '⚔️', name: '신예 감독', desc: '통산 10승 달성', type: 'wins', n: 10, reward: 500 },
-    { id: 'wins_50', icon: '🛡️', name: '베테랑 감독', desc: '통산 50승 달성', type: 'wins', n: 50, reward: 1500 },
-    { id: 'wins_150', icon: '🏛️', name: '명장', desc: '통산 150승 달성', type: 'wins', n: 150, reward: 4000 },
-    { id: 'streak_5', icon: '🔥', name: '5연승', desc: '5연승 달성', type: 'streak', n: 5, reward: 800 },
-    { id: 'streak_10', icon: '☄️', name: '10연승', desc: '10연승 달성', type: 'streak', n: 10, reward: 2500 },
-    { id: 'league_1', icon: '🏆', name: '첫 리그 우승', desc: '리그 우승 1회', type: 'trophy', k: 'league', n: 1, reward: 1500 },
-    { id: 'league_3', icon: '🏆', name: '리그 왕조', desc: '리그 우승 3회', type: 'trophy', k: 'league', n: 3, reward: 4000 },
-    { id: 'msi_1', icon: '🥇', name: 'MSI 챔피언', desc: 'MSI 우승 1회', type: 'trophy', k: 'msi', n: 1, reward: 2500 },
-    { id: 'worlds_1', icon: '👑', name: '월드 챔피언', desc: '월드 챔피언십 우승 1회', type: 'trophy', k: 'worlds', n: 1, reward: 6000 },
-    { id: 'multi_league', icon: '🌍', name: '리그 정복자', desc: '서로 다른 2개 리그에서 우승', type: 'leagues', n: 2, reward: 5000 },
-    { id: 'goals_3', icon: '🎯', name: '구단주의 신뢰', desc: '구단주 목표 3회 달성', type: 'goals', n: 3, reward: 2000 },
-    { id: 'rare_1', icon: '💎', name: '전설의 재능', desc: '에이스 또는 완벽한 재능 선수 보유', type: 'rare', n: 1, reward: 3000 },
-    { id: 'foreign_2', icon: '🌐', name: '글로벌 로스터', desc: '외국인 선수 2명 보유', type: 'foreign', n: 2, reward: 600 },
-    { id: 'rich', icon: '💰', name: '부자 구단', desc: '구단 자금 25,000 크레딧 보유', type: 'funds', n: 25000, reward: 2500 },
-    { id: 'seasons_5', icon: '📅', name: '장기 집권', desc: '시즌 5 도달', type: 'seasons', n: 5, reward: 1000 }
+    { id: 'wins', icon: '⚔️', type: 'wins', desc: n => `통산 ${n}승 달성`, tiers: [
+      { n: 1, id: 'first_win', icon: '🌱', name: '첫 승리', reward: 300 }, { n: 5, name: '초보 감독', reward: 400 },
+      { n: 10, id: 'wins_10', name: '신예 감독', reward: 500 }, { n: 25, name: '중견 감독', reward: 900 },
+      { n: 50, id: 'wins_50', icon: '🛡️', name: '베테랑 감독', reward: 1500 }, { n: 100, name: '백전노장', reward: 2500 },
+      { n: 150, id: 'wins_150', icon: '🏛️', name: '명장', reward: 4000 }, { n: 250, name: '전설의 감독', reward: 6000 },
+      { n: 500, name: '불멸의 감독', reward: 10000 }, { n: 1000, name: '승리의 화신', reward: 20000 } ] },
+    { id: 'streak', icon: '🔥', type: 'streak', desc: n => `${n}연승 달성`, tiers: [
+      { n: 3, name: '3연승', reward: 400 }, { n: 5, id: 'streak_5', name: '5연승', reward: 800 },
+      { n: 10, id: 'streak_10', icon: '☄️', name: '10연승', reward: 2500 }, { n: 15, name: '15연승', reward: 5000 },
+      { n: 20, name: '무적 행진', reward: 9000 } ] },
+    { id: 'league', icon: '🏆', type: 'trophy', k: 'league', desc: n => `리그 우승 ${n}회`, tiers: [
+      { n: 1, id: 'league_1', name: '첫 리그 우승', reward: 1500 }, { n: 3, id: 'league_3', name: '리그 왕조', reward: 4000 },
+      { n: 5, name: '리그의 지배자', reward: 7000 }, { n: 10, name: '영원한 챔피언', reward: 15000 }, { n: 20, name: '리그 그 자체', reward: 30000 } ] },
+    { id: 'league_rep', icon: '🔁', type: 'repeat', k: 'league', desc: n => `리그 ${n}시즌 연속 우승`, tiers: [
+      { n: 2, name: '리핏', reward: 3000 }, { n: 3, name: '쓰리핏', reward: 6000 }, { n: 4, name: '포핏', reward: 10000 },
+      { n: 5, name: '파이브핏', reward: 16000 } ] },
+    { id: 'msi', icon: '🥇', type: 'trophy', k: 'msi', desc: n => `MSI 우승 ${n}회`, tiers: [
+      { n: 1, id: 'msi_1', name: 'MSI 챔피언', reward: 2500 }, { n: 3, name: 'MSI 강자', reward: 6000 },
+      { n: 5, name: 'MSI 왕조', reward: 10000 }, { n: 10, name: 'MSI 전설', reward: 20000 } ] },
+    { id: 'msi_rep', icon: '🔁', type: 'repeat', k: 'msi', desc: n => `MSI ${n}회 연속 우승`, tiers: [
+      { n: 2, name: 'MSI 리핏', reward: 5000 }, { n: 3, name: 'MSI 쓰리핏', reward: 10000 } ] },
+    { id: 'worlds', icon: '👑', type: 'trophy', k: 'worlds', desc: n => `월드 챔피언십 우승 ${n}회`, tiers: [
+      { n: 1, id: 'worlds_1', name: '월드 챔피언', reward: 6000 }, { n: 3, name: '월드 강자', reward: 12000 },
+      { n: 5, name: '월드 왕조', reward: 20000 }, { n: 10, name: '월드 전설', reward: 40000 } ] },
+    { id: 'worlds_rep', icon: '🔁', type: 'repeat', k: 'worlds', desc: n => `월드 챔피언십 ${n}회 연속 우승`, tiers: [
+      { n: 2, name: '월드 리핏', reward: 12000 }, { n: 3, name: '월드 쓰리핏', reward: 25000 } ] },
+    { id: 'leagues', icon: '🌍', type: 'leagues', desc: n => `서로 다른 ${n}개 리그에서 우승`, tiers: [
+      { n: 2, id: 'multi_league', name: '리그 정복자', reward: 5000 }, { n: 3, name: '대륙 정복자', reward: 9000 },
+      { n: 4, name: '세계 정복자', reward: 15000 }, { n: 6, name: '모든 리그의 주인', reward: 30000 } ] },
+    { id: 'goals', icon: '🎯', type: 'goals', desc: n => `구단주 목표 ${n}회 달성`, tiers: [
+      { n: 1, name: '목표 달성', reward: 600 }, { n: 3, id: 'goals_3', name: '구단주의 신뢰', reward: 2000 },
+      { n: 5, name: '구단주의 총애', reward: 3500 }, { n: 10, name: '구단의 얼굴', reward: 8000 }, { n: 20, name: '구단의 상징', reward: 16000 } ] },
+    { id: 'rare', icon: '💎', type: 'rare', desc: n => `에이스 또는 완벽한 재능 선수 ${n}명 보유`, tiers: [
+      { n: 1, id: 'rare_1', name: '전설의 재능', reward: 3000 }, { n: 2, name: '재능 수집가', reward: 6000 }, { n: 3, name: '재능의 산실', reward: 10000 } ] },
+    { id: 'foreign', icon: '🌐', type: 'foreign', desc: n => `외국인 선수 ${n}명 보유`, tiers: [
+      { n: 2, id: 'foreign_2', name: '글로벌 로스터', reward: 600 }, { n: 3, name: '국제 로스터', reward: 1200 }, { n: 5, name: '다국적 군단', reward: 3000 } ] },
+    { id: 'funds', icon: '💰', type: 'funds', desc: n => `구단 자금 ${n.toLocaleString()} 크레딧 보유`, tiers: [
+      { n: 25000, id: 'rich', name: '부자 구단', reward: 2500 }, { n: 100000, name: '재벌 구단', reward: 8000 },
+      { n: 250000, name: '거대 자본', reward: 15000 }, { n: 1000000, name: '구단 제국', reward: 40000 } ] },
+    { id: 'seasons', icon: '📅', type: 'seasons', desc: n => `시즌 ${n} 도달`, tiers: [
+      { n: 5, id: 'seasons_5', name: '장기 집권', reward: 1000 }, { n: 10, name: '십 년 감독', reward: 3000 },
+      { n: 20, name: '영원한 감독', reward: 8000 }, { n: 30, name: '구단의 역사', reward: 15000 } ] }
   ],
 
   ui: { teamColors: ['#5ee7ff', '#ff6ec7'], starCount: 90 },

@@ -558,15 +558,31 @@ const Club = (() => {
     foreign: G => roster(G).filter(p => p.nation && p.nation !== G.leagueId).length,
     seasons: G => G.season || 1
   };
+  /* 같은 대회를 연속 시즌 우승한 최대 횟수 (리핏·쓰리핏) */
+  CHV.repeat = (G, c) => {
+    const ss = [...new Set(G.trophies.filter(t => t.k === c.k).map(t => t.season))].sort((x, y) => x - y);
+    let best = 0, run = 0;
+    ss.forEach((v, i) => { run = i && v === ss[i - 1] + 1 ? run + 1 : 1; best = Math.max(best, run); });
+    return best;
+  };
   const chValue = (G, c) => (CHV[c.type] ? CHV[c.type](G, c) : 0);
+  /* 시리즈(tiers)를 단계별 항목으로 펼칩니다. 단계 없는 옛 항목도 그대로 지원 */
+  const chFlat = () => (CONFIG.challenges || []).flatMap(s => (s.tiers
+    ? s.tiers.map((t, i) => ({ icon: s.icon, type: s.type, k: s.k, ...t, id: t.id || `${s.id}_${t.n}`, desc: typeof s.desc === 'function' ? s.desc(t.n) : s.desc, series: s.id, tier: i + 1 }))
+    : [{ ...s, series: s.id }]));
+  /* 달성한 단계 + 시리즈별 다음 단계 하나만 보여줍니다 */
   function challenges(G) {
-    const done = G.club.ch = G.club.ch || {};
-    return (CONFIG.challenges || []).map(c => ({ ...c, value: chValue(G, c), done: done[c.id] != null }));
+    const done = G.club.ch = G.club.ch || {}, open = {};
+    return chFlat().map(c => ({ ...c, value: chValue(G, c), done: done[c.id] != null })).filter(c => {
+      if (c.done) return true;
+      if (open[c.series]) return false;
+      return (open[c.series] = true);
+    });
   }
   function checkChallenges(G) {
     if (!G.club) return [];
     const done = G.club.ch = G.club.ch || {}, out = [];
-    (CONFIG.challenges || []).forEach(c => {
+    chFlat().forEach(c => {
       if (done[c.id] != null || chValue(G, c) < c.n) return;
       done[c.id] = G.season || 1; G.club.funds += c.reward; out.push(c);
     });
@@ -645,6 +661,11 @@ const Club = (() => {
       const g = Game.G, p = Pros.get(g, el.dataset.id); if (!p) return;
       if (!confirm(`${p.nick} 선수를 방출하면 위약금 ${Pros.money(Market.releaseFee(p))}이 듭니다. 방출할까요?`)) return;
       done(Market.release(g, p.id));
+    },
+    proSell(el) {
+      const g = Game.G, p = Pros.get(g, el.dataset.id); if (!p) return;
+      if (!confirm(`${p.nick} 선수를 판매할까요? 판매 대금 ${Pros.money(Market.sellPrice(p))}을 받고 다른 팀으로 이적합니다.`)) return;
+      done(Market.sell(g, p.id));
     },
     proRenew(el) { done(Market.renew(Game.G, el.dataset.id)); },
     mkTab(el) { ProUI.mk({ tab: el.dataset.tab }); },

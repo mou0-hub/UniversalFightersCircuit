@@ -65,6 +65,23 @@ const Market = (() => {
     p.team = null; ensure(G).fa.push(id);
     return { ok: true, msg: `${p.nick} 방출 (위약금 ${Pros.money(fee)})` };
   }
+  /* 보유 선수 판매: 시장 연봉 기준 대금을 받고, 다른 AI 팀으로 이적합니다 (그 팀의 최약체는 FA로 방출) */
+  const sellPrice = p => Math.round(Pros.marketSalary(p) * by(M().sellMul, p.grade) / 10) * 10;
+  function sell(G, id) {
+    const p = Pros.get(G, id), c = G.club; if (!p || !c.roster.includes(id)) return { ok: false, msg: '선수단에 없는 선수입니다.' };
+    const min = M().sellMinRoster || 3, lim = M().sellMax || 0;
+    if (c.roster.length <= min) return { ok: false, msg: `선수단이 최소 ${min}명은 있어야 판매할 수 있습니다.` };
+    if (!c.sold || c.sold.season !== G.season) c.sold = { season: G.season, n: 0 };
+    if (lim && c.sold.n >= lim) return { ok: false, msg: `이번 시즌 판매 한도(${lim}명)를 모두 사용했습니다.` };
+    const weakest = t => t.pros.map(x => Pros.get(G, x)).filter(Boolean).reduce((m, x) => (!m || x.ovr < m.ovr ? x : m), null);
+    const buyers = G.league.teams.filter(t => !t.isPlayer && t.pros && t.pros.length); if (!buyers.length) return { ok: false, msg: '선수를 받을 팀이 없습니다.' };
+    const better = buyers.filter(t => { const w = weakest(t); return w && w.ovr < p.ovr; }), t = Pros.pick(better.length ? better : buyers), out = weakest(t);
+    const price = sellPrice(p);
+    c.funds += price; c.sold.n++; c.roster = c.roster.filter(x => x !== id); c.lineup = c.lineup.map(x => (x === id ? null : x));
+    if (out) { t.pros = t.pros.filter(x => x !== out.id); out.team = null; out.listed = false; out.fee = 0; out.years = Pros.rnd(1, 2); ensure(G).fa.push(out.id); }
+    t.pros.push(id); p.team = t.id; p.listed = false; p.fee = 0; p.sg = 0; p.sw = 0;
+    return { ok: true, msg: `${p.nick} 판매 완료 → ${League.name(G, t.id)} (+${Pros.money(price)})` };
+  }
   function renewSalary(p) { return Math.max(Math.round(p.salary * (1 + M().renewRaise) / 10) * 10, Math.round(Pros.marketSalary(p) * (M().renewMarket || 0.85) / 10) * 10); }
   function renew(G, id) {
     const p = Pros.get(G, id); if (!p || !G.club.roster.includes(id)) return { ok: false, msg: '선수단에 없는 선수입니다.' };
@@ -78,5 +95,5 @@ const Market = (() => {
     const rr = Club.renewRoom(G, 0, 0);
     return { ok: true, msg: `${p.nick} 재계약 (2년, 연봉 ${Pros.money(p.salary)})${rr.over ? ` · 캡 초과분에 사치세가 부과됩니다 (현재 기준 시즌당 약 ${Pros.money(rr.tax)})` : ''}` };
   }
-  return { refresh, listed, signFA, buyListed, release, renew, signFee, releaseFee, renewFee, renewSalary, ensure };
+  return { refresh, listed, signFA, buyListed, release, sell, sellPrice, renew, signFee, releaseFee, renewFee, renewSalary, ensure };
 })();

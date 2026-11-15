@@ -631,6 +631,20 @@ const Battle = (() => {
       }
       return best ? { c: best, sc: bs } : null;
     }
+    /* 바로 근처(grabR) 코어는 다른 목표 중이어도 주워 갑니다. 적이 나보다 코어에 가까우면 제외 */
+    grabNear(u, enemies) {
+      const K = CONFIG.battle.map.core; if (!K.grabR || this.sudden) return false;
+      const slots = this.coreSlots(u); if (slots >= K.carryCap) return false;
+      let best = null, bd = K.grabR;
+      for (const c of this.cores) {
+        if (!c.known[u.team] || c.lockUntil > this.t || slots + c.slots > K.carryCap) continue;
+        const d = dist(u, c); if (d > bd) continue;
+        if (enemies.some(e => e.team < 2 && !e.struct && e.alive && !this.hidden(e) && Math.hypot(e.x - c.x, e.y - c.y) < d)) continue;
+        bd = d; best = c;
+      }
+      if (!best) return false;
+      u.goal = { type: 'core', c: best }; u.target = null; u.chase = null; this.objective(u, enemies); return true;
+    }
     dgDetour(u, enemies, A) {
       const D = u.dg, X = CONFIG.brain.stat.dg, K = CONFIG.battle.map.core;
       if (!D || this.sudden || this.t < u.dgCd) return false;
@@ -672,7 +686,7 @@ const Battle = (() => {
       const B = u.brain; if (B.ratio >= 50 || this.t < u.cautionOff) return false;
       const A = this.assess(u, enemies, allies); if (!A.foes.length) { u.waitSince = 0; return false; }
       const Sit = this.sit[u.team], XD = CONFIG.brain.stat.dg;
-      let lim = B.ratio * (u.caution > this.t ? 0.85 : 1) * clamp(1 + XD.needLim * Sit.need + XD.winLim * Sit.edge, 0.7, 1.45) * (u.tac.act === 'rush' && u.tac.actS >= 0.5 ? 1.5 : 1) * (A.foes.length > A.mates.length ? (this.strat[u.team].retreat === 'brave' ? 0.8 : 0.45) : 1);
+      let lim = B.ratio * (u.caution > this.t ? 0.85 : 1) * clamp(1 + XD.needLim * Sit.need + XD.winLim * Sit.edge, 0.7, 1.45) * (u.tac.act === 'rush' && u.tac.actS >= 0.5 ? 1.5 : 1) * (A.foes.length > A.mates.length ? (this.strat[u.team].retreat === 'brave' ? 0.8 : CONFIG.battle.map.core.caution.outMul) : 1);
       if (A.foes.length >= 2 && A.mates.length <= 1) lim = Math.min(lim, CONFIG.battle.map.core.danger.soloLim);
       if (A.ratio <= lim) { u.waitSince = 0; return false; }
       const ne = nearestOf(u, A.foes), de = dist(u, ne);
@@ -686,6 +700,7 @@ const Battle = (() => {
       }
       u.caution = this.t + ticks(2);
       const safeD = Math.max(18, ...A.foes.map(e => e.role.range + 8)) + (u.dg ? CONFIG.brain.stat.dg.safeP * u.dg.posn : 0);
+      const hd = this.homeDep(u.team); if (de < safeD && dist(u, hd) <= CONFIG.battle.map.core.caution.holdHome) { u.cautionOff = this.t + ticks(4); return false; }      // 본진 구석까지 몰렸으면 더 도망가지 않고 맞서 싸움
       if (de < safeD) { this.retreatMove(u, allies, A.foes); return true; }
       u.actT = this.t;
       const g = u.goal, pt = g && g.type === 'deposit' ? g.z : g && g.type === 'core' ? g.c : null; if (pt && !enemies.some(e => e.team < 2 && dist(e, pt) < (pt.r || 0) + 12)) this.objective(u, enemies);
@@ -1649,6 +1664,7 @@ const Battle = (() => {
       if (this.fallbackStep(u, sk, foesNear, enemies, allies)) return;
       if (this.cautionStep(u, enemies, allies)) return;
       if (this.podPull(u, enemies, allies)) return;
+      if (this.grabNear(u, enemies)) return;
       if (this.dgStep(u, enemies, allies, aggro)) return;
 
       /* 교전 대상: 시야(aggro) 안의 적 + 나를 때린 적 + 기존 대상 */
