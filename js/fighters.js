@@ -108,9 +108,9 @@
   /* ================= 2. 에일리언 ================= */
   const alienEvolve = (b, u) => {
     if (u.form === 'super') return;
-    b.setForm(u, 'super'); u.mem.en = 0; u.mem.endT = b.t + b.sec(14); u.ultCd = 0; u.maxHp += 300; u.hp += 300;
+    b.setForm(u, 'super'); u.mem.en = 0; u.mem.endT = b.t + b.sec(14); b.setUlt(u, 100); u.maxHp += 300; u.hp += 300;
     b.buff(u, 'super', 14, { name: '슈퍼 에일리언', mul: { atk: 1.3, ap: 1.1, def: 1.3, res: 1.3, spd: 1.1 },
-      f: { onEnd(bb, uu) { bb.setForm(uu, 'normal'); uu.maxHp -= 300; uu.hp = Math.min(uu.hp, uu.maxHp); uu.ultCd = Math.max(uu.ultCd, bb.sec(8)); uu.mem.en = 0; } } });
+      f: { onEnd(bb, uu) { bb.setForm(uu, 'normal'); uu.maxHp -= 300; uu.hp = Math.min(uu.hp, uu.maxHp); bb.setUlt(uu, 0); uu.mem.en = 0; } } });
     b.emit({ type: 'skill', slot: 'ult', src: u, name: '코스믹 진화', kind: 'buff', color: '#f472b6' });
   };
   FD.alien = {
@@ -996,7 +996,7 @@ looks: {
           cast(b, u, pl) { cone(b, u, pl.t, 15, 0.7, '#fb923c'); b.inCone(b.foes(u), u, pl.t.x, pl.t.y, 15, 0.7).forEach(e => { hit(b, u, e, 'magic', b.raw(u, 34, 0.1, 0.7), '아리아-열풍', { splash: true }); b.cc(u, e, 'burn', 4); }); } }
       ]
     },
-    ult: { id: 'ar_ult', name: '운용변환', cd: 14, range: 60, sfx: 'buff', desc: '아리아의 모드를 변환합니다. 지상 모드에서는 방어력·저항력이, 공중 모드에서는 이동속도가 상승합니다.',
+    ult: { id: 'ar_ult', name: '운용변환', cd: 6.5, timed: true, range: 60, sfx: 'buff', desc: '아리아의 모드를 변환합니다. 지상 모드에서는 방어력·저항력이, 공중 모드에서는 이동속도가 상승합니다.',
       plan: (b, u, en, al, strict) => {
         const n = b.nearest(u, en); if (!n) return null; const d = b.dist(u, n), to = u.form === 'ground' ? 'air' : 'ground';
         if (!strict) return { to };

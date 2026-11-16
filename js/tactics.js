@@ -44,7 +44,7 @@
   const PRESETS = {
     balanced: {
       name: '균형', desc: '무난한 기본 운영입니다. 상황에 맞게 경기 중 지시로 바꿔 보세요.',
-      set: { gather: ['two', 3], hurry: ['normal', 4], focus: ['weak', 3], chain: ['follow', 3], roleMove: ['split', 3], podCycle: ['cover', 3] }
+      set: {}
     },
     scavenger: {
       name: '분산 수집', desc: '셋이 흩어져 코어를 넓게 찾고, 가득 채워 한 번에 제출합니다.',
@@ -96,10 +96,9 @@
     let tac;
     const of = (opp || []).map(FD);
     const oppBack = of.filter(isBack).length;
-    const oppFront = of.filter(isTank).length;
 
     if (level === 'easy') {
-      set(S, 'stance', 'collect', rnd(3, 5)); set(S, 'boss', 'yield'); set(S, 'react', 'fixed', 1);
+      set(S, 'stance', 'collect', rnd(3, 5)); set(S, 'boss', 'yield');
       set(S, 'retreat', 'brave', rnd(5, 7)); set(S, 'formation', pick(['auto', 'group', 'split']), rnd(2, 5));
       set(S, 'deposit', 'early', rnd(2, 5));
       tac = ids.map(() => {
@@ -108,9 +107,8 @@
         return t;
       });
     } else if (level === 'hard') {
-      set(S, 'stance', 'balanced', 4); set(S, 'boss', 'steal', 3); set(S, 'react', 'smart', 5);
-      set(S, 'lead', 'turtle', 4); set(S, 'trail', 'steady', 4); set(S, 'ultT', 'save', 3);
-      set(S, 'gather', 'two', 4); set(S, 'hurry', 'normal', 4); set(S, 'focus', 'weak', 4); set(S, 'chain', 'follow', 4); set(S, 'roleMove', 'split', 4); set(S, 'podCycle', 'cover', 3);
+      set(S, 'stance', 'balanced', 4); set(S, 'boss', 'steal', 3);
+      set(S, 'ultT', 'save', 3);
       set(S, 'formation', 'duo', 4); set(S, 'deposit', 'normal', 4);
       tac = ids.map((id, i) => {
         const t = presetSlot(i, id), f = FD(id);
@@ -119,12 +117,9 @@
         return t;
       });
     } else if (level === 'master') {
-      set(S, 'stance', 'balanced', 5); set(S, 'boss', 'smart', 6); set(S, 'react', 'smart', 7);
-      set(S, 'lead', 'turtle', 5); set(S, 'trail', 'steady', 5); set(S, 'retreat', 'careful', 3); set(S, 'ultT', 'save', 4);
-      set(S, 'early', 'collect', 4);
+      set(S, 'stance', 'balanced', 5); set(S, 'boss', 'smart', 6);
+      set(S, 'retreat', 'careful', 3); set(S, 'ultT', 'save', 4);
       set(S, 'formation', 'group', 5); set(S, 'deposit', 'normal', 5);
-      set(S, 'gather', 'two', 5); set(S, 'hurry', 'normal', 5); set(S, 'chain', 'follow', 6); set(S, 'roleMove', 'split', 6); set(S, 'podCycle', 'cover', 5);
-      set(S, 'focus', oppBack >= 2 ? 'back' : oppFront >= 2 ? 'threat' : 'weak', 6);
       tac = ids.map((id, i) => {
         const t = presetSlot(i, id), f = FD(id);
         if (f.role === 'assassin') { set(t, 'mission', 'hunt', oppBack >= 2 ? 6 : 3); if (oppBack >= 2) set(t, 'aim', 'back', 5); }
@@ -134,8 +129,7 @@
       });
     } else {
       S = presetStrategy('scavenger');
-      set(S, 'stance', 'collect', 4); set(S, 'react', 'adapt', 3);
-      set(S, 'gather', 'two', 2); set(S, 'focus', 'weak', 2); set(S, 'chain', 'follow', 2);
+      set(S, 'stance', 'collect', 4);
       tac = ids.map((id, i) => { const t = presetSlot(i, id); if (t.mission[0] !== 'hunt') set(t, 'mission', 'collect', 4); return t; });
     }
     return { strategy: S, tactics: tac };
@@ -143,8 +137,7 @@
 
   /* 사전 전술 정리: 숨긴 팀 항목은 고정값, 정도는 모두 pre.level */
   function normalizeStrategy(S) {
-    const P = T.pre; Object.entries(P.fixed).forEach(([k, v]) => { S[k] = [v, P.level]; });
-    P.team.forEach(k => { if (S[k]) S[k][1] = P.level; }); return S;
+    const P = T.pre; P.team.forEach(k => { if (S[k]) S[k][1] = P.level; }); return S;
   }
   function normalizeSlots(arr) {
     const P = T.pre; arr.forEach(t => T.categories.forEach(c => { if (t[c.id]) t[c.id][1] = P.level; })); return arr;

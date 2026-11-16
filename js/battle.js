@@ -34,8 +34,7 @@ const Battle = (() => {
       this.rec = { kills: [], pts: [], boss: [], first: null, flips: [], lead: 0, suddenAt: 0, killVia: null, cores: [], orders: [] };   // 경기 후 분석용 기록(추가만, 전투에 영향 없음)
       this.strat = [0, 1].map(i => this.readStrat(teams[i].strategy)); this.cur = [null, null]; this.teamDir = ['auto', 'auto'];
       this.ord = [null, null]; this.cmdAt = [0, 0]; this.aiAt = [0, 0]; this.autoCmd = [0, 1].map(i => teams[i].cmd || (opts && opts.cmd && opts.cmd[i]) || null); this.cp = [0, 1].map(() => ({ v: CONFIG.orders.cpStart, prog: 0 }));
-      this.sit = [0, 1].map(() => ({ at: 0, edge: 0, need: 0, win: 'even', bias: 0, biasAt: 0, lead: 0, left: 0, j: 0, c: 0, t: 0, o: 0, p: 0, r: 0 }));
-      this.tp = [0, 1].map(() => ({ focus: null, gate: { st: 'idle', since: 0, until: 0 }, chain: { until: 0, by: null }, pod: null, rearm: 0, duo: null }));      // 팀 협동 상태(집결 진입 · 포커스 · 궁 연계 · 회복팩 순환)      // 팀 전략(전술) — 난이도와 무관하게 모든 팀이 같은 방식으로 실행
+      this.aiInit();
       const lairs = MC.lairs.slice();
       this.initAxis(); this.initNav(); this.initCores();
       this.bossPlan = (MC.bosses || []).map((b, i) => ({ ...b, lair: lairs[i % lairs.length], unit: null, spawned: false, warned: false, atTick: b.at != null ? ticks(b.at) : null }));
@@ -71,10 +70,10 @@ const Battle = (() => {
         spd: s.spd / TPS * (ru.spdMul || 1) * spdMulM, aspd: s.aspd / TPS * (ru.aspdMul || 1) * aspdMulM,
         ten: s.ten, pen: s.pen, ls: s.ls, crit: s.crit || 0, critDmg: s.critDmg || 1.5, mpMul: ru.mpMul || 1,
         cd: rnd(0.2, 0.8), target: null, retarget: 0, alive: true, facing: team === 0 ? 1 : -1, side: Math.random() < 0.5 ? 1 : -1,
-        tac: this.readTac(tactic), hitT: -1e9, hitBy: null, form: F.form0 || null, scale: 1, glow: null, gauge: null,
+        tac: this.readTac(tactic), hitT: -1e9, hurtT: -1e9, hitBy: null, form: F.form0 || null, scale: 1, glow: null, gauge: null,
         brainId: brainKey, brain: null, ignore: null, chase: null, caution: 0, cautionOff: 0, waitSince: 0,
         rdy: {}, fb: null, fbCd: 0, stuck: 0, actT: 0, forceGo: 0, detour: null, lastOff: 0, lastOffT: 0, intent: -1,
-        st: [], cds: {}, rc: {}, bm: [], ultCd: 0, mem: {}, deaths: 0, respawnAt: 0, regroupUntil: 0, goal: null, dmg: 0, healed: 0, kills: 0, fxHit: -1e9, fxAtk: -1e9, fxDead: 1e12,
+        st: [], cds: {}, rc: {}, bm: [], ultG: 0, ultCd: 0, mem: {}, deaths: 0, respawnAt: 0, regroupUntil: 0, goal: null, dmg: 0, healed: 0, kills: 0, fxHit: -1e9, fxAtk: -1e9, fxDead: 1e12,
         mood: { form, mental, trouble, slack }, taken: 0, skN: 0, ultN: 0, carry: [], depProg: 0, depAt: '', deliv: 0, coresIn: 0, dpts: 0
       };
       /* brain 은 공유 객체를 건드리지 않도록 복사 후 폼/멘탈/트러블 → 세부 능력치 순으로 보정 */
@@ -92,7 +91,7 @@ const Battle = (() => {
       for (const k in SK.limits) u.brain[k] = clamp(u.brain[k], SK.limits[k][0], SK.limits[k][1]);
       const DG = SK.dg, jn = clamp(nz('judge') + (Math.min(0, mN) * 0.4 + Math.min(0, fN) * 0.2) * pen, -1, 1), cn = nz('clutch'), on = nz('obj'), tmn = nz('team'), pn = nz('posn');
       u.dg = { j: jn, reach: DG.reach * clamp(1 + DG.reachJ * jn + DG.reachO * on, 0.5, 1.6), team: tmn, posn: pn, bias: 0, biasAt: 0 };
-      u.sn = { j: jn, c: cn, o: on, t: tmn, p: pn, r: nz('react'), u: nz('ult') };
+      u.sn = { j: jn, c: cn, o: on, t: tmn, p: pn, r: nz('react'), u: nz('ult'), a: nz('aim'), f: nz('fight') };
       u.dgCore = null; u.dgUntil = 0; u.dgCd = 0;
       const obj = psk.obj != null ? psk.obj : SK.center;
       if (obj >= SK.objHi) u.brain.ensureBoss = true; else if (obj <= SK.objLo) u.brain.ensureBoss = false;
@@ -100,9 +99,12 @@ const Battle = (() => {
       u.mpMax = s.mp; u.mp = s.mp * this.cfg.mana.startRatio;
       const all = F.forms ? [].concat(...Object.values(F.forms)) : F.skills;
       all.forEach(k => { u.cds[k.id] = Math.round(k.cd * TPS * this.cfg.skillStartCdRatio); });
-      u.ultCd = Math.round(F.ult.cd * TPS * this.cfg.ultStartCdRatio);
+      this.setUlt(u, 100 * this.cfg.ultStart);
       return u;
     }
+    /* 궁극기 게이지(0~100): 기본 공격·스킬 사용으로 충전(ult.timed 궁은 cd초마다 시간으로 충전 — 모드변환 궁). ultCd는 HUD·기존 판단식 호환용 남은량(0이면 준비 완료) */
+    setUlt(u, g) { u.ultG = Math.max(0, Math.min(100, g)); u.ultCd = u.ultG >= 100 ? 0 : Math.max(1, Math.round((1 - u.ultG / 100) * ticks(u.f.ult.cd))); }
+    ultGain(u, v) { if (u.f && u.f.ult && !u.f.ult.timed && u.alive) this.setUlt(u, u.ultG + v * this.cfg.ultRefCd / u.f.ult.cd * ((this.cfg.ultCharge && this.cfg.ultCharge[u.f.id]) || 1)); }      // 센 궁극기(cd 큼)일수록 천천히 충전 + 파이터별 배율(CONFIG.battle.ultCharge)
     skillsOf(u) { const F = u.f; return { list: F.forms ? F.forms[u.form] : F.skills, ult: F.ult }; }
 
     readTac(raw) {
@@ -269,7 +271,8 @@ const Battle = (() => {
       for (const s of t.st) if (!o.pierce && s.shield > 0 && rest > 0) { const a = Math.min(s.shield, rest); s.shield -= a; rest -= a; absorbed += a; }
       const tpp = t.f.passive; if (tpp && tpp.preHit && rest > 0) rest = tpp.preHit(this, t, rest, src, o);
       t.hp -= rest; src.dmg += rest; t.taken = (t.taken || 0) + rest;
-      if (src !== t) { t.hitT = this.t; t.hitBy = src; if (!o.dot) this.gain(src, cfg.mana.onHit); }
+      if (rest > 0 && !t.struct) { const h = t.dmgHist || (t.dmgHist = []); h.push(this.t, rest); }      // 최근 피해 기록 (제출 이탈 판단용)
+      if (src !== t) { t.hitT = this.t; t.hitBy = src; if (!o.dot) { t.hurtT = this.t; this.gain(src, cfg.mana.onHit); } }
       this.gain(t, cfg.mana.onHurt);
       let kill = false;
       if (t.hp <= 0) { t.hp = 0; t.alive = false; kill = true; if (!t.struct) src.kills++; }
@@ -391,7 +394,7 @@ const Battle = (() => {
       });
       this.rec.cores.push({ t: this.t, kind: 'drop', team: u.team, n });
       this.emit({ type: 'drop', team: u.team, unit: u, n, x: u.x, y: u.y });
-      u.carry = []; u.depProg = 0; u.depAt = '';
+      u.carry = []; u.depProg = 0; u.depAt = ''; u.bail = null; u.bailN = 0;
     }
     tickCores() {
       const K = CONFIG.battle.map.core, us = this.units.filter(u => u.team < 2 && u.alive && !u.struct && !this.gone(u));
@@ -408,13 +411,14 @@ const Battle = (() => {
       }
       const deps = this.map.zones.filter(z => z.deposit);
       for (const u of us) {
-        const z = u.carry.length && !this.stunned(u) ? deps.find(q => Math.hypot(u.x - q.x, u.y - q.y) <= q.r) : null;
+        const z = u.carry.length && !this.stunned(u) ? deps.find(q => Math.hypot(u.x - q.x, u.y - q.y) <= q.r && !(u.bail && u.bail.zid === q.id && this.t < u.bail.retryAt)) : null;
         if (!z) { u.depProg = 0; u.depAt = ''; continue; }
         if (u.depAt !== z.id) { u.depAt = z.id; u.depProg = 0; }
+        if (u.hurtT > (u.depSeen || -1e9)) { u.depSeen = u.hurtT; u.depProg *= K.deposit.hitKeep; }      // 제출 중 피격: 진행도 일부 손실
         u.depProg += 1 / ((K.deposit.channelSec + (K.deposit.perCoreSec || 0) * (u.carry.length - 1)) * TPS);
         if (u.depProg < 1) continue;
         const n = u.carry.length, pts = this.coreValue(u) + (n >= K.deposit.comboAt ? K.deposit.comboBonus : 0);
-        u.carry = []; u.depProg = 0; u.depAt = ''; u.deliv++; u.coresIn += n; u.dpts += pts;
+        u.carry = []; u.depProg = 0; u.depAt = ''; u.bail = null; u.bailN = 0; u.deliv++; u.coresIn += n; u.dpts += pts;
         this.scoreAdd(u.team, pts, 'deliver');
         this.rec.cores.push({ t: this.t, kind: 'deposit', team: u.team, n: pts, u: u.id });
         this.emit({ type: 'deposit', team: u.team, unit: u, pts, n, x: z.x, y: z.y, zone: z });
@@ -477,13 +481,13 @@ const Battle = (() => {
       if (!pl) return false;
       if (gate && !this.worth(u, sk, slot, pl, enemies, allies)) return false;
       delete u.rdy[sk.id];
-      if (slot === 'ult') u.ultCd = ticks(sk.cd); else { u.mp -= sk.cost; u.cds[sk.id] = ticks(sk.cd); }
+      if (slot === 'ult') this.setUlt(u, 0); else { u.mp -= sk.cost; u.cds[sk.id] = ticks(sk.cd); this.ultGain(u, this.cfg.ultSkill); }
       /* 스킬샷 정확도: 대상을 노리는 공격 스킬은 일정 확률로 빗나가 자원만 소모됩니다 (궁극기 제외) */
       if (slot !== 'ult' && pl.t && u.brain.whiff > 0 && CONFIG.brain.stat.whiffKinds.includes(sk.sfx || 'nuke') && Math.random() < u.brain.whiff) {
         u.fxAtk = this.t; u.skN = (u.skN || 0) + 1; this.emit({ type: 'skill', slot, src: u, name: sk.name + ' (빗나감)', kind: sk.sfx || 'nuke', color: u.f.color }); return true;
       }
       const r = this.exec(u, sk, pl, slot);
-      if (r.cd !== undefined) { if (slot === 'ult') u.ultCd = ticks(r.cd); else u.cds[sk.id] = ticks(r.cd); }
+      if (r.cd !== undefined && slot !== 'ult') u.cds[sk.id] = ticks(r.cd);
       if (r.recast) u.rc[sk.id] = { until: this.t + ticks(r.recast), at: this.t };
       return true;
     }
@@ -565,38 +569,25 @@ const Battle = (() => {
     }
     /* 재정비: 체력이 떨어졌거나 스킬이 모두 쿨타임인데 수적으로 밀릴 때 잠시 아군 쪽으로 물러납니다 (원거리는 물러나며 사격) */
     safePoint(u, allies, threats) {
-      const A = this.cfg.arena, ax = this.axis[u.team], rx = -ax.fx, ry = -ax.fy, cands = [];      // (rx, ry) = 우리 진영 쪽 방향
+      const A = this.cfg.arena, X = CONFIG.mind.retreat, ax = this.axis[u.team], rx = -ax.fx, ry = -ax.fy, cands = [];
       const cx = threats.length ? threats.reduce((a, e) => a + e.x, 0) / threats.length : u.x - rx * 10, cy = threats.length ? threats.reduce((a, e) => a + e.y, 0) / threats.length : u.y - ry * 10;
-      for (const a of allies) if (a !== u && a.alive && !this.gone(a) && a.hp > a.maxHp * 0.4) cands.push({ x: a.x + rx * 4, y: a.y + ry * 4, w: 1 });
-      cands.push({ x: clamp(u.x + rx * 18, 8, A.w - 8), y: clamp(u.y + ry * 18 + (A.h / 2 - u.y) * 0.2, 5, A.h - 5), w: 0.6 });
-      if (u.hp < u.maxHp * 0.5) for (const p of this.map.pods) if (p.readyAt <= this.t + this.sec(u.brain.waitPod ? 10 : 3) && !threats.some(e => Math.hypot(e.x - p.x, e.y - p.y) < 14)) cands.push({ x: p.x, y: p.y, w: 1.3 });
-      let best = null, bs = -1e9;
-      for (const c of cands) { if (this.inObs(c.x, c.y, 2)) continue; const sc = Math.min(30, Math.hypot(c.x - cx, c.y - cy)) + c.w * 8 - Math.hypot(c.x - u.x, c.y - u.y) * 0.15; if (sc > bs) { bs = sc; best = c; } }
-      return best;
+      const gap = this.retreatGap(threats), half = A.w / 2, depth = c => ((c.x - A.w / 2) * rx + (c.y - A.h / 2) * ry) / half;
+      for (const a of allies) if (a !== u && a.alive && !this.gone(a) && a.hp > a.maxHp * 0.4) cands.push({ x: a.x + rx * 2, y: a.y + ry * 2, w: 1 });
+      cands.push({ x: clamp(u.x + rx * X.step, 8, A.w - 8), y: clamp(u.y + ry * X.step + (A.h / 2 - u.y) * 0.2, 5, A.h - 5), w: 0.6 });
+      if (u.hp < u.maxHp * 0.5) for (const p of this.map.pods) if (p.readyAt <= this.t + this.sec(u.brain.waitPod ? 10 : 3) && !threats.some(e => Math.hypot(e.x - p.x, e.y - p.y) < 14)) cands.push({ x: p.x, y: p.y, w: 1.3, pod: true });
+      const pick = limit => {
+        let best = null, bs = -1e9;
+        for (const c of cands) {
+          if (this.inObs(c.x, c.y, 2)) continue;
+          if (limit && !c.pod && depth(c) > X.depthCap) continue;
+          const sc = Math.min(gap, Math.hypot(c.x - cx, c.y - cy)) + c.w * 8 - Math.hypot(c.x - u.x, c.y - u.y) * 0.15;
+          if (sc > bs) { bs = sc; best = c; }
+        }
+        return best;
+      };
+      return pick(u.hp > u.maxHp * X.deepHp) || pick(false);
     }
-    fallbackStep(u, sk, foesNear, enemies, allies) {
-      const T = u.tac, R = u.role, hpR = u.hp / u.maxHp;
-      const threats = foesNear.filter(e => !e.struct && dist(u, e) <= (e.team === 2 ? 18 : 20));
-      if (u.fb && (this.t > u.fb.until || (!threats.length && this.t > u.fb.min) || (u.fb.why === 'hp' && hpR > 0.5))) { u.fb = null; u.fbCd = this.t + ticks(4.5); }
-      if (!u.fb) {
-        if ((this.t < u.fbCd && hpR >= u.brain.retreatHp * 0.9) || !threats.length || (T.act === 'rush' && T.actS >= 0.5)) return false;
-        const allCd = sk.list.every(k => (u.cds[k.id] || 0) > ticks(1.2) || u.mp < k.cost) && u.ultCd > ticks(1.2);
-        const outnum = threats.filter(e => e.team < 2).length > allies.filter(a => a !== u && dist(a, u) <= 20).length + 1;
-        let why = null;
-        const B = u.brain;
-        if (hpR < B.retreatHp + (T.act === 'retreat' ? 0.03 * T.actL : 0) + (this.cur[u.team] && this.cur[u.team].lead >= 2 ? 0.04 : 0) + (this.strat[u.team].retreat === 'careful' ? 0.02 : this.strat[u.team].retreat === 'brave' ? -0.02 : 0) * this.strat[u.team].retreatL) why = 'hp';
-        else if (hpR < B.retreatHp + 0.22 && outnum) why = 'hp';
-        else if (allCd && hpR < 0.7 && (outnum || R.backline)) why = 'cd';
-        if (!why) return false;
-        if (u.goal && u.goal.type === 'boss' && hpR > B.retreatHp * 0.7) return false;
-        u.fb = { why, until: this.t + ticks(why === 'hp' ? 5 : 1.8), min: this.t + ticks(0.8) };
-      }
-      const p = this.safePoint(u, allies, threats), t = u.target;
-      if (R.range >= 10 && t && t.alive && !this.hidden(t) && dist(u, t) <= R.range && u.cd >= 1 && !u.st.some(s => s.disarm)) { u.cd -= 1; u.fxAtk = this.t; u.actT = this.t; this.attack(u, t); return true; }
-      if (p) { if (Math.abs(p.x - u.x) > 0.5) u.facing = p.x > u.x ? 1 : -1; this.stepNav(u, p.x, p.y, this.eff(u, 'spd')); }
-      return true;
-    }
-
+    retreatGap(threats) { const X = CONFIG.mind.retreat; return Math.max(X.gapMin, ...threats.map(e => (e.role.range || 6) + X.gapAdd)); }
     /* ---------- 두뇌 (AI 지능 단계 C~S) ----------
        추격 제한 / 회복·보스 우선 / 즉시 후퇴 / 수적 열세 시 대기 — 파라미터는 CONFIG.brain.levels */
     power(u) { return (u.atk + u.ap + 20) * Math.max(1, u.hp) / 1000; }
@@ -624,7 +615,7 @@ const Battle = (() => {
         for (const e of foes) { const de = Math.hypot(e.x - c.x, e.y - c.y); if (de <= X.guardR) fp += this.power(e); if (de < race) race = de; }
         for (const a of allies) if (a !== u && a.alive && !this.gone(a) && Math.hypot(a.x - c.x, a.y - c.y) <= X.guardR + 8) mp += this.power(a);
         const r = fp > 0 ? fp / mp * (1 + D.bias) : 0;
-        if (fp > 0 && r > X.contest) continue;
+        if (fp > 0 && r > X.contest * (1 + (X.contestNeed || 0) * Math.max(0, this.sit[team].need))) continue;      // 점수가 뒤질수록 적이 있는 코어도 감수하고 노림
         if (fp === 0 && d > 12 && race < d * X.race) continue;
         const sc = c.value * X.val - d / X.dist - X.guardPen * r + (c === u.dgCore ? 0.5 : 0);
         if (sc > bs) { bs = sc; best = c; }
@@ -645,15 +636,6 @@ const Battle = (() => {
       if (!best) return false;
       u.goal = { type: 'core', c: best }; u.target = null; u.chase = null; this.objective(u, enemies); return true;
     }
-    dgDetour(u, enemies, A) {
-      const D = u.dg, X = CONFIG.brain.stat.dg, K = CONFIG.battle.map.core;
-      if (!D || this.sudden || this.t < u.dgCd) return false;
-      const slots = this.coreSlots(u), fits = c => this.cores.includes(c) && c.lockUntil <= this.t && slots + c.slots <= K.carryCap;
-      if (slots >= K.carryCap) return false;
-      const cand = this.coreCand(u, enemies, A.mates, fits); if (!cand) return false;
-      if (u.dgCore !== cand.c) { u.dgCore = cand.c; u.dgUntil = this.t + ticks(X.hold); }
-      u.waitSince = 0; u.goal = { type: 'core', c: cand.c }; u.target = null; u.chase = null; this.objective(u, enemies); return true;
-    }
     /* 교전 중 코어 판단: 점수 필요도·한타 창·국지 전력비·지시(기조/임무)를 한 점수로 비교해 싸울지 코어로 빠질지 정합니다 */
     dgStep(u, enemies, allies, aggro) {
       const D = u.dg, X = CONFIG.brain.stat.dg, K = CONFIG.battle.map.core;
@@ -668,7 +650,8 @@ const Battle = (() => {
       const st = this.stayVal(u, enemies, Math.max(aggro, 28)); if (!st.foes0.length) return false;
       const A = this.assess(u, enemies, allies), cand = this.coreCand(u, enemies, allies, fits); if (!cand) return false;
       const cur = this.cur[team], ms = this.mission(u, cur), W = cur ? cur.W : null;
-      let gain = clamp(0.4 + Sit.need * 0.9, 0.1, 1.6), stay = st.v * clamp(1.5 - X.oddsStay * A.ratio, 0.5, 1.3);
+      let gain = clamp(X.gain0 + Sit.need * X.gainNeed, X.gainMin, X.gainMax), stay = st.v * clamp(1.5 - X.oddsStay * A.ratio, 0.5, 1.3);
+      if (Sit.need > 0) stay *= 1 - X.stayNeed * Sit.need;      // 점수가 뒤질수록 싸움 가치를 낮춰 코어를 우선
       if (Sit.win === 'open') stay += X.openStay * (0.6 + 0.4 * u.sn.t); else if (Sit.win === 'avoid') stay -= X.avoidStay;
       if (W) gain *= clamp(W.core / Math.max(0.6, W.kill), 0.6, 1.8);
       if (ms === 'collect') gain *= 1.25; else if (ms === 'hunt' || ms === 'ambush') stay *= 1.25;
@@ -679,32 +662,8 @@ const Battle = (() => {
     retreatMove(u, allies, threats) {
       const R = u.role, t = u.target, p = this.safePoint(u, allies, threats);
       if (R.range >= 10 && t && t.alive && !this.hidden(t) && dist(u, t) <= R.range && u.cd >= 1 && !u.st.some(s => s.disarm)) { u.cd -= 1; u.fxAtk = this.t; u.actT = this.t; this.attack(u, t); return; }
+      if (threats.length && threats.every(e => dist(u, e) >= this.retreatGap(threats)) && this.t - u.hitT > 20) { u.actT = this.t; return; }
       if (p) { if (Math.abs(p.x - u.x) > 0.5) u.facing = p.x > u.x ? 1 : -1; this.stepNav(u, p.x, p.y, this.eff(u, 'spd')); }
-    }
-    /* 수적/전력 열세이거나 혼자 다수를 만나면 무작정 싸우지 않고 아군 쪽으로 물러나 기다립니다 */
-    cautionStep(u, enemies, allies) {
-      const B = u.brain; if (B.ratio >= 50 || this.t < u.cautionOff) return false;
-      const A = this.assess(u, enemies, allies); if (!A.foes.length) { u.waitSince = 0; return false; }
-      const Sit = this.sit[u.team], XD = CONFIG.brain.stat.dg;
-      let lim = B.ratio * (u.caution > this.t ? 0.85 : 1) * clamp(1 + XD.needLim * Sit.need + XD.winLim * Sit.edge, 0.7, 1.45) * (u.tac.act === 'rush' && u.tac.actS >= 0.5 ? 1.5 : 1) * (A.foes.length > A.mates.length ? (this.strat[u.team].retreat === 'brave' ? 0.8 : CONFIG.battle.map.core.caution.outMul) : 1);
-      if (A.foes.length >= 2 && A.mates.length <= 1) lim = Math.min(lim, CONFIG.battle.map.core.danger.soloLim);
-      if (A.ratio <= lim) { u.waitSince = 0; return false; }
-      const ne = nearestOf(u, A.foes), de = dist(u, ne);
-      if (ne.hp < ne.maxHp * 0.25 && de <= u.role.range + 4 && u.hp > u.maxHp * 0.3) return false;      // 마무리 기회는 놓치지 않음
-      if (this.dgDetour(u, enemies, A)) return true;
-      if (!u.waitSince) { u.waitSince = this.t; u.waitExt = false; }
-      if (this.t - u.waitSince > ticks(7)) {
-        const DG = CONFIG.brain.stat.dg;
-        if (!u.waitExt && A.ratio > lim * DG.stale) { u.waitExt = true; u.waitSince = this.t - ticks(7) + ticks(DG.extend); }
-        else { u.waitSince = 0; u.waitExt = false; u.cautionOff = this.t + ticks(5); return false; }
-      }
-      u.caution = this.t + ticks(2);
-      const safeD = Math.max(18, ...A.foes.map(e => e.role.range + 8)) + (u.dg ? CONFIG.brain.stat.dg.safeP * u.dg.posn : 0);
-      const hd = this.homeDep(u.team); if (de < safeD && dist(u, hd) <= CONFIG.battle.map.core.caution.holdHome) { u.cautionOff = this.t + ticks(4); return false; }      // 본진 구석까지 몰렸으면 더 도망가지 않고 맞서 싸움
-      if (de < safeD) { this.retreatMove(u, allies, A.foes); return true; }
-      u.actT = this.t;
-      const g = u.goal, pt = g && g.type === 'deposit' ? g.z : g && g.type === 'core' ? g.c : null; if (pt && !enemies.some(e => e.team < 2 && dist(e, pt) < (pt.r || 0) + 12)) this.objective(u, enemies);
-      return true;
     }
     podRun(u, near, enemies) {
       const B = u.brain; if (!B.podRun || this.sudden || u.hp > u.maxHp * 0.6) return false;
@@ -728,7 +687,7 @@ const Battle = (() => {
       if ((T.act === 'rush' && T.actS >= 0.5) || T.pos === 'front' || (T.fight === 'solo' && T.fightS >= 0.6)) return null;
       const fr = others.filter(a => a.role.front);
       if (!fr.length) return null;
-      const S = this.strat[u.team], gap = S && S.roleMove !== 'free' ? 3 + 0.8 * S.roleMoveL : 5;      // 역할 이동: 정도가 높을수록 전열 뒤 간격을 넓게
+      const gap = this.roleGap(u);      // 역할 이동: 정도가 높을수록 전열 뒤 간격을 넓게
       return Math.max(...fr.map(a => this.ahead(a))) - gap;
     }
     posPoint(u, allies) {
@@ -811,7 +770,7 @@ const Battle = (() => {
         else if (T.aim === 'capper') { if (e.team < 2 && e.target && e.target.team === 2 && e.target.alive) s *= 1 - TP.capperBias * T.aimS; }
         if (u.brain.finish > 0) s *= 1 - u.brain.finish * (1 - e.hp / e.maxHp);                                                    // 교전 능력: 체력이 깎인 적을 마무리
         if (u.brain.assist > 0 && allies.some(a => a !== u && this.t - a.hitT < 40 && a.hitBy === e)) s *= 1 - u.brain.assist;         // 팀워크: 아군을 때린 적을 먼저 견제
-        if (fcE && e === fcE) s *= Math.max(0.12, 1 - (0.3 + 0.08 * this.strat[u.team].focusL));      // 팀 포커스 타깃 우선
+        if (fcE && e === fcE) s *= Math.max(0.12, 1 - this.focusPull(u));
         if (T.fight === 'coop' && allies.some(a => a !== u && a.target === e)) s *= 1 - TP.coopBias * T.fightS;
         else if ((T.fight === 'support' || T.entry === 'support') && allies.some(a => a !== u && this.t - a.hitT < TP.assistWindow && a.hitBy === e)) s *= 1 - TP.supportBias * T.fightS;
         if (s < bs) { bs = s; best = e; }
@@ -844,6 +803,7 @@ const Battle = (() => {
     /* ---------- 기본 공격 ---------- */
     attack(u, t) {
       const F = u.f, B = F.basic;
+      this.ultGain(u, this.cfg.ultAtk);
       if (B.proj && B.proj !== 'melee' && B.proj !== 'none') { const blk = this.blocker(u, t); if (blk) t = blk; }      // 원거리 기본 공격은 구조물에 막힘
       if (u.st.some(s => s.blind)) { this.emit({ type: 'attack', src: u, dst: t, hit: false, miss: true, dmg: 0, dtype: B.type, proj: B.proj || 'none', basic: true }); return; }     // 실명: 기본 공격 빗나감
       const raw = this.raw(u, 0, B.atk, B.ap);
@@ -939,137 +899,15 @@ const Battle = (() => {
     /* ---------- 팀 협동: 집결 후 진입 · 팀 포커스 · 궁 연계 · 역할 이동 · 회복팩 순환 ----------
        모든 항목의 중립값(각자 이동·각자 판단·연계 없음…)에서는 아래 로직이 아무것도 하지 않아 기존 동작과 같습니다. */
     teamUnits(team) { return this.units.filter(u => u.team === team && u.alive && !u.struct && !this.gone(u)); }
-    /* 팀 상황 판단: 전력·궁 준비·부활 공백으로 교전 우세(edge)를, 점수·남은 시간으로 점수 필요도(need)를 읽습니다. 읽는 주기·오차·문턱은 팀 능력치(판단/반응/클러치)가 정합니다 */
-    readSit(team) {
-      const X = CONFIG.brain.stat.sit, P = this.sit[team], us = this.teamUnits(team);
-      if (!us.length) { P.win = 'avoid'; P.edge = -1; return; }
-      const avg = k => us.reduce((s, a) => s + (a.sn ? a.sn[k] : 0), 0) / us.length;
-      P.j = avg('j'); P.c = avg('c'); P.t = avg('t'); P.o = avg('o'); P.p = avg('p'); P.r = avg('r');
-      if (this.t < P.at) return;
-      P.at = this.t + ticks(X.refresh * (1 - X.refreshR * P.r));
-      const all = this.units.filter(e => !e.struct && e.team < 2 && !this.gone(e)), me = all.filter(e => e.team === team), op = all.filter(e => e.team !== team);
-      const pw = l => l.reduce((s, a) => s + (a.alive ? this.power(a) * (1 + (a.ultCd <= ticks(2) ? X.ultW : 0)) : 0), 0);
-      const gap = l => l.filter(a => !a.alive && a.respawnAt - this.t > ticks(X.winSec)).length;
-      const mine = pw(me), theirs = pw(op);
-      if (this.t >= P.biasAt) { P.biasAt = this.t + ticks(2); P.bias = (Math.random() * 2 - 1) * X.noise * (1 - P.j) / 2; }
-      P.edge = clamp((mine - theirs) / (mine + theirs || 1) + X.respawn * (gap(op) - gap(me)) + P.bias, -1, 1);
-      const lead = this.score[team] - this.score[1 - team], total = this.cfg.maxTicks / TPS, left = this.sudden ? 0 : Math.max(0, (this.cfg.maxTicks - this.t) / TPS);
-      P.lead = lead; P.left = left;
-      P.need = this.sudden ? 1 : clamp(-lead / ((X.needBase + X.needLeft * left / total) * (1 - X.needC * P.c)), -1, 1);
-      const th = 1 - X.openJ * P.j;
-      P.win = P.edge >= X.open * th ? 'open' : P.edge <= -X.avoid * th ? 'avoid' : 'even';
+    /* ---------- 제출 중 이탈 ----------
+       제출 채널 중 매 틱: 남은 제출 시간 동안 버틸 수 있는지(최근 피해량 기준)를 보고, 못 버티면 이탈 사유를 돌려줍니다 */
+    recentDps(u, sec) {
+      const h = u.dmgHist; if (!h || !h.length) return 0;
+      const from = this.t - ticks(sec); while (h.length && h[0] < from) h.splice(0, 2);
+      let s = 0; for (let i = 1; i < h.length; i += 2) s += h[i];
+      return s / sec;
     }
-    teamPlan(team) {
-      const S = this.strat[team], P = this.tp[team], us = this.teamUnits(team);
-      this.readSit(team);
-      if (!us.length) { P.focus = null; P.gate.st = 'idle'; P.pod = null; return; }
-      const foes = this.units.filter(e => e.team === 1 - team && e.alive && !e.struct && !this.hidden(e) && !this.gone(e));
-      this.planPod(team, S, P, us);
-      this.planFocus(S, P, us, foes);
-      this.planGate(S, P, us, foes);
-    }
-    /* 팀 포커스: 약한 적 / 위협 큰 적 / 후열·지원 중 하나를 팀 전체가 우선 노립니다. 죽거나 숨거나 도망치면 즉시 다음 타깃으로 */
-    planFocus(S, P, us, foes) {
-      if (S.focus === 'own') { P.focus = null; return; }
-      const f = P.focus, within = e => us.some(a => dist(a, e) <= 48);
-      let keep = !!(f && f.mode === S.focus && f.e.alive && !this.hidden(f.e) && !this.gone(f.e) && us.some(a => dist(a, f.e) <= 40));
-      if (keep && f.e.fb && !us.some(a => dist(a, f.e) <= 14)) keep = false;      // 후퇴(도망) 중인 적은 쫓지 않고 다음 타깃으로
-      if (keep && (this.t - f.since < ticks(1.2) || this.t % 6 !== 0)) return;
-      const cand = foes.filter(within); if (!cand.length) { P.focus = null; return; }
-      const cx = us.reduce((a, b) => a + b.x, 0) / us.length, cy = us.reduce((a, b) => a + b.y, 0) / us.length, maxAtk = Math.max(...cand.map(e => e.atk + e.ap)) || 1;
-      let best = null, bs = -1e9;
-      for (const e of cand) {
-        const d = Math.hypot(e.x - cx, e.y - cy), hpR = e.hp / e.maxHp; let sc = -d / 40;
-        if (S.focus === 'weak') sc += (1 - hpR) * 3 + (hpR < 0.35 ? 1 : 0);
-        else if (S.focus === 'threat') sc += ((e.atk + e.ap) / maxAtk) * 2 * (e.role.threat || 1) + (1 - hpR) * 0.6;
-        else if (S.focus === 'back') { const sup = (e.f.skills || []).some(k => k.sfx === 'shield' || k.sfx === 'buff' || k.sfx === 'heal'); sc += (e.role.backline ? 2.2 : 0) + (e.role.backline && sup ? 1 : 0) + (e.role.front && !e.role.backline ? -0.4 : 0) + (1 - hpR) * 0.8; }
-        if (f && f.e === e) sc += 0.5;      // 너무 자주 갈아타지 않게
-        if (sc > bs) { bs = sc; best = e; }
-      }
-      P.focus = f && f.e === best && f.mode === S.focus ? f : { e: best, since: this.t, mode: S.focus };
-    }
-    /* 집결 후 진입: 가까운 적이 있으면 '기준 인원'이 일정 거리 안에 모일 때까지 가장 뒤의 아군 자리에서 대기하다가 같이 진입합니다.
-       대기 한도(성급함)가 지나면 풀려서 교전하고, 이미 교전이 났거나 아군 궁 연계 중이면 막지 않습니다. */
-    planGate(S, P, us, foes) {
-      const G = P.gate, GT = CONFIG.battle.map.gate, need = S.gather === 'two' ? 2 : S.gather === 'three' ? 3 : 0, rearm = P.rearm > this.t;
-      if (!need && !rearm) { G.st = 'idle'; return; }
-      if (!foes.some(e => us.some(a => dist(a, e) <= 50))) { G.st = 'idle'; return; }
-      const gu = us.filter(a => !(a.goal && a.goal.type === 'deposit'));
-      const Sit = this.sit[us[0].team], n = Math.min(Math.max(need, 2), gu.length), rad = (26 - 2 * (need ? S.gatherL : 3)) * (Sit.win === 'open' ? 1.35 : 1);
-      const gathered = n <= 1 || gu.some(a => gu.filter(b => dist(a, b) <= rad).length >= n);
-      let limit = ticks(S.hurry === 'patient' ? GT.base + GT.patientStep * S.hurryL : S.hurry === 'rash' ? Math.max(GT.rashMin, GT.base - GT.rashStep * S.hurryL) : GT.base);
-      limit *= Sit.win === 'open' ? 0.7 : Sit.win === 'avoid' ? 1.3 : 1;
-      if (need === 3) limit = Math.min(limit, ticks(GT.threeMax));
-      const engaged = us.some(a => this.t - a.hitT < 30 || foes.some(e => dist(a, e) <= 16));
-      if (G.st === 'go') {
-        if (engaged) G.until = Math.max(G.until, this.t + ticks(3));
-        if (this.t >= G.until) { G.st = 'wait'; G.since = this.t; }
-        return;
-      }
-      if (G.st === 'idle') { G.st = 'wait'; G.since = this.t; }
-      if (gathered || engaged || P.chain.until > this.t || this.t - G.since > limit) { G.st = 'go'; G.until = this.t + ticks(gathered || P.chain.until > this.t ? 5 : 4); }
-    }
-
-    /* 코어 보유 시 제출 유인 점수 (높을수록 제출 선호). 교전 유인과 비교해 유기적으로 판단 */
-    depositUrge(u, enemies) {
-      if (!u.carry || !u.carry.length) return null;
-      const K = CONFIG.battle.map.core, deps = this.map.zones.filter(z => z.deposit);
-      if (!deps.length) return null;
-      let best = null, bestD = 1e9;
-      for (const z of deps) {
-        const d = Math.hypot(u.x - z.x, u.y - z.y);
-        if (d < bestD) { bestD = d; best = z; }
-      }
-      const slots = this.coreSlots(u), val = this.coreValue(u);
-      const S = this.strat[u.team], T = u.tac;
-      const lead = this.score[u.team] - this.score[1 - u.team], XD = CONFIG.brain.stat.dg;
-      const left = this.sudden ? 0 : (this.cfg.maxTicks - this.t) / TPS;
-      let urge = val * 0.55 + slots * 0.35;
-      const r = best.r || 12;
-      if (bestD <= r) urge += 6.5;
-      else if (bestD <= r + 8) urge += 4.0;
-      else if (bestD <= r + 22) urge += 2.0 - (bestD - r) * 0.05;
-      else urge -= (bestD - r - 22) * XD.distPen * (1 - XD.distPenO * u.sn.o);
-      const near = enemies.filter(e => e.team < 2 && !e.struct && dist(u, e) <= 28);
-      const threat = near.reduce((s, e) => {
-        const d = dist(u, e), inRange = d <= (e.role.range || 6) + 3;
-        return s + (inRange ? 1.4 : 0.45) * (0.6 + 0.4 * (1 - e.hp / e.maxHp));
-      }, 0);
-      if (threat > 0) {
-        if (bestD <= r + 16) urge += 1.2 + Math.min(2.5, threat * 0.7);
-        else urge -= Math.min(2.0, threat * 0.5);
-      }
-      const hpR = u.hp / u.maxHp;
-      if (hpR < 0.35) urge += 2.2;
-      else if (hpR > 0.75 && threat < 0.8) urge -= 0.8;
-      const Sit = this.sit[u.team];
-      urge += XD.needDep * Math.max(0, Sit.need) * Math.min(val, 5) / 3 * (1 + 0.3 * u.sn.o);
-      if (lead < 0 && val >= -lead) urge += XD.flipDep;
-      else if (Sit.need < -0.2 && val > 0) urge += 0.6 * -Sit.need * Math.min(val, 4) / 2;
-      urge += XD.carryW * Math.min(val, 6) * (0.4 + 0.25 * Math.min(2.5, threat)) * (1 + 0.3 * u.sn.j);
-      if (left > 0 && left <= 40) urge += 1.2;
-      if (this.sudden) urge += 3.0;
-      if (S.deposit === 'early') urge += 0.8 + 0.15 * (S.depositL || 4);
-      else if (S.deposit === 'full') {
-        if (slots < K.carryCap) urge -= 1.2 * (slots < 3 ? 1 : 0.4);
-        else urge += 1.5;
-      }
-      if (T.mission === 'collect') urge += 0.5 + 0.4 * (T.missionS || 0);
-      if (T.mission === 'hunt' || T.mission === 'ambush') urge -= 0.7;
-      if (u.depProg > 0 && u.depAt) urge += 8;
-      return { urge, z: best, dist: bestD };
-    }
-    /* 집결 대기 위치: 팀에서 가장 뒤에 있는 아군 자리 (나머지가 그쪽으로 모임) */
-    gateHold(u) {
-      const G = this.tp[u.team].gate; if (G.st !== 'wait') return false;
-      if (this.t - u.hitT < 30) return false;
-      if (u.goal && u.goal.type === 'deposit') return false;
-      const us = this.teamUnits(u.team); if (us.length < 2) return false;
-      const oth = us.filter(a => a !== u), cx = oth.reduce((s, a) => s + a.x, 0) / oth.length, cy = oth.reduce((s, a) => s + a.y, 0) / oth.length, d = Math.hypot(cx - u.x, cy - u.y);
-      u.actT = this.t;
-      if (d > 6) this.stepNav(u, cx, cy, Math.min(this.eff(u, 'spd'), d - 4));
-      return true;
-    }
+    recentHits(u, sec) { const h = u.dmgHist; if (!h) return 0; const from = this.t - ticks(sec); let n = 0; for (let i = 0; i < h.length; i += 2) if (h[i] >= from) n++; return n; }
     /* 부활 직후 합류: 전술·목표보다 먼저 살아 있는 아군 중심으로 모입니다 (피격 시 act에서 해제) */
     regroupStep(u) {
       const o = this.teamUnits(u.team).filter(a => a !== u), p = o.length ? { x: o.reduce((s, a) => s + a.x, 0) / o.length, y: o.reduce((s, a) => s + a.y, 0) / o.length } : this.homeDep(u.team), d = dist(u, p);
@@ -1087,57 +925,6 @@ const Battle = (() => {
       });
       return best;
     }
-    /* 궁 연계: 아군이 궁을 쓰면 잠시 문턱이 낮아지고 집결 대기가 풀려 같이 진입합니다 */
-    onUlt(u) {
-      const S = this.strat[u.team]; if (S.chain !== 'follow') return;
-      this.tp[u.team].chain = { until: this.t + ticks(1.5 + 0.7 * S.chainL), by: u.id };
-    }
-    /* 목표 밖에서도 적을 따라 이동하며 싸우게 하는 추가 교전 대상 (역할 이동 · 궁 연계 중) */
-    roamTarget(u, enemies, aggro) {
-      const S = this.strat[u.team], P = this.tp[u.team]; let k = 0;
-      if (S.roleMove !== 'free') k = 1.35 + 0.08 * S.roleMoveL;
-      if (P.chain.until > this.t) k = Math.max(k, this.cur[u.team] && this.cur[u.team].lead >= 2 ? 1.35 : 1.9);
-      if (!k || P.gate.st === 'wait') return null;
-      const lim = aggro * k + 6; let best = null, bd = 1e9;
-      for (const e of enemies) { if (e.team > 1 || e.struct || this.hidden(e)) continue; const d = dist(u, e); if (d <= lim && d < bd) { bd = d; best = e; } }
-      return best;
-    }
-    /* 어쌔신 측면 우회: 정면으로 가지 않고 대상의 옆·뒤쪽 지점을 경유합니다 (길찾기가 장애물 사이 경로를 찾음) */
-    flankPoint(u, t, want) {
-      const S = this.strat[u.team]; if (!(u.tac.entry === 'flank' || (S.roleMove !== 'free' && u.f.role === 'assassin')) || t.struct || t.team > 1) return null;
-      const d = dist(u, t); if (d < want + 14) { u.flank = null; return null; }
-      let fk = u.flank;
-      if (!fk || fk.e !== t || this.t > fk.until) {
-        const ax = this.axis[u.team], px = -ax.fy, py = ax.fx, off = 11 + 1.5 * S.roleMoveL; let best = null, bs = 1e9;
-        for (const sg of [1, -1]) {
-          const p = this.pushOut(t.x + px * sg * off + ax.fx * 5, t.y + py * sg * off + ax.fy * 5);
-          if (this.inObs(p.x, p.y, 2)) continue;
-          const sc = dist(u, p) + Math.hypot(p.x - t.x, p.y - t.y) + (this.clearLine(u.x, u.y, p.x, p.y) ? 0 : 20);
-          if (sc < bs) { bs = sc; best = { x: p.x, y: p.y }; }
-        }
-        fk = u.flank = best ? { e: t, x: best.x, y: best.y, until: this.t + ticks(2.5) } : null;
-      }
-      if (!fk || dist(u, fk) < 5) return null;
-      return fk;
-    }
-    /* 회복팩 순환: 아군이 팩을 먹으러 가면 나머지는 잠시 물러나 있다가 복귀 후 같이 재진입합니다 */
-    planPod(team, S, P, us) {
-      if (S.podCycle !== 'cover') { P.pod = null; return; }
-      const runner = us.find(a => a.goal && a.goal.type === 'pod' && a.hp < a.maxHp * 0.8);
-      if (runner) { P.pod = { id: runner.id, until: this.t + ticks(2 + 0.5 * S.podCycleL) }; return; }
-      if (P.pod && P.pod.until > this.t) return;
-      if (P.pod) { P.pod = null; P.rearm = this.t + ticks(8); }      // 복귀 후 8초간은 집결 후 같이 재진입
-    }
-    podPull(u, enemies, allies) {
-      const P = this.tp[u.team].pod; if (!P || P.until <= this.t || P.id === u.id || (u.goal && u.goal.type === 'pod')) return false;
-      if (this.t - u.hitT < 30) return false;
-      const threats = enemies.filter(e => e.team < 2 && !e.struct && !this.hidden(e) && dist(u, e) <= 40);
-      if (threats.some(e => dist(u, e) <= 14)) return false;      // 이미 붙었으면 정상 교전
-      const p = this.safePoint(u, allies, threats); if (!p) return false;
-      u.actT = this.t; if (dist(u, p) > 1.5) this.stepNav(u, p.x, p.y, this.eff(u, 'spd'));
-      return true;
-    }
-
     /* ---------- 경기 중 지휘(지시) ---------- */
     ordNow(team) { const o = this.ord[team]; return o && this.t >= o.applyAt && this.t < o.until ? o.id : 'auto'; }
     orderOf(u) { const o = u.ord; return o && this.t >= o.applyAt && this.t < o.until ? o : null; }
@@ -1228,64 +1015,7 @@ const Battle = (() => {
       if (o.id === 'pod') { if (u.hp >= u.maxHp * 0.98) { u.ord = null; return null; } const ps = M.pods.filter(p => p.readyAt <= this.t + ticks(4)); return ps.length ? { type: 'pod', pod: near(ps, u), since: o.since } : null; }
       return null;
     }
-    stratNow(team) {
-      const S = this.strat[team], P = CONFIG.tactics, sec = this.t / TPS, left = (this.cfg.maxTicks - this.t) / TPS;
-      const lead = this.score[team] - this.score[1 - team], bossUp = this.units.some(b => b.team === 2 && b.alive);
-      let st = S.stance, lv = S.stanceL, ruled = false, dep = S.deposit, amb = false;
-      const dn = this.ordNow(team);
-      if (this.sudden) { st = 'collect'; lv = 6; dep = 'early'; ruled = true; }
-      else if (dn === 'kill') { st = 'slay'; lv = 7; ruled = true; }
-      else if (dn === 'boss') { st = 'boss'; lv = 7; ruled = true; }
-      else if (dn === 'bossWait') { st = 'boss'; lv = 5; ruled = true; }
-      else if (dn === 'wave') { st = 'collect'; lv = 7; ruled = true; }
-      else if (dn === 'convoy') { st = 'balanced'; lv = 5; dep = 'early'; ruled = true; }
-      else if (dn === 'ambush') { st = 'balanced'; lv = 4; ruled = true; }
-      else if (dn === 'retreat') { st = 'defend'; lv = 7; dep = 'early'; ruled = true; }
-      else if (dn === 'regroup') ruled = true;
-      if (!ruled) {
-        const ph = sec < P.phases[0] ? S.early : sec < P.phases[1] ? S.mid : S.late; if (ph !== 'follow') st = ph;
-        const mL = P.marginBase - P.marginStep * S.leadL, mT = Math.max(1, P.marginBase - 1 - P.marginStep * S.trailL), mLx = mL + (S.lead === 'press' ? 1 : 0);
-        if (S.lead !== 'keep' && this.hy(team, 'L', lead >= mLx, lead >= mLx - 1.5)) { st = S.lead === 'turtle' ? 'defend' : 'slay'; if (S.lead === 'turtle') dep = 'early'; lv = Math.max(lv, S.leadL); ruled = true; }
-        else if (S.trail !== 'keep' && this.hy(team, 'T', lead <= -mT, lead <= -(mT - 1.5))) { st = S.trail === 'gamble' ? (bossUp ? 'boss' : 'slay') : 'collect'; if (S.trail === 'gamble') { dep = 'early'; amb = !bossUp; } lv = Math.max(lv, S.trailL); ruled = true; }
-      }
-      if (!ruled && S.react !== 'fixed') {
-        const th = (2.6 - 0.15 * S.reactL) * clamp(1.2 - 0.3 * this.sit[team].j, 0.7, 1.4), rl = 3 + Math.round(S.reactL / 2), hL = this.hy(team, 'RL', lead >= th, lead >= th - 1.5), hT = this.hy(team, 'RT', lead <= -th, lead <= -(th - 1.5));
-        if (hL || (left < 45 && lead >= 1)) { st = 'defend'; dep = 'early'; lv = Math.max(lv, rl); }
-        else if (hT || (left < 80 && lead <= -1)) { st = 'collect'; dep = 'early'; lv = Math.max(lv, rl); }      // 뒤처지면 교전·추격 대신 수집·제출 (보스는 assign에서 따로 비교)
-        else if (S.react === 'smart' && lead === 0 && left < 25) { st = 'defend'; lv = Math.max(lv, rl); }
-      }
-      const k = 0.35 + 0.65 * lv / P.maxLevel, base = P.stances[st] || P.stances.balanced, W = {};
-      for (const key in base) W[key] = key === 'aggro' ? base[key] * k : 1 + (base[key] - 1) * k;
-      return { st, lv, W, lead, bossUp, dep, ambush: amb, dn };
-    }
     hy(team, key, on, keep) { const m = this.hys || (this.hys = {}), k = team + key; return (m[k] = m[k] ? keep : on); }
-    aggro(u) {
-      const T = u.tac, TP = CONFIG.tactics.p, cur = this.cur[u.team]; let a = this.cfg.aggro + (cur ? cur.W.aggro : 0);
-      if (T.mission === 'hunt') a += TP.mHuntAggro * T.missionL;
-      if (u.goal && u.goal.type === 'hunt') a += 8;
-      const S = this.strat[u.team]; if (S && S.roleMove !== 'free' && u.role.front && !u.role.backline) a += 3 + 0.8 * S.roleMoveL;      // 전열이 먼저 들어가 시야·공간을 만듦
-      const Sit = this.sit[u.team]; if (Sit) a += CONFIG.brain.stat.dg.aggroWin * Sit.edge;
-      return Math.max(a, u.role.range * 1.15);
-    }
-    ultPolicy(u, foesNear, allies) {
-      const T = u.tac, S = this.strat[u.team], TP = CONFIG.tactics.p; let mode = T.ult, L = T.ultL, ok = true, strict = true;
-      if (!mode && S.ultT !== 'normal') { mode = S.ultT; L = S.ultTL; }
-      if (mode === 'burst') { if (L >= 3) strict = false; }
-      else if (mode === 'clutch') ok = allies.some(a => a.hp < a.maxHp * (TP.clutchHp0 + TP.clutchHpStep * L));
-      else if (mode === 'save') {
-        const boss = this.units.some(b => b.team === 2 && b.alive && dist(u, b) <= 26);
-        ok = boss || foesNear.filter(e => e.team < 2).length >= 2 || allies.some(a => a.hp < a.maxHp * 0.4);
-      }
-      /* 궁 연계: 아군이 궁을 쓴 직후에는 한타가 시작된 것으로 보고 문턱을 낮춥니다. '아끼기'는 한타 조건을 충족한 것으로, '즉시'는 그대로, '위기 대응'은 아군 체력 조건을 그대로 지켜 개인·팀 궁 설정과 충돌하지 않습니다 */
-      let chain = false;
-      const ch = this.tp[u.team].chain;
-      if (ch.until > this.t && ch.by !== u.id && mode !== 'clutch' && foesNear.some(e => e.team < 2)) {
-        chain = true;
-        if (mode === 'save') ok = true; else if (mode !== 'burst') strict = false;
-      }
-      if ((mode == null || mode === 'normal') && this.sit[u.team].win === 'open') strict = false;
-      return { ok, strict, chain };
-    }
     mission(u, cur) { return this.forcedMission(u) || u.tac.mission || (cur && cur.ambush && u.f.role === 'assassin' ? 'ambush' : null); }
     homeDep(team) { const a = this.axis[team]; return this.map.zones.filter(z => z.deposit).reduce((p, q) => (Math.hypot(a.hx - p.x, a.hy - p.y) <= Math.hypot(a.hx - q.x, a.hy - q.y) ? p : q)); }
     foeDep(team) { return this.homeDep(1 - team); }
@@ -1340,7 +1070,7 @@ const Battle = (() => {
       const M = this.map, TP = CONFIG.tactics.p, S = this.strat[team], us = this.units.filter(u => u.team === team && u.alive && !u.struct && !this.gone(u));
       if (!us.length) return;
       const foes = this.units.filter(e => e.team !== team && e.alive && !this.hidden(e)), enemyUnits = foes.filter(e => e.team < 2);
-      const cur = this.cur[team] = this.stratNow(team), W = cur.W, lead = cur.lead, smart = S.react === 'smart', dn = cur.dn;
+      const cur = this.cur[team] = this.stratNow(team), W = cur.W, lead = cur.lead, dn = cur.dn;
       const SB = dn === 'bossWait' ? 'steal' : dn === 'boss' ? 'contest' : S.boss, BL = dn === 'boss' || dn === 'bossWait' ? 7 : S.bossL, FM = dn === 'convoy' ? 'group' : S.formation, FMS = dn === 'convoy' ? 1 : S.formationS;
       const cvy = dn === 'convoy' && us.length > 1 ? us.reduce((p, q) => (this.coreValue(q) > this.coreValue(p) ? q : p)) : null, cvyOn = !!cvy && this.coreValue(cvy) >= 2;
       const boss = this.sudden ? null : this.units.find(b => b.team === 2 && b.alive), pit = M.zones.find(z => z.hub) || M.zones[0];
@@ -1364,6 +1094,7 @@ const Battle = (() => {
           else u.goal = { type: 'escort', a: cvy, since: this.t };
           continue;
         }
+        const lg = this.layerGoal(u, team, us); if (lg) { u.goal = lg; continue; }
         if (u.tac.mission === 'escort' && us.length > 1) { escorts.push(u); continue; }
         free.push(u);
       }
@@ -1395,18 +1126,8 @@ const Battle = (() => {
       if (gv > 0.05) targets.push({ type: 'guard', z: hd, x: hd.x, y: hd.y, v: gv, cap: 2, co: true });
       if (free.some(u => this.mission(u, cur) === 'ambush')) targets.push({ type: 'ambush', z: fd, x: fd.x, y: fd.y, v: KA.ambushV, cap: 2, co: true });
       if (boss) {
-        const nearFoes = enemyUnits.filter(e => Math.hypot(e.x - boss.x, e.y - boss.y) <= 24).length, mineNear = us.filter(a => Math.hypot(a.x - boss.x, a.y - boss.y) <= 24).length;
-        const hpR = boss.hp / boss.maxHp, hitting = nearFoes > 0 && hpR < 0.92;
-        let v = (boss.bossDef.kind === 'late' ? K.boss.valueLate : K.boss.valueFirst) * W.boss, cap = 3, stage = 0;
-        if (SB === 'smart') {
-          if (lead >= 2) { v *= hitting && hpR < 0.6 ? 2.2 : 0.1; stage = 1.5; } else if (lead <= -2) { v *= 1.6; cap = clamp(Math.ceil(BL / 2.5), 1, 3); }
-          if (nearFoes >= 2 && mineNear < 2) v *= 0.75;
-          if (hitting && hpR < 0.4) v *= 1.4;
-        } else if (SB === 'contest') { v *= 1.25; cap = dn === 'boss' ? 3 : clamp(Math.ceil(BL / 2.5), 1, 3); }
-        else if (SB === 'yield') { v *= 0.3; cap = 1; }
-        else if (SB === 'steal') { v *= hitting && hpR < 0.6 ? 2.2 : 0.1; stage = 1.5; }
-        if (smart && SB !== 'yield' && hitting) v *= 1.2;
-        v *= clamp(1 - 0.1 * us.reduce((q, a) => q + this.coreValue(a), 0), 0.3, 1) * (lead >= 2 ? 0.6 : lead <= -2 ? 1.2 : 1);      // [안전장치] 보유 코어가 많거나 앞서면 보스보다 제출, 뒤처지면 소폭 가산
+        const bv = this.bossValue(team, boss, us, enemyUnits, W, SB, BL, dn); let v = bv.v, cap = bv.cap, stage = bv.stage;
+        v *= clamp(1 - 0.1 * us.reduce((q, a) => q + this.coreValue(a), 0), 0.3, 1) * (lead >= 2 ? 0.6 : lead <= -2 ? 1.2 : 1);
         targets.push({ type: 'boss', boss, x: boss.x, y: boss.y, v, cap });
         if (stage) targets.push({ type: 'stage', x: pit.x, y: pit.y, v: stage * W.boss, cap: 3 });
       } else if (incoming && SB !== 'yield') targets.push({ type: 'stage', x: pit.x, y: pit.y, v: 2 * W.boss * (SB === 'contest' ? 1.2 : 1), cap: 3 });
@@ -1416,7 +1137,7 @@ const Battle = (() => {
         if (v > 0.05 || free.some(u => this.mission(u, cur) === 'hunt')) targets.push({ type: 'hunt', e: prey, x: prey.x, y: prey.y, v: Math.max(v, 0.2), cap: dn === 'kill' ? 3 : W.kill > 1.2 ? 2 : 1 });
       }
       if (free.length && us.length > 1) targets.push({ type: 'join', x: us.reduce((q, a) => q + a.x, 0) / us.length, y: us.reduce((q, a) => q + a.y, 0) / us.length, v: KA.join, cap: 3 });
-      const Sn = this.sit[team], msit = S.react === 'fixed' ? 1 : 1 - 0.3 * clamp(Math.abs(lead) / 4, 0, 1), duoP = dn === 'convoy' ? (this.tp[team].duo = null) : this.duoPair(team, S, free, TP);
+      const Sn = this.sit[team], msit = 1 - 0.3 * clamp(Math.abs(lead) / 4, 0, 1), duoP = dn === 'convoy' ? (this.tp[team].duo = null) : this.duoPair(team, S, free, TP);
       for (const tg of targets) {
         if (tg.type === 'boss' || tg.type === 'stage' || tg.type === 'join') continue;
         tg.fp = foesAll.reduce((q, e) => { const d = Math.hypot(e.x - tg.x, e.y - tg.y); return q + (d <= Dg.foeR ? this.power(e) : d <= Dg.reachR ? this.power(e) * Dg.reachW : 0); }, 0);
@@ -1589,7 +1310,7 @@ const Battle = (() => {
         if (this.t >= pl.atTick) this.spawnBoss(pl);
       }
       for (const tm of [0, 1]) {
-        const S = this.strat[tm], every = S.react === 'fixed' ? 24 : S.react === 'adapt' ? Math.round(28 - 2 * S.reactL) : Math.round(22 - 1.5 * S.reactL);
+        const every = this.assignEvery(tm);
         if (this.t % every === 1) this.assign(tm);
       }
       for (const u of this.units) if (!u.alive && u.respawnAt && this.t >= u.respawnAt) { u.respawnAt = 0; this.respawn(u); }
@@ -1615,7 +1336,7 @@ const Battle = (() => {
       }
       for (const u of this.units) {
         if (u.team > 1 || u.struct) continue;
-        u.carry = []; u.depProg = 0; u.depAt = '';
+        u.carry = []; u.depProg = 0; u.depAt = ''; u.bail = null; u.bailN = 0;
         if (!u.alive) { u.respawnAt = 0; this.respawn(u); }
         for (const s of u.st) if (s.onEnd) s.onEnd(this, u, s);
         const i = Number(u.id.split('-')[1]) || 0, sp = this.spawnPt(u.team, i);
@@ -1623,9 +1344,14 @@ const Battle = (() => {
         u.hp = Math.max(1, Math.round(u.maxHp * SD.hpRatio)); u.mp = u.mpMax;
         this.buff(u, 'spawn', SD.protect, { name: '서든데스', quiet: true, f: { invuln: true } });
       }
-      this.tp.forEach(P => { P.gate.st = 'idle'; P.pod = null; P.focus = null; });
+      this.aiSudden();
       this.emit({ type: 'sudden' });
     }
+    suddenOk() {
+      const kinds = CONFIG.battle.map.sudden.kinds, m = typeof Game !== 'undefined' && Game.match;
+      return !kinds || !m || kinds.includes(m.kind);
+    }
+
     endMatch() {
       const alive = [0, 1].map(i => this.units.filter(u => u.team === i && u.alive).length);
       this.over = true; this.res = this.finish(alive); this.emit({ type: 'end', res: this.res });
@@ -1634,90 +1360,6 @@ const Battle = (() => {
       if (this.sudden) return 'SUDDEN ' + ((this.t - this.suddenAt) / TPS).toFixed(1) + 's';
       const left = Math.max(0, (this.cfg.maxTicks - this.t) / TPS), m = Math.floor(left / 60), sc = Math.floor(left % 60);
       return m + ':' + String(sc).padStart(2, '0');
-    }
-
-    act(u) {
-      const cfg = this.cfg;
-      if (u.team === 2) { this.bossAct(u); return; }
-      if (u.struct) return;
-      if (this.stunned(u) || this.gone(u)) return;
-      const enemies = this.foes(u), allies = this.friends(u);
-      const fear = u.st.find(s => s.fear);
-      if (fear) { const src = fear.src && fear.src.alive ? fear.src : (enemies.length ? nearestOf(u, enemies) : null); if (src) this.flee(u, src); return; }
-      // [안전장치] 부활 직후 2~4초는 교전·목표보다 아군 합류 우선 (맞으면 해제)
-      if (this.t < u.regroupUntil && this.t - u.hitT > 20 && this.regroupStep(u)) return;
-      // 제출 채널 중이면 유지 (이탈 방지)
-      if (u.carry && u.carry.length && u.depProg > 0 && u.depAt) { u.actT = this.t; return; }
-      // [안전장치] 코어 보유 시 제출 vs 교전 비교. 3개 이상 / 2개+적 다수면 무조건 제출·도주, 제출 지점 근처면 교전 가치 대폭 감소
-      if (u.carry && u.carry.length) {
-        const du = this.depositUrge(u, enemies);
-        if (du) {
-          const XD = CONFIG.brain.stat.dg, st = this.stayVal(u, enemies, Math.max(this.aggro(u), 28)), foes0 = st.foes0, n = u.carry.length;
-          let fight = st.v * (foes0.length ? clamp(1.5 - XD.oddsStay * this.assess(u, enemies, allies).ratio, 0.5, 1.3) : 1);
-          if (du.dist <= (du.z.r || 12) + 20) fight *= 0.25;
-          const must = n >= 3 || (n === 2 && foes0.length >= 2);
-          if (must || du.urge > fight + XD.depMargin * (1 - XD.depMarginJ * u.sn.j)) {
-            u.goal = { type: 'deposit', z: du.z, since: (u.goal && u.goal.type === 'deposit') ? u.goal.since : this.t };
-            if (must || du.dist <= (du.z.r || 12) + 18 || !foes0.length || du.urge > fight + 2.0) { u.target = null; u.chase = null; this.objective(u, enemies); return; }
-          }
-        }
-      }
-      u.cd = Math.min(u.cd + this.eff(u, 'aspd'), 1.5);
-      if (u.st.some(s => s.channel)) { u.actT = this.t; return; }
-      if (this.t - u.actT > 36) { u.forceGo = this.t + 50; u.actT = this.t; }              // 2.5초 넘게 멍하니 있으면 잠시 전진 강제
-      const sk = this.skillsOf(u), ult = sk.ult, aggro = this.aggro(u), reach = Math.max(aggro, 34);
-      const foesNear = enemies.filter(e => !e.struct && dist(u, e) <= (e.team === 2 ? 24 : reach));
-
-      /* 재시전 (뇌격, DASH 등) */
-      for (const k of [...sk.list, ult]) if (u.rc[k.id] && this.tryRecast(u, k, k === ult ? 'ult' : 'skill', enemies, allies, true)) return;
-
-      if (foesNear.length || allies.some(a => a.hp < a.maxHp * 0.6)) {
-        if (!this.manual[u.team] && u.ultCd <= 0 && !(this.orderOf(u) && this.orderOf(u).id === 'ultHold')) {
-          const up = this.ultPolicy(u, foesNear, allies);
-          if (up.ok && this.trySkill(u, ult, 'ult', foesNear, allies, up.strict, !up.chain)) return;
-        }
-        for (const k of sk.list) if (this.trySkill(u, k, 'skill', foesNear, allies, false, true)) return;
-      }
-      if (this.fallbackStep(u, sk, foesNear, enemies, allies)) return;
-      if (this.cautionStep(u, enemies, allies)) return;
-      if (this.podPull(u, enemies, allies)) return;
-      if (this.grabNear(u, enemies)) return;
-      if (this.dgStep(u, enemies, allies, aggro)) return;
-
-      /* 교전 대상: 시야(aggro) 안의 적 + 나를 때린 적 + 기존 대상 */
-      const near = enemies.filter(e => dist(u, e) <= (e.team === 2 ? 15 : e.struct ? 14 : aggro)), hb = u.hitBy;
-      if (hb && hb.alive && !this.hidden(hb) && this.t - u.hitT < 60 && dist(u, hb) <= aggro + 20 && !near.includes(hb)) near.push(hb);
-      const tg = u.target;
-      if (tg && tg.alive && !this.hidden(tg) && dist(u, tg) <= (tg.team === 2 ? 20 : tg.struct ? 18 : aggro + 12) && !near.includes(tg)) near.push(tg);
-      const TPm = this.tp[u.team], fcE = TPm.focus && TPm.focus.e.alive && !this.hidden(TPm.focus.e) ? TPm.focus.e : null;
-      if (fcE && !near.includes(fcE) && !(u.carry && u.carry.length) && allies.some(a => a !== u && dist(a, fcE) <= 24) && dist(u, fcE) <= aggro + 14 + 2 * this.strat[u.team].focusL) near.push(fcE);      // 팀 포커스는 아군이 그쪽에 있고 내가 코어를 안 들었을 때만 시야 밖까지 따라붙음
-      if (fcE !== u.focusSeen) { u.focusSeen = fcE; if (fcE) u.retarget = 0; }                                         // 포커스가 바뀌면 즉시 재선택
-      if (u.ignore && u.ignore.until > this.t) for (let i = near.length - 1; i >= 0; i--) if (near[i] === u.ignore.e && dist(u, near[i]) > u.role.range + 2) near.splice(i, 1);     // 도망친 적은 잠시 무시
-      if (near.length && u.brain.podRun && this.podRun(u, near, enemies)) return;
-      if (!near.length) { const he = this.helpTarget(u, enemies, allies, aggro); if (he) near.push(he); }
-      if (!near.length) { const rt = this.roamTarget(u, enemies, aggro); if (rt) near.push(rt); }      // 목표 밖에서도 적을 따라 이동하며 교전
-      if (!near.length) { u.target = null; this.objective(u, enemies); return; }
-
-      if (!u.target || !u.target.alive || this.hidden(u.target) || !near.includes(u.target) || --u.retarget <= 0) {
-        u.target = this.pick(u, near, allies);
-        const T = u.tac; u.retarget = Math.round(cfg.retargetTicks * u.brain.retargetMul * (T.fight === 'solo' ? 1 + CONFIG.tactics.p.soloStick * T.fightS : T.fight === 'coop' ? 1 - 0.5 * T.fightS : 1));
-      }
-      const t = u.target; if (!t) return;
-      const d = dist(u, t);
-      if (Math.abs(t.x - u.x) > 0.5) u.facing = t.x > u.x ? 1 : -1;
-      if (t.team < 2 && !t.struct && d > u.role.range + 1.5 && !(u.hitBy === t && this.t - u.hitT < 40)) {        // 쫓는 중: 따라잡지 못하면 적당히 포기하고 목표로 복귀
-        const ch = (u.chase && u.chase.e === t) ? u.chase : (u.chase = { e: t, t0: this.t, dBest: d, x0: u.x, y0: u.y });
-        if (d < ch.dBest - 0.4) { ch.dBest = d; ch.t0 = this.t; ch.x0 = u.x; ch.y0 = u.y; }
-        // [안전장치] 코어 보유 중엔 추적 거의 금지(이길 수 있는 마무리만 허용), 혼자거나 팀과 멀면 빨리 포기
-        const A = this.assess(u, enemies, allies), carrying = u.carry && u.carry.length > 0, alone = A.mates.length <= 1, win = A.ratio <= 0.6 && t.hp < t.maxHp * 0.3;
-        const chaseMul = carrying ? (win ? 0.5 : 0.1) : alone ? 0.5 : 1, leashMul = carrying ? (win ? 0.6 : 0.2) : alone ? 0.6 : 1, ignoreSec = carrying || alone ? 5 : 3.5;
-        if (this.t - ch.t0 > ticks(u.brain.chaseT * chaseMul) || Math.hypot(u.x - ch.x0, u.y - ch.y0) > u.brain.leash * leashMul) {
-          u.ignore = { e: t, until: this.t + ticks(ignoreSec) }; u.chase = null; u.target = null; this.objective(u, enemies); return;
-        }
-      } else u.chase = null;
-      if (u.cd >= 1 && d <= u.role.range && !u.st.some(s => s.disarm)) { u.cd -= 1; u.fxAtk = this.t; u.actT = this.t; this.attack(u, t); }
-      else if (t.team < 2 && !t.struct && d > u.role.range + 6 && this.gateHold(u)) return;      // 집결 후 진입: 모일 때까지 안전 지점에서 대기
-      else this.move(u, t, d, enemies, allies);
     }
 
     separate() {
@@ -1739,7 +1381,7 @@ const Battle = (() => {
         u.px = u.x; u.py = u.y;
         if (!u.alive) continue;
         for (const k in u.cds) if (u.cds[k] > 0) u.cds[k]--;
-        if (u.ultCd > 0) u.ultCd--;
+        if (u.f && u.f.ult && u.f.ult.timed && u.ultG < 100) this.setUlt(u, u.ultG + 100 / ticks(u.f.ult.cd));
         this.gain(u, u.mpMax * this.cfg.mana.regenPerSec / TPS * u.mpMul);
         const p = u.f.passive; if (p && p.tick) p.tick(this, u);
       }
@@ -1757,7 +1399,7 @@ const Battle = (() => {
         if (u.stuck > 10) { u.stuck = 0; u.nav = null; u.side *= -1; u.detour = { until: this.t + ticks(1.0), ang: (Math.random() < 0.5 ? 1 : -1) * (1.0 + Math.random() * 0.6) }; }
       }
       if (!this.sudden && this.t >= this.cfg.maxTicks) {
-        if (Math.round(this.score[0]) === Math.round(this.score[1])) this.startSudden(); else this.endMatch();
+        if (Math.round(this.score[0]) === Math.round(this.score[1]) && this.suddenOk()) this.startSudden(); else this.endMatch();
       } else if (this.sudden && (this.suddenWinner != null || this.t >= this.cfg.maxTicks + CONFIG.battle.map.sudden.maxTicks)) this.endMatch();
     }
 

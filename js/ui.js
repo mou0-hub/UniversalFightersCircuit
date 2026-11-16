@@ -323,6 +323,8 @@ header.top, header.app-header, #topbar, .topbar{
       if (k === 'cxNav') cxNav(+el.dataset.d);
       else if (k === 'cxSlide') cxGoSlide(+el.dataset.i, true);
       else if (k === 'strPresetAll') { const g = G(); g.strategy = Draft.normalizeStrategy(Draft.presetStrategy(el.dataset.p)); g.slotRole = ['auto', 'auto', 'auto']; g.slotPreset = el.dataset.p; Game.save(); refresh(); }
+      else if (k === 'scout') showScout(el.dataset.id);
+      else if (k === 'scoutApply') { const g = G(); g.strategy = Draft.normalizeStrategy(Draft.presetStrategy(el.dataset.p)); g.slotRole = ['auto', 'auto', 'auto']; g.slotPreset = el.dataset.p; Game.save(); closeModal(); refresh(); toast('추천 전술을 적용했습니다'); }
       else if (k === 'tacTab') { tacTab = el.dataset.t === 'slot' ? 'slot' : 'team'; tacPage = 0; refresh(); }
       else if (k === 'tacPage') {
         let max;
@@ -469,10 +471,25 @@ header.top, header.app-header, #topbar, .topbar{
   }
   function opponentHTML() {
     const o = Game.opponent(); if (!o) return `<p class="empty">예정된 경기가 없습니다.</p>`;
-    return `<div class="opp"><h3>${o.label}</h3>
+    return `<div class="opp clk" data-ui="scout" data-id="${o.id}" title="눌러서 상대 분석과 전술 추천 보기"><h3>${o.label}</h3>
       <div class="opp-name">${o.name}${o.rank ? `<small>리그 ${o.rank}위</small>` : ''}</div>
       <p class="note">주력 파이터 (밴픽에서 자주 선택)</p>
-      <div class="opp-line">${o.fav.map(id => mini(FD(id))).join('')}</div></div>`;
+      <div class="opp-line">${o.fav.map(id => mini(FD(id))).join('')}</div>
+      <p class="ob-hint">🔍 눌러서 분석 · 추천 전술 보기</p></div>`;
+  }
+  function showScout(id) {
+    const g = G(), a = Scout.analyze(g, id); if (!a) return;
+    const gp = a.power.gap, gapTxt = gp == null ? '비교 정보 없음' : gp > 0 ? `우리가 평균 ${gp} 앞섬` : gp < 0 ? `우리가 평균 ${-gp} 뒤짐` : '비슷함';
+    const sk = l => l.length ? l.map(x => `${x.icon} ${x.name}`).join(', ') : '뚜렷하지 않음';
+    const prosHtml = a.pros.length ? a.pros.map(r => `<li><b>${r.p.nick}</b><em>${r.grade}</em><span>${r.role} · ${r.style}${r.engage ? ' · ' + r.engage : ''}</span></li>`).join('') : '<li><span>선수 정보가 없습니다.</span></li>';
+    const recHtml = a.rec.map((r, i) => `<div class="ob-rec ${i === 0 ? 'top' : ''}"><header><b>${i === 0 ? '추천 · ' : ''}${r.name}</b><button class="btn small ${i === 0 ? 'primary' : 'ghost'}" data-ui="scoutApply" data-p="${r.id}">적용</button></header><p>${r.desc}</p>${r.why.length ? `<ul>${r.why.map(w => `<li>${w}</li>`).join('')}</ul>` : '<ul><li>특별히 유리한 점은 없지만 무난하게 운영할 수 있습니다</li></ul>'}</div>`).join('');
+    modal(`<div class="tm-head"><h3>${a.name} 분석</h3><small>${a.tag}${a.lv ? ' · 난이도 ' + a.lv.name : ''}${a.rank ? ' · 리그 ' + a.rank + '위' : ''}</small></div>
+      <div class="ob-sec"><h4>전력 비교</h4><p>선수단 등급 기준 · ${gapTxt}</p>${a.notes.length ? `<ul class="ob-note">${a.notes.map(n => `<li>${n}</li>`).join('')}</ul>` : ''}</div>
+      <div class="ob-sec"><h4>예상 운영 방식</h4><ul class="ob-strat">${a.strat.map(x => `<li title="${x.desc}"><span>${x.cat}</span><b>${x.name}</b></li>`).join('')}</ul></div>
+      <div class="ob-sec"><h4>선수단</h4><ul class="ob-pros">${prosHtml}</ul><p>강점 · ${sk(a.skill.strong)}</p><p>약점 · ${sk(a.skill.weak)}</p></div>
+      <div class="ob-sec"><h4>밴 추천</h4><div class="opp-line">${a.bans.map(id => mini(FD(id))).join('')}</div><p>${a.sample >= 3 ? `최근 ${a.sample}경기에서 자주 고른 파이터 기준` : '주력 파이터 기준 (경기 기록이 쌓이면 정확해집니다)'}</p></div>
+      <div class="ob-sec"><h4>추천 전술</h4>${recHtml}</div>
+      <div class="modal-actions"><button class="btn" data-act="closeModal">닫기</button></div>`, 'tm-box ob-box');
   }
   function showTeam(id) {
     const g = G(), t = League.team(g, id); if (!t || !t.name) return;

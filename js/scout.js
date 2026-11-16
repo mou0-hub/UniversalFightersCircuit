@@ -96,5 +96,86 @@ const Scout = (() => {
   }
   const ensure = G => { if (G && G.phase === 'seasonEnd' && !G.scout) generate(G); return G && G.scout; };
 
-  return { teamTier, teamMul, stars, TIER_LABEL, merit, generate, payPreview, allowed, ensure, clubLevel };
+  const C = () => CONFIG.scout;
+  const FDX = id => CONFIG.fighters[id];
+  const avgOf = l => (l.length ? l.reduce((a, b) => a + b, 0) / l.length : null);
+
+  const favOf = t => {
+    const a = (t.fav || []).filter(f => FDX(f) && !FDX(f).boss);
+    CONFIG.fighterOrder.forEach(f => { if (a.length < 3 && FDX(f) && !FDX(f).boss && !a.includes(f)) a.push(f); });
+    return a.slice(0, 3);
+  };
+  const gradeOvr = g => { const r = CONFIG.pro.grades[g] || CONFIG.pro.grades.B; return (r.ovr[0] + r.ovr[1]) / 2; };
+  const powerOf = (G, id) => { const b = League.brainsOf(G, id); return b && b.length ? avgOf(b.map(gradeOvr)) : null; };
+
+  function skillAvg(G, id) {
+    const m = League.moodsOf(G, id);
+    if (!m || !m.length) return null;
+    const out = {};
+    CONFIG.pro.skills.forEach(s => { const v = m.filter(x => x.sk).map(x => x.sk[s.id]); out[s.id] = v.length ? avgOf(v) : null; });
+    return Object.values(out).some(v => v == null) ? null : out;
+  }
+
+  function strengths(sk) {
+    if (!sk) return { strong: [], weak: [] };
+    const mean = avgOf(Object.values(sk)), list = CONFIG.pro.skills.map(s => ({ ...s, v: sk[s.id], d: sk[s.id] - mean })).sort((a, b) => b.d - a.d);
+    return { strong: list.slice(0, 2).filter(x => x.d >= C().skillGap), weak: list.slice(-1).filter(x => x.d <= -C().skillGap) };
+  }
+
+  function optName(cat, v) {
+    const c = CONFIG.tactics.team.find(x => x.id === cat), o = c && c.options.find(x => x.id === v);
+    return { cat: c ? c.name : cat, name: o ? o.name : v, desc: o ? o.desc : '' };
+  }
+
+  function proNotes(G, t) {
+    const out = [];
+    (t.pros || []).forEach(pid => {
+      const p = Pros.get(G, pid); if (!p) return;
+      const R = C().risk;
+      if (p.mental < R.mental) out.push(`${p.nick}: 멘탈이 불안합니다`);
+      if (p.form < R.form) out.push(`${p.nick}: 폼이 낮습니다`);
+      if (p.trouble >= R.trouble) out.push(`${p.nick}: 트러블 성향이 있습니다`);
+      if (p.slack >= R.slack) out.push(`${p.nick}: 태업 성향이 있습니다`);
+    });
+    return out;
+  }
+
+  function test(w, f) {
+    return Object.entries(w).every(([k, c]) => {
+      const v = f[k];
+      if (c.is != null && v !== c.is) return false;
+      if (c.in && !c.in.includes(v)) return false;
+      if (c.gte != null && !(v != null && v >= c.gte)) return false;
+      if (c.lte != null && !(v != null && v <= c.lte)) return false;
+      return true;
+    });
+  }
+
+  function recommend(f) {
+    const sc = {};
+    Object.entries(Draft.strategyPresets).forEach(([id, p]) => { sc[id] = { id, name: p.name, desc: p.desc, v: (C().base || {})[id] || 0, why: [] }; });
+    C().rules.forEach(r => { if (sc[r.p] && test(r.when, f)) { sc[r.p].v += r.w; if (r.w > 0) sc[r.p].why.push(r.why); } });
+    return Object.values(sc).sort((a, b) => b.v - a.v);
+  }
+
+  function analyze(G, id) {
+    const t = League.team(G, id); if (!t || !t.name) return null;
+    const lg = t.lg || G.leagueId, level = t.level || League.lgOf(G).diff;
+    const ai = Draft.aiTeam(level, favOf(t), []), S = ai.strategy;
+    const strat = ['stance', 'boss', 'formation', 'deposit', 'retreat'].filter(k => S[k]).map(k => ({ ...optName(k, S[k][0]), id: S[k][0], key: k }));
+    const sOpp = skillAvg(G, id), sMe = skillAvg(G, 'player');
+    const pOpp = powerOf(G, id), pMe = powerOf(G, 'player');
+    const gap = pOpp != null && pMe != null ? Math.round((pMe - pOpp) * 10) / 10 : null;
+    const edge = k => (sOpp && sMe ? Math.round(sOpp[k] - sMe[k]) : null);
+    const f = { stance: S.stance && S.stance[0], boss: S.boss && S.boss[0], form: S.formation && S.formation[0], retreat: S.retreat && S.retreat[0], deposit: S.deposit && S.deposit[0], gap, teamEdge: edge('team'), judgeEdge: edge('judge'), reactEdge: edge('react'), level };
+    const rec = recommend(f).slice(0, C().top);
+    const tr = Stats.teamRates(G, lg, t.name), picks = tr.picks.g >= C().minGames ? tr.picks.list.slice(0, 3) : [];
+    const known = picks.map(x => x.id), bans = known.length >= 2 ? known.slice(0, 2) : favOf(t).slice(0, 2);
+    const all = League.sorted(G), ri = all.findIndex(x => x.id === id);
+    const pros = (t.pros || []).map(pid => Pros.get(G, pid)).filter(Boolean).map(p => ({ p, grade: p.grade, role: Pros.roleName(p.role), style: Pros.styleName(p.style), engage: (Pros.engage(p) || {}).name || '' }));
+    return { id, name: t.name, tag: League.tag(G, id), level, lv: CONFIG.ai.levels[level], rank: ri >= 0 && (t.lg || G.leagueId) === G.leagueId ? ri + 1 : 0, strat, power: { opp: pOpp, me: pMe, gap }, skill: strengths(sOpp), mySkill: strengths(sMe), pros, notes: proNotes(G, t), bans, sample: tr.picks.g, rec };
+  }
+
+
+  return { teamTier, teamMul, stars, TIER_LABEL, merit, generate, payPreview, allowed, ensure, clubLevel, analyze, recommend, optName };
 })();

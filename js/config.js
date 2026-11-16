@@ -33,7 +33,7 @@ const MAP_CORE = {
   pickR: 6, grabR: 14, lockSec: 1.0, senseR: 45,   /* pickR 줍는 거리 · grabR 다른 일 중에도 코어를 주우러 틀어 가는 거리 · senseR 코어 발견 거리 */
   startSmall: 3, startRing: [22, 48],
   wave: { every: 8, count: 2, max: 14, bigEvery: 4, finalSec: 30, finalEveryMul: 0.5, bigRing: [35, 60] },
-  deposit: { r: 12, channelSec: 1.2, perCoreSec: 0.3, comboAt: 4, comboBonus: 1 }, /* 제출 시간 = channelSec + perCoreSec × (든 코어 수-1) */
+  deposit: { r: 12, channelSec: 1.2, perCoreSec: 0.3, comboAt: 4, comboBonus: 1, hitKeep: 0.5 },
   boss: {
     first: 8, late: 12, scatterR: 10, lockSec: 1.5,
     buff: { sec: 40, atk: 0.25, ap: 0.25, spd: 0.15, taken: -0.15, healPct: 0.3, noCarrySlow: true },
@@ -131,7 +131,6 @@ const CONFIG = {
      난이도는 파이터 개별 AI(이동·스킬·타게팅)를 바꾸지 않고, AI 팀이 '어떤 전술을 짜는가'만 바꿉니다. */
   tactics: {
     maxLevel: 7,
-    /* 사전 전술(경기 전 설정): 화면에 보이는 항목만 조정, 나머지는 fixed 값으로 고정. 정도(단계)는 level 로 고정 */
     /* 슬롯 역할: 배치한 선수(1·2·3번)마다 고르는 역할. 'auto' 는 픽한 파이터에 맞춰 경기 시작 때 자동 결정 */
     roles: [
       { id: 'vanguard', name: '선봉', desc: '앞에서 교전을 열고 보스전 선봉에 섭니다.', set: { mission: 'boss', pos: 'front', entry: 'first', aim: 'near', ult: 'save', act: 'rush', fight: 'coop' } },
@@ -145,10 +144,7 @@ const CONFIG = {
       level: 4,
       team: ['stance', 'boss', 'formation', 'deposit', 'retreat', 'ultT'],
       slot: ['mission', 'entry', 'pos', 'aim', 'ult'],
-      fixed: { gather: 'two', hurry: 'normal', focus: 'weak', chain: 'follow', roleMove: 'split', podCycle: 'cover', early: 'follow', mid: 'follow', late: 'follow', lead: 'keep', trail: 'keep', react: 'adapt' }
     },
-    phases: [40, 100],
-    marginBase: 4, marginStep: 0.4,
     stances: {
       balanced: { post: 1,    kill: 1,    boss: 1,    pod: 1,   core: 1,    aggro: 0 },
       collect:  { post: 0.9,  kill: 0.8,  boss: 0.8,  pod: 1.2, core: 1.5,  aggro: -2 },
@@ -224,44 +220,6 @@ const CONFIG = {
         { id: 'burst',  name: '즉시 투하',   desc: '쿨이 오면 빨리 쓰도록 팀 전체가 느슨한 조건을 씁니다.' },
         { id: 'save',   name: '한타·보스 보존', desc: '큰 교전·보스 타이밍까지 궁을 아낍니다.' },
         { id: 'clutch', name: '위기 대응',   desc: '아군이 위험할 때 쓰기 쉽게 맞춥니다.' } ] },
-      /* 팀 교전 (신규): 모든 항목의 첫 선택지가 중립값이며 예전 동작과 같습니다. 정도(1~7)의 의미는 각 항목 설명 참고 */
-      { id: 'gather', group: '교전', name: '진입 기준 인원', neutral: 'free', options: [
-        { id: 'free',  name: '각자 이동', desc: '집결하지 않고 각자 목표로 움직입니다.' },
-        { id: 'two',   name: '2명 집결', desc: '적이 가까우면 아군 2명이 모일 때까지 안전 지점에서 기다렸다가 같이 진입합니다. 제출 지점으로 향하는 아군은 기다리지 않습니다. 정도가 높을수록 더 바짝 모여야 합니다.' },
-        { id: 'three', name: '3명 집결', desc: '3명이 모일 때까지 기다렸다가 전원이 같이 진입합니다. 정도가 높을수록 더 바짝 모여야 합니다.' } ] },
-      { id: 'hurry', group: '교전', name: '성급함', neutral: 'normal', options: [
-        { id: 'normal',  name: '보통', desc: '집결을 최대 약 5초 기다린 뒤 풀려서 교전합니다.' },
-        { id: 'patient', name: '차분', desc: '집결을 더 오래 기다립니다. 정도가 높을수록 길어집니다(최대 약 15초).' },
-        { id: 'rash',    name: '성급', desc: '집결을 빨리 포기하고 진입합니다. 정도가 높을수록 짧아집니다(최소 약 1.2초).' } ] },
-      { id: 'focus', group: '교전', name: '팀 포커스 타깃', neutral: 'own', options: [
-        { id: 'own',    name: '각자 판단', desc: '각자 가까운 적을 노립니다.' },
-        { id: 'weak',   name: '약한 적',   desc: '팀 전체가 체력이 낮은 적을 먼저 노립니다. 정도가 높을수록 타깃을 강하게 따릅니다.' },
-        { id: 'threat', name: '위협 큰 적', desc: '공격력과 위협도가 큰 적을 먼저 노립니다.' },
-        { id: 'back',   name: '후열·지원',  desc: '후열 딜러와 보호막·강화를 쓰는 지원형 적을 먼저 노립니다.' } ] },
-      { id: 'chain', group: '교전', name: '궁 연계', neutral: 'off', options: [
-        { id: 'off',    name: '연계 없음', desc: '궁 타이밍은 각자의 궁 설정에 따릅니다.' },
-        { id: 'follow', name: '같이 진입', desc: '아군이 궁을 쓰면 잠시 다른 아군의 궁 사용 문턱이 낮아지고 집결 대기가 풀려 함께 진입합니다. 정도가 높을수록 오래 지속됩니다.' } ] },
-      { id: 'roleMove', group: '교전', name: '역할별 이동', neutral: 'free', options: [
-        { id: 'free',  name: '각자', desc: '역할 구분 없이 움직입니다.' },
-        { id: 'split', name: '역할 분담', desc: '전열이 먼저 들어가고 후열은 전열 뒤에서 간격을 유지하며, 암살자는 측면으로 우회합니다. 목표 지점 밖에서도 적을 따라가 싸웁니다. 정도가 높을수록 간격·우회 폭·추격 범위가 커집니다.' } ] },
-      { id: 'podCycle', group: '교전', name: '회복팩 순환', neutral: 'off', options: [
-        { id: 'off',   name: '각자', desc: '회복하러 가는 사람과 무관하게 움직입니다.' },
-        { id: 'cover', name: '함께 물러남', desc: '아군이 회복팩을 먹으러 가면 나머지는 잠시 물러났다가 복귀 후 같이 재진입합니다. 정도가 높을수록 물러나 있는 시간이 깁니다.' } ] },
-      { id: 'early', group: '시간대', name: '초반 (0~40초)', noLevel: true, neutral: 'follow', options: [] },
-      { id: 'mid', group: '시간대', name: '중반 (40~100초)', noLevel: true, neutral: 'follow', options: [] },
-      { id: 'late', group: '시간대', name: '후반 (100초~)', noLevel: true, neutral: 'follow', options: [] },
-      { id: 'lead', group: '점수 차', name: '앞서면', neutral: 'keep', options: [
-        { id: 'keep',   name: '유지',     desc: '기조를 바꾸지 않습니다.' },
-        { id: 'turtle', name: '굳히기',   desc: '점수 차가 벌어지면 우리 쪽 제출 지점을 지키고 조기 제출로 전환하며 목숨을 아낍니다.' },
-        { id: 'press',  name: '마무리',   desc: '점수 차가 벌어지면 처치 기조로 끝장을 봅니다.' } ] },
-      { id: 'trail', group: '점수 차', name: '뒤처지면', neutral: 'keep', options: [
-        { id: 'keep',   name: '유지',     desc: '기조를 바꾸지 않습니다.' },
-        { id: 'gamble', name: '승부수',   desc: '보스가 있으면 보스, 없으면 운반자 사냥·제출 매복·조기 제출로 한 방을 노립니다.' },
-        { id: 'steady', name: '차근 소모전', desc: '무리하지 않고 코어를 꾸준히 모아 제출하며 점수를 따라갑니다.' } ] },
-      { id: 'react', group: '점수 차', name: '판단력', neutral: 'fixed', options: [
-        { id: 'fixed', name: '지시 유지', desc: '정해 둔 기조를 끝까지 지킵니다. 코어·교전 판단은 선수 능력치대로 계속 작동합니다.' },
-        { id: 'adapt', name: '점수·시간', desc: '점수 차와 남은 시간을 보고 기조 자체를 바꿉니다(지시보다 상황 우선).' },
-        { id: 'smart', name: '적 읽기',   desc: '적의 보스 딜·불리한 교전 회피·보스 스틸·유인까지 봅니다.' } ] }
     ],
     p: {
       rushSpd: 0.025, rushDef: 0.02,
@@ -279,13 +237,55 @@ const CONFIG = {
     }
   },
 
+  scout: {
+    top: 2, minGames: 3, skillGap: 4,
+    risk: { mental: 65, form: 45, trouble: 60, slack: 60 },
+    base: { balanced: 1, scavenger: 0.5 },
+    rules: [
+      { p: 'raider', w: 2, when: { form: { in: ['split', 'auto'] } }, why: '상대가 흩어져 움직여 고립된 운반자를 사냥하기 좋습니다' },
+      { p: 'raider', w: 1, when: { retreat: { is: 'brave' } }, why: '상대는 열세에서도 잘 물러나지 않아 교전을 걸면 손해를 키웁니다' },
+      { p: 'raider', w: 1, when: { gap: { gte: 2 } }, why: '선수단 등급이 앞서 정면 교전이 유리합니다' },
+      { p: 'raider', w: 1, when: { teamEdge: { lte: -3 } }, why: '상대 팀워크가 낮아 한타에서 무너지기 쉽습니다' },
+      { p: 'convoy', w: 2, when: { stance: { is: 'slay' } }, why: '상대가 사냥 위주라 운반자를 뭉쳐서 호위하는 편이 안전합니다' },
+      { p: 'convoy', w: 1, when: { gap: { lte: -2 } }, why: '전력이 밀려 흩어지면 각개격파당하기 쉽습니다' },
+      { p: 'sentinel', w: 1, when: { stance: { is: 'slay' } }, why: '상대가 공격적으로 들어오므로 제출 지점에서 받아치기 좋습니다' },
+      { p: 'sentinel', w: 1, when: { gap: { lte: -3 } }, why: '전력 열세일 때는 지키면서 상대 운반자를 노리는 운영이 유리합니다' },
+      { p: 'sentinel', w: 1, when: { deposit: { is: 'early' } }, why: '상대가 일찍 제출하러 오므로 제출 지점 매복이 잘 먹힙니다' },
+      { p: 'bosshunt', w: 2, when: { boss: { is: 'yield' } }, why: '상대가 보스를 포기해 코어 더미와 버프를 독점할 수 있습니다' },
+      { p: 'bosshunt', w: 1, when: { gap: { gte: 3 } }, why: '전력이 크게 앞서 보스 쟁탈전에서도 밀리지 않습니다' },
+      { p: 'bosshunt', w: -2, when: { boss: { in: ['contest', 'steal'] }, gap: { lte: 0 } }, why: '' },
+      { p: 'scavenger', w: 1, when: { stance: { in: ['defend', 'boss'] } }, why: '상대가 수비·보스 위주라 코어를 넓게 모아 점수를 쌓기 좋습니다' },
+      { p: 'scavenger', w: 1, when: { form: { is: 'group' } }, why: '상대가 뭉쳐 다녀 정면 충돌을 피하고 코어를 넓게 모으는 편이 안전합니다' },
+      { p: 'balanced', w: 1, when: { judgeEdge: { gte: 3 } }, why: '상대 판단력이 높아 한쪽으로 치우친 전술은 읽히기 쉽습니다' }
+    ]
+  },
+  mind: {
+    sense: { vis: 34, visJ: 12, mate: 30, mateT: 14, noise: 0.5, refresh: 0.8, refreshR: 0.4, assume: 0.1, dpsSec: 2, zoneR: 12, zoneCost: 22, routeR: 16 },
+    surv: { ttd: 1.7, ttdP: 0.8, ttdCarry: 0.3, ttdClutch: 0.7, ttdSd: 0.6, doct: 0.6, doctHp: 0.08, hpCarry: 0.05, hpBack: 0.5, win: 0.9, winJ: 0.2, finishHp: 0.25, fbSec: 3.5, fbCdSec: 4.5, cdSec: 1.8, cdHp: 0.7, outHp: 0.22, softNeed: 0.3, softEdge: 0.35, softLim: [0.7, 1.45], softWait: 7, softOff: 5, safeP: 6, podReach: 70, podBlock: 14 },
+    carry: { must: 3, mustVal: 5, mustFoes: 2, nearZone: 22, nearMul: 0.25, pw: 1, kill: 1.2, killCarry: 0.7, loss: 1, death: 1.4, dieTtd: 4, gamble: 0.8, leadFight: 0.6, needDep: 0.7, leadDep: 0.4, objDep: 0.2, time: 0.04, routeW: 1, zoneW: 0.2, feas: 1.1, margin: 0.9, marginJ: 0.5, allyHp: 0.4, allyR: 30, hold: 1.2, aggroCap: 14 },
+    chan: { max: 2, lastSec: 10, win: 2, margin: 0.8, marginP: 0.25, marginC: 0.2, sdMul: 0.85, panicHp: 0.2, minChance: 0.3, earlyHp: 0.6, counterPow: 0.9, allyRatio: 0.7, allyR: 30, fleeSec: 2.5, waitSec: 5, minWaitSec: 1.5, clearR: 16, safeD: 26 },
+    team: { refresh: 0.6, refreshR: 0.4, noise: 0.35, open: 0.28, avoid: 0.28, openJ: 0.35, ultW: 0.25, respawn: 0.22, winSec: 4, needBase: 2, needLeft: 4, needC: 0.3, plan: 0.35, planR: 0.4, pushEdge: 0.15 },
+    time: { early: 40, late: 100, pushEarly: -0.25, pushLate: 0.2, pushNeed: 0.6, pushLead: -0.5, pushGamble: 0.6, pushCatch: 0.3, sdPush: -0.4, sdPre: 20, bankSec: 45, catchSec: 80, lead0: 4, leadLate: 1.5, leadJ: 0.25, trail0: 3.5, trailLate: 1.5, trailC: 1, aggroPush: 5 },
+    chase: { minVal: 2, maxOwn: 2, minHp: 0.5, isoR: 26, reach: 70, reachT: 25, near: 20, supportR: 30, supportMul: 0.9, max: 2, dupVal: 4, hold: 6, stick: 1.8, spdMin: 0.95 },
+    escort: { val: 3, r: 40, rT: 12 },
+    gate: { trig: 50, rad: 26, radT: 6, base: 2.5, patient: 0.6, rash: 0.5, min: 0.8, openMul: 0.7, avoidMul: 1.3, go: 5, goHit: 4 },
+    focus: { within: 48, keep: 40, stick: 1.2, weakHp: 0.4, threat: 2, back: 2.2, carry: 0.3, pull0: 0.25, pullT: 0.05 },
+    chain: { base: 1.5, t: 2, u: 1 },
+    pod: { base: 2, t: 3, rearm: 8, hpMax: 0.8 },
+    role: { front: 5, roam: 1.35, roamP: 0.45, chainRoam: 1.9, flank0: 11, flankP: 9, gap0: 3, gapP: 4 },
+    boss: { stealHp: 0.6, bankHp: 0.5, bankMul: 0.05, bankSteal: 1.6, bankContest: 0.4, gambleMul: 1.7, avoid: 1.3 },
+    retreat: { gapMin: 18, gapAdd: 10, step: 10, depthCap: 0.5, deepHp: 0.25, kiteHp: 0.55, kiteAllyHp: 0.5, kiteRange: 10, kiteClose: 0.6 },
+    assign: { every: 22, everyR: 8 },
+    aggroEdge: 4
+  },
+
   /* ---------- AI 난이도 ----------
      파이터 개별 AI(이동·스킬·타게팅)는 모든 난이도에서 동일합니다. 난이도는 AI 팀이 짜는 팀 전략/개인 지시의 수준만 바꿉니다. */
   ai: {
     default: 'normal',
     levels: {
       easy:   { name: '쉬움',   desc: '코어를 보이는 대로 모아 빨리 제출합니다. 처치·매복은 하지 않고, 보스를 포기하며 상황 변화에 둔하고, 체력이 줄어도 버팁니다.' },
-      normal: { name: '보통',   desc: '흩어져 코어를 모으며 점수·시간을 보고 기조를 바꿉니다.' },
+      normal: { name: '보통',   desc: '흩어져 코어를 모으는 기본 운영을 합니다. 상황 대응은 선수 능력치가 맡습니다.' },
       hard:   { name: '어려움', desc: '전열은 수집, 암살자는 처치로 임무를 나누고 짝을 지어 움직입니다. 적의 보스 교전을 읽어 스틸·유인으로 대응합니다.' },
       master: { name: '마스터', desc: '상대 편성에 맞춰 기조를 정하고, 점수 차에 따라 수비·약탈을 전환하며, 보스를 가로채고 서든데스까지 계산해 움직입니다.' }
     }
@@ -337,8 +337,7 @@ const CONFIG = {
       killPoints: 0, acePoints: 0,
       core: MAP_CORE,
       bonus: { first: 0, cap: 0, shut: 0, shutAt: 3 },
-      gate: { base: 2.5, patientStep: 0.6, rashMin: 0.8, rashStep: 0.25, threeMax: 3 },
-      sudden: { hpRatio: 0.35, maxTicks: 1200, protect: 3, pressSec: 30 },
+      sudden: { hpRatio: 0.35, maxTicks: 1200, protect: 3, pressSec: 30, kinds: ['playoff', 'msi', 'worlds'] },
       spawns: [ { pts: [[20, 125], [28, 130], [21, 133]] }, { pts: [[205, 25], [197, 20], [204, 17]] } ],
       zones: MAP_ZONES,
       lanes: MAP_ROADS,
@@ -356,7 +355,17 @@ const CONFIG = {
       ],
       lairs: [ { x: MAP_CX, y: MAP_CY } ]
     },
-    skillStartCdRatio: 0.3, ultStartCdRatio: 0.4
+    skillStartCdRatio: 0.3, ultStart: 0.2, ultAtk: 2.5, ultSkill: 8, ultRefCd: 32,      /* 궁 게이지: 시작 비율 · 기본공격/스킬 1회 충전량(%) · 기준 cd(궁 cd가 클수록 충전 느림) */
+    /* 파이터별 궁 충전 배율 (1 = 기본, 클수록 빨리 참 / 작을수록 천천히 참). 위 cd 보정에 추가로 곱해집니다. 없는 파이터는 1.
+       기준: 위력 · 범위 · 사거리 · 부가효과(CC/무적/회복)가 강할수록 낮게, 자기 강화·보조형이나 공속이 빠른 파이터는 높게.
+       alien(슈퍼 상태에서만 궁 사용), aria·steamman(변환형, 시간 충전)은 해당 없음 */
+    ultCharge: {
+      /* 전사 */ deathkaiser: 0.90, crow: 1.10, swordsaint: 1.20, sarcoza: 0.85, warrior: 0.90, dash: 1.00, wind: 1.00, thunderbolt: 0.80, magnum: 0.75, fabman: 0.80, oba: 0.85,
+      /* 마법사 */ kain: 0.80, hyer: 0.90, salamander: 1.00, plasma: 0.95, necro: 0.85, rusellaster: 1.00, aozu: 1.10, harvest: 0.95, angel: 1.05, renegade: 0.95,
+      /* 수호자 */ minotaur: 0.95, rescue: 1.05, zombie: 0.95, alcaba: 0.90, ananta: 0.95, giant: 0.95, etech: 1.00, dt: 0.80, kum: 1.10, gaia: 0.80, carcer: 1.15,
+      /* 암살자 */ crush: 1.00, viser: 1.10, darkknight: 0.85, shadow: 1.20, redhood: 1.10, reaper: 0.85, stardust: 0.90,
+      /* 사냥꾼 */ press: 0.75, jade: 1.25, dark: 1.10, biomachine: 1.00, frost: 0.85, shining: 1.05, itrain: 1.10, grainger: 1.00, peg: 1.10
+    }
   },
 
   /* ---------- 리그 ----------
@@ -460,7 +469,8 @@ const CONFIG = {
         clutch: [['moodGuard', 'add', 0.4]]
       },
       objHi: 75, objLo: 40,
-      dg: { reach: 55, reachJ: 0.3, reachO: 0.15, base: 3.2, val: 1, dist: 40, margin: 0.6, marginJ: 0.5, hold: 2.5, cool: 3, guardR: 22, guardPen: 1.0, contest: 1.0, race: 0.6, hitSec: 1, holdOdds: 1.2, oddsStay: 0.75, openStay: 1.2, avoidStay: 1.2, aggroWin: 4, winLim: 0.35, needLim: 0.3, depMargin: 0.8, depMarginJ: 0.5, needDep: 1.4, flipDep: 2, distPen: 0.03, distPenO: 0.3, carryW: 0.35, senseO: 0.35, foeJ: 10, mateR: 8, noise: 0.4, biasSec: 2, safeP: 6, stale: 1.5, extend: 4 },
+      dg: { reach: 55, reachJ: 0.3, reachO: 0.15, base: 3.2, val: 1, dist: 40, margin: 0.6, marginJ: 0.5, hold: 2.5, cool: 3, guardR: 22, guardPen: 1.0, contest: 1.0, race: 0.6, hitSec: 1, holdOdds: 1.2, oddsStay: 0.75, gain0: 0.4, gainNeed: 0.9, gainMin: 0.1, gainMax: 1.6, stayNeed: 0, contestNeed: 0.8,   /* 교전 중 코어 가치 = clamp(gain0 + 점수필요도×gainNeed, gainMin, gainMax) · 뒤질수록 싸움 가치를 stayNeed 비율만큼 깎음 · contestNeed 뒤질수록 적이 있는 코어도 노리는 허용치(contest)를 이 비율만큼 키움. 시뮬 테스트상 contestNeed 만 효과가 있었음 */
+    openStay: 1.2, avoidStay: 1.2, aggroWin: 4, winLim: 0.35, needLim: 0.3, depMargin: 0.8, depMarginJ: 0.5, needDep: 1.4, flipDep: 2, distPen: 0.03, distPenO: 0.3, carryW: 0.35, senseO: 0.35, foeJ: 10, mateR: 8, noise: 0.4, biasSec: 2, safeP: 6, stale: 1.5, extend: 4 },
       sit: { refresh: 0.6, refreshR: 0.4, noise: 0.35, ultW: 0.25, respawn: 0.22, winSec: 4, open: 0.28, avoid: 0.28, openJ: 0.35, needBase: 2, needLeft: 4, needC: 0.3 }
     }
   },
@@ -514,14 +524,14 @@ const CONFIG = {
     /* 세부 능력치 (선수 카드 뒷면). 항목을 추가/삭제하려면 이 목록만 고치면 자동 반영됩니다 */
     skills: [
       { id: 'aim',    name: '스킬샷 정확도', icon: '🎯', desc: '대상을 노리는 공격 스킬이 빗나갈 확률이 줄어듭니다' },
-      { id: 'judge',  name: '판단력',        icon: '🧠', desc: '상황을 정확히 읽고 빠르게 결정합니다 — 점수·전력 판단, 코어 쟁탈 가능성, 한타 개시·회피, 교전 중 코어 이탈' },
+      { id: 'judge',  name: '판단력',        icon: '🧠', desc: '전력·점수·위험을 정확히 읽습니다 — 제출 vs 교전 비교, 한타 개시·회피, 보스 개입 여부, 고립 운반자 추격 판단' },
       { id: 'fight',  name: '교전 능력',     icon: '⚔️', desc: '체력이 깎인 적을 놓치지 않고 마무리합니다(캐릭터 능력치에는 영향 없음)' },
-      { id: 'react',  name: '반응속도',      icon: '⚡', desc: '상황 변화를 읽는 주기와 목표 전환 속도 — 약해진 적을 빨리 노리고 판단 갱신이 빠릅니다' },
-      { id: 'posn',   name: '포지셔닝',      icon: '📍', desc: '위험해지기 전에 물러나는 체력·거리 기준 — 높을수록 일찍 빠집니다' },
+      { id: 'react',  name: '반응속도',      icon: '⚡', desc: '상황을 다시 읽는 주기와 목표 전환 속도 — 팀 판단 갱신과 지시 변화에 빠르게 반응합니다' },
+      { id: 'posn',   name: '포지셔닝',      icon: '📍', desc: '위험해지기 전에 물러나는 기준과 제출 중 이탈 시점 — 높을수록 일찍 빠지고, 전열 뒤 간격과 우회 폭도 정교합니다' },
       { id: 'ult',    name: '궁극기 운용',   icon: '💥', desc: '궁극기를 좋은 때를 기다리지 않고 더 일찍 씁니다' },
       { id: 'obj',    name: '오브젝트·회복', icon: '🚩', desc: '코어를 더 멀리서 찾고 제출 타이밍을 잘 잡으며, 보스·힐팩도 놓치지 않습니다' },
-      { id: 'team',   name: '팀워크',        icon: '🤝', desc: '아군 위치·전력을 넓게 읽고 한타를 함께 엽니다 — 아군을 때린 적을 먼저 견제합니다' },
-      { id: 'clutch', name: '클러치·침착성', icon: '🧊', desc: '점수가 밀릴 때 더 빨리 승부를 걸고, 낮은 폼·멘탈이 AI 판단에 주는 악영향을 줄여줍니다' }
+      { id: 'team',   name: '팀워크',        icon: '🤝', desc: '아군 위치·전력을 넓게 읽고 한타 전 집결, 집중 공격, 궁 연계, 회복팩 순환, 호위를 함께 합니다' },
+      { id: 'clutch', name: '클러치·침착성', icon: '🧊', desc: '점수가 밀릴 때 더 빨리 승부수를 던지고 급한 순간에도 성급해지지 않으며, 낮은 폼·멘탈의 악영향을 줄여줍니다' }
     ],
     /* 교전 스타일: 선수 본인 평균 대비 강점이 가중합으로 가장 크게 나타나는 쪽으로 자동 결정 */
     engage: [

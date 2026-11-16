@@ -27,7 +27,7 @@
   FD.crush = {
     id: 'crush', name: '크러쉬', role: 'assassin', color: '#ef4444', title: '영혼을 수확하는 뼈톱 악마',
     concept: '"모가지를 따주마...큭큭"',
-    stats: { hp: 860, mp: 240, aspd: 0.95, spd: 8.7, atk: 56, ap: 0, def: 29, res: 23, ten: 0.05, pen: 0.12, ls: 0.33, range: 6 },
+    stats: { hp: 860, mp: 240, aspd: 0.95, spd: 8.7, atk: 56, ap: 0, def: 29, res: 23, ten: 0.05, pen: 0.12, ls: 0.23, range: 6 },
     basic: meleeBasic, ai: { threat: 0.95 },
     tac: { act: ['rush', 'basic'], fight: ['solo', 'coop'], aim: ['weak', 'back'] },
     look: { pal: { b: '#e7e5e4', B: '#a8a29e', r: '#dc2626', h: '#7f1d1d', k: '#111827', e: '#fde047', s: '#cbd5e1', S: '#64748b' },
@@ -80,7 +80,7 @@
   FD.viser = {
     id: 'viser', name: '바이저', role: 'assassin', color: '#84cc16', title: '낫을 휘두르는 가시 괴생명체',
     concept: '"키야야아악!!!"',
-    stats: { hp: 790, mp: 220, aspd: 1.0, spd: 9.0, atk: 50, ap: 0, def: 24, res: 20, ten: 0, pen: 0.12, ls: 0.24, range: 7 },
+    stats: { hp: 790, mp: 220, aspd: 1.0, spd: 9.0, atk: 50, ap: 0, def: 24, res: 20, ten: 0, pen: 0.12, ls: 0.21, range: 7 },
     basic: meleeBasic, ai: { threat: 0.9 },
     tac: { act: ['rush', 'basic'], fight: ['solo'], aim: ['weak', 'carry'] },
     look: { pal: { g: '#65a30d', G: '#365314', l: '#bef264', y: '#fde047', k: '#0a0f08', w: '#e2e8f0', s: '#94a3b8', t: '#d9f99d' },
@@ -133,7 +133,7 @@
   FD.darkknight = {
     id: 'darkknight', name: '다크나이트', role: 'assassin', color: '#818cf8', title: '어둠에 잠식된 칼날',
     concept: '"인과를 끊어내겠어..."',
-    stats: { hp: 920, mp: 250, aspd: 0.95, spd: 8.6, atk: 60, ap: 0, def: 32, res: 26, ten: 0.08, pen: 0.12, ls: 0.21, range: 6 },
+    stats: { hp: 920, mp: 250, aspd: 0.95, spd: 8.6, atk: 60, ap: 0, def: 32, res: 26, ten: 0.08, pen: 0.12, ls: 0.18, range: 6 },
     basic: meleeBasic, ai: { threat: 1.0 },
     tac: { act: ['rush', 'basic'], fight: ['solo', 'coop'], aim: ['back', 'carry'] },
     look: { pal: { a: '#1e1b4b', A: '#312e81', p: '#6366f1', P: '#a5b4fc', k: '#05030d', e: '#f43f5e', s: '#4f46e5', S: '#c7d2fe' },
@@ -204,7 +204,7 @@
   FD.shadow = {
     id: 'shadow', name: '셰도', role: 'assassin', color: '#94a3b8', title: '그림자 단도의 청년',
     concept: '"더이상 약했던 내가 아니야."',
-    stats: { hp: 760, mp: 260, aspd: 1.0, spd: 9.6, atk: 56, ap: 0, def: 22, res: 20, ten: 0, pen: 0.16, ls: 0.25, range: 6 },
+    stats: { hp: 760, mp: 260, aspd: 1.0, spd: 9.6, atk: 56, ap: 0, def: 22, res: 20, ten: 0, pen: 0.16, ls: 0.15, range: 6 },
     basic: meleeBasic, ai: { threat: 0.8 },
     tac: { act: ['rush', 'basic'], fight: ['solo'], aim: ['back', 'weak'] },
     look: { pal: { h: '#1f2937', H: '#374151', s: '#cbd5e1', k: '#030712', e: '#38bdf8', c: '#64748b', d: '#e2e8f0', D: '#94a3b8' },
@@ -265,7 +265,7 @@
   FD.redhood = {
     id: 'redhood', name: '레드후드', role: 'assassin', color: '#e11d48', title: '총검을 쓰는 암살 용병',
     concept: '"실전은 연습처럼, 연습도 연습처럼"',
-    stats: { hp: 800, mp: 250, aspd: 1.0, spd: 9.2, atk: 55, ap: 0, def: 24, res: 21, ten: 0, pen: 0.14, ls: 0.26, range: 6 },
+    stats: { hp: 800, mp: 250, aspd: 1.0, spd: 9.2, atk: 55, ap: 0, def: 24, res: 21, ten: 0, pen: 0.14, ls: 0.21, range: 6 },
     basic: meleeBasic, ai: { threat: 0.9 },
     tac: { act: ['rush', 'basic'], fight: ['solo', 'coop'], aim: ['back', 'weak'] },
     look: { pal: { r: '#b91c1c', R: '#7f1d1d', s: '#e5c9a8', k: '#111827', e: '#fde047', g: '#374151', G: '#1f2937', m: '#cbd5e1', M: '#64748b', y: '#f59e0b', w: '#e5e7eb' },
@@ -323,7 +323,7 @@
   FD.reaper = {
     id: 'reaper', name: '사신', role: 'assassin', color: '#a21caf', title: '마법의 낫을 쓰는 지옥의 사신',
     concept: '"다음 희생자는 누구인가?"',
-    stats: { hp: 780, mp: 300, aspd: 0.9, spd: 8.6, atk: 30, ap: 70, def: 22, res: 28, ten: 0, pen: 0.12, ls: 0.24, range: 6 },
+    stats: { hp: 780, mp: 300, aspd: 0.9, spd: 8.6, atk: 30, ap: 70, def: 22, res: 28, ten: 0, pen: 0.12, ls: 0.2, range: 6 },
     basic: { type: 'magic', atk: 0.4, ap: 0.6, proj: 'melee' }, ai: { threat: 0.9 },
     tac: { act: ['rush', 'basic'], fight: ['solo', 'coop'], aim: ['carry', 'back'] },
     look: { pal: { h: '#2d1b3d', H: '#4c1d95', r: '#dc2626', f: '#fb923c', k: '#0b0220', e: '#f43f5e', b: '#e7e5e4', s: '#78350f', m: '#cbd5e1', M: '#64748b' },
@@ -957,7 +957,7 @@
           } }
       ]
     },
-    ult: { id: 'sm_ult', name: '모드변환', cd: 10, range: 60, sfx: 'buff', desc: '전투 모드를 변환합니다. 건샷 모드: 원거리 사격 / 펀치 모드: 근접 돌진·방어력 +25%. 재사용 대기시간이 짧습니다.',
+    ult: { id: 'sm_ult', name: '모드변환', cd: 6.5, timed: true, range: 60, sfx: 'buff', desc: '전투 모드를 변환합니다. 건샷 모드: 원거리 사격 / 펀치 모드: 근접 돌진·방어력 +25%. 재사용 대기시간이 짧습니다.',
       plan: (b, u, en, al, strict) => {
         const n = b.nearest(u, en); if (!n) return null; const d = b.dist(u, n), to = u.form === 'gun' ? 'punch' : 'gun';
         if (!strict) return { to };
@@ -1574,7 +1574,7 @@
   FD.peg = {
     id: 'peg', name: '펙', role: 'hunter', color: '#f472b6', title: '펩맨의 자칭 사이드킥',
     concept: '\"펩맨 님! 제가 도와드릴게요!\"',
-    stats: { hp: 760, mp: 280, aspd: 1.0, spd: 8.4, atk: 46, ap: 38, def: 16, res: 16, ten: 0, pen: 0.08, ls: 0, range: 18, crit: 0.08, critDmg: 1.5 },
+    stats: { hp: 760, mp: 280, aspd: 1.0, spd: 8.4, atk: 46, ap: 38, def: 16, res: 16, ten: 0, pen: 0.08, ls: 0, range: 20, crit: 0.08, critDmg: 1.5 },
     basic: rangedBasic, ai: { backline: true, kite: 11, threat: 0.9 },
     tac: { act: ['basic', 'retreat'], fight: ['coop', 'support'], pos: ['cover'], aim: ['carry', 'near'] },
     look: { res: 2, pal: { h: '#2a1a14', H: '#5b3a2e', s: '#f6d9bd', S: '#e0b896', M: '#dc2626', N: '#7f1d1d', e: '#f8fafc', m: '#e11d48', b: '#0f766e', B: '#14b8a6', w: '#f8fafc', W: '#99f6e4', p: '#f472b6', g: '#64748b', X: '#cbd5e1', y: '#fde047', k: '#111827' },
