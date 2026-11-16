@@ -451,7 +451,7 @@ header.top, header.app-header, #topbar, .topbar{
   function standingsHTML() {
     const g = G(), rows = League.sorted(g), cut = CONFIG.league.playoffTeams;
     return `<table class="tbl"><thead><tr><th>순위</th><th>팀</th><th>승</th><th>무</th><th>패</th><th>점수</th><th>체력차</th></tr></thead><tbody>${rows.map((t, i) => `
-      <tr class="${t.id === 'player' ? 'me' : 'clk'} ${i === cut - 1 ? 'cut' : ''}" ${t.id === 'player' ? '' : `data-act="teamInfo" data-id="${t.id}"`}><td>${i + 1}</td><td class="tn">${t.name}${t.id === 'player' ? ' <small>(나)</small>' : ''}${i < CONFIG.league.intlTeams ? ' <span class="tag intl">국제</span>' : ''}</td>
+      <tr class="${t.id === 'player' ? 'me' : 'clk'} ${i === cut - 1 ? 'cut' : ''}" ${t.id === 'player' ? '' : `data-act="teamInfo" data-id="${t.id}"`}><td>${i + 1}</td><td class="tn"><span class="tn-in">${teamLogo(t.name, 28)}<span>${t.name}${t.id === 'player' ? ' <small>(나)</small>' : ''}${i < CONFIG.league.intlTeams ? ' <span class="tag intl">국제</span>' : ''}</span></span></td>
       <td>${t.w}</td><td>${t.d}</td><td>${t.l}</td><td><b>${t.pts}</b></td><td class="${t.diff >= 0 ? 'pos' : 'neg'}">${t.diff > 0 ? '+' : ''}${t.diff}</td></tr>`).join('')}</tbody></table>
       <p class="note">상위 ${cut}팀이 ${CONFIG.league.playoffName}에, 상위 ${CONFIG.league.intlTeams}팀이 국제대회(MSI·월드 챔피언십)에 진출합니다. MSI 는 ${CONFIG.league.midRound}라운드 직후 열립니다. 정렬: 점수 → 체력차 → 승수</p>`;
   }
@@ -486,13 +486,14 @@ header.top, header.app-header, #topbar, .topbar{
   const views = {};
   views.league = () => {
     const g = G(), h = Game.hero();
+    const heroLogo = teamLogo(g.baseTeam, 68);
     const tabs = [['season', '정규시즌'], ['msi', 'MSI'], ['playoff', CONFIG.league.playoffName], ['worlds', '월드 챔피언십']];
     const body = leagueTab === 'season' ? standingsHTML() : bracketHTML(g[leagueTab]);
     const log = g.league.playerLog.slice(-8).reverse().map(r => `<li class="${r.won ? 'w' : r.draw ? 'd' : 'l'}"><span>${r.tag}</span><b>${r.won ? '승' : r.draw ? '무' : '패'}</b><em>${r.opp}</em><small>${r.reward ? '+' + r.reward : ''}</small></li>`).join('');
     return `<section class="league-grid">
       <div class="col">
-        <div class="glass hero"><div><span class="hero-sub">${h.sub}</span><h2>${h.title}</h2>
-          <div class="prog"><i style="width:${h.pct}%"></i></div></div>
+        <div class="glass hero"><div class="hero-main">${heroLogo}<div><span class="hero-sub">${h.sub}</span><h2>${h.title}</h2>
+          <div class="prog"><i style="width:${h.pct}%"></i></div></div></div>
           <button class="btn primary big" data-act="advance" ${h.disabled ? 'disabled' : ''}>${h.label}</button></div>
         <div class="glass panel">${calBarHTML(g)}</div>
         <div class="tabs">${tabs.map(([k, n]) => `<button class="tab ${leagueTab === k ? 'on' : ''}" data-act="leagueTab" data-tab="${k}">${n}</button>`).join('')}</div>
@@ -583,6 +584,13 @@ header.top, header.app-header, #topbar, .topbar{
   let mgrEdit = false;
   const abbr = n => n.split(' ').map(w => w[0]).join('').slice(0, 2);
   const logoHTML = (l, i) => `<span class="logo-b" style="--c:${l.color}"><i>${abbr(l.teams[i])}</i><img src="${IMG.team(l.id, i)}" alt="" onerror="this.remove()"></span>`;
+  /* 팀 이름 → 로고(이미지 없으면 이니셜). 내 팀은 baseTeam 으로 찾고, 현재 리그를 먼저 찾습니다 */
+  const teamLogo = (name, size = 36) => {
+    const g = G(), nm = g && name === g.teamName && g.baseTeam ? g.baseTeam : name;
+    const lg = CONFIG.leagues.find(l => g && l.id === g.leagueId && l.teams.includes(nm)) || CONFIG.leagues.find(l => l.teams.includes(nm));
+    if (!lg) return '';
+    return `<span class="team-logo" style="--c:${lg.color};--s:${size}px"><i>${abbr(nm)}</i><img src="${IMG.team(lg.id, lg.teams.indexOf(nm))}" alt="" onerror="this.remove()"></span>`;
+  };
   const bannerHTML = l => `<div class="lgm-art" style="--c:${l.color}"><img src="${IMG.league(l.id)}" alt="" onerror="this.remove()"><span class="lgm-code">${l.short}</span><span class="lgm-vname">${l.name} 리그</span></div>`;
 
   function openLeague(id) {
@@ -878,7 +886,7 @@ header.top, header.app-header, #topbar, .topbar{
         <span class="dr-favs">${favHtml}</span>
       </div><div class="dr-pick"></div>`;
     };
-    const col = t => `<div class="dr-team t${t}" style="--tc:${CONFIG.ui.teamColors[t]}"><h3>${M.teams[t].name}${t === M.pIdx ? ' <small>(나)</small>' : ''}</h3>
+    const col = t => `<div class="dr-team t${t}" style="--tc:${CONFIG.ui.teamColors[t]}"><div class="dr-logo">${teamLogo(M.teams[t].name, 88)}</div><h3>${M.teams[t].name}${t === M.pIdx ? ' <small>(나)</small>' : ''}</h3>
       <div class="dr-slot ban" id="slot-b${t}"><span class="dr-lab">BAN</span></div>${[0, 1, 2].map(i => `<div class="dr-slot" id="slot-p${t}-${i}" data-team="${t}" data-slot="${i}">${proBlock(t, i)}</div>`).join('')}</div>`;
     const tiles = CONFIG.fighterOrder.map(id => { const f = FD(id); return `<button class="dr-tile" data-act="draftSel" data-id="${id}" data-fid="${id}" data-role="${f.role}" style="--ec:${f.color}"><img class="px" src="${Sprites.url(f)}" alt=""><b>${f.name}</b><small>${f.icon}</small><i class="dr-x"></i></button>`; }).join('');
     return `<section class="draft-view"><div class="glass panel dr-head"><div><h2>밴픽</h2><p>${M.label} · 벤 1 · 픽 3 · 번갈아 선택 (벤된 파이터는 양 팀 모두 사용 불가)${Game.draft && Game.draft.fearless && Game.draft.fearless.length ? ' · 피어리스: 앞 세트에서 나온 파이터 사용 불가' : ''}</p><p class="dr-swap-hint" id="drSwapHint" hidden>밴픽 완료 — 내 픽 슬롯을 두 번 클릭하면 순서를 바꿀 수 있습니다</p></div><div class="dr-turn" id="drTurn"></div></div>
@@ -1100,7 +1108,7 @@ header.top, header.app-header, #topbar, .topbar{
       ${scoutHTML(s)}`, 'result scout-modal', false);
   }
 
-  return { addView: (n, f) => { views[n] = f; }, onStatus: f => statusHooks.push(f), init, go, refresh, status, toast, modal, closeModal, showFighter, setCodexForm, showResult, showSummary, showTeam, draftSelect, draftSelected, draftUpdate, setDraftFilter,
+  return { teamLogo, addView: (n, f) => { views[n] = f; }, onStatus: f => statusHooks.push(f), init, go, refresh, status, toast, modal, closeModal, showFighter, setCodexForm, showResult, showSummary, showTeam, draftSelect, draftSelected, draftUpdate, setDraftFilter,
     toggleLegend: () => { legendOpen = !legendOpen; refresh(); }, battleStarted, setPauseLabel, setSpeedUI, setAutoLabel, toggleLogFilter,
     setTacSlot: s => { tacSlot = +s; refresh(); }, setLeagueTab: t => { leagueTab = t; refresh(); }, setSelLeague: id => openLeague(id), dc: p => { Object.assign(dcS, p); refresh(); }, selLeague: () => selLg, setRoleFilter: r => { roleFilter = r; refresh(); }, get view() { return view; } };
 })();

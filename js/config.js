@@ -54,7 +54,8 @@ const MAP_CORE = {
     needUrg: 1.2, needCore: 0.3, leadDep: 0.5, urgentSec: 25, urgentMul: 3, trailSec: 60, trailMul: 2, collectDep: 1.5, fighterDep: 1.6, depMul: 0.4, depFull: 6, depReady: 1.6, depWait: 0.3, depThreatR: 25, depThreatMul: 0.5, depThreatCost: 1.2, safeR: 45, greed: 0.7,
     guardMul: 1.2, guardOff: 14, ambushFar: 40, ambushStep: 3.5, ambushV: 0.5,
     carryPrey: 0.5, huntV: 0.25, crowdSplit: 1.2, crowdMul: 0.35,
-    join: 0.7, joinMin: 14, joinRef: 70, hold: 6, holdBonus: 0.5, assassinHunt: 0.6, backPrey: 0.8
+    join: 0.7, joinMin: 14, joinRef: 70, hold: 6, holdBonus: 0.5, assassinHunt: 0.3, backPrey: 0.8,
+    scoutV: 1.1, bossCarryPen: 0.6   /* scoutV 코어를 못 찾을 때 구역 순회 가치 · bossCarryPen 코어 든 선수의 보스 개입 감점(코어 가치당) */
   }
 };
 const _freeSpot = (x, y) => {
@@ -269,8 +270,8 @@ const CONFIG = {
       soloStick: 3, soloAtk: 0.02, soloAlone: 20,
       frontBase: 0.4, frontStep: 0.035, coverHide: 0.16, coverBack: 2, coverStep: 0.6, aimBias: 0.7, clutchHp0: 0.2, clutchHpStep: 0.06,
       mCollect: 0.5, mCollectV: 0.6, collectR0: 50, collectRStep: 25,
-      mAmbush: 1.0, mAmbushOff: 0.25,
-      mHunt: 0.7, mHuntOff: 0.2, mHuntAggro: 3, huntRange0: 40, huntRangeStep: 14, mHuntCarry: 0.2,
+      mAmbush: 0.8, mAmbushOff: 0.2,
+      mHunt: 0.45, mHuntOff: 0.15, mHuntAggro: 1.5, huntRange0: 32, huntRangeStep: 10, mHuntCarry: 0.2,
       mBoss: 0.9, mBossWait: 0.45, mBossOff: 0.3, bossRange0: 50, bossRangeStep: 25,
       escortFar: 13, escortStep: 1.2, escortCarry: 0.4, capperBias: 0.7,
       duoBreak: 60, duoBonus: 0.35, duoApart: 0.5,

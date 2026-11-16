@@ -109,7 +109,7 @@
       });
     } else if (level === 'hard') {
       set(S, 'stance', 'balanced', 4); set(S, 'boss', 'steal', 3); set(S, 'react', 'smart', 5);
-      set(S, 'lead', 'turtle', 4); set(S, 'trail', 'gamble', 4); set(S, 'ultT', 'save', 3);
+      set(S, 'lead', 'turtle', 4); set(S, 'trail', 'steady', 4); set(S, 'ultT', 'save', 3);
       set(S, 'gather', 'two', 4); set(S, 'hurry', 'normal', 4); set(S, 'focus', 'weak', 4); set(S, 'chain', 'follow', 4); set(S, 'roleMove', 'split', 4); set(S, 'podCycle', 'cover', 3);
       set(S, 'formation', 'duo', 4); set(S, 'deposit', 'normal', 4);
       tac = ids.map((id, i) => {
@@ -120,7 +120,7 @@
       });
     } else if (level === 'master') {
       set(S, 'stance', 'balanced', 5); set(S, 'boss', 'smart', 6); set(S, 'react', 'smart', 7);
-      set(S, 'lead', 'turtle', 5); set(S, 'trail', 'gamble', 5); set(S, 'retreat', 'careful', 3); set(S, 'ultT', 'save', 4);
+      set(S, 'lead', 'turtle', 5); set(S, 'trail', 'steady', 5); set(S, 'retreat', 'careful', 3); set(S, 'ultT', 'save', 4);
       set(S, 'early', 'collect', 4);
       set(S, 'formation', 'group', 5); set(S, 'deposit', 'normal', 5);
       set(S, 'gather', 'two', 5); set(S, 'hurry', 'normal', 5); set(S, 'chain', 'follow', 6); set(S, 'roleMove', 'split', 6); set(S, 'podCycle', 'cover', 5);
