@@ -95,6 +95,7 @@ const Battle = (() => {
       u.dgCore = null; u.dgUntil = 0; u.dgCd = 0;
       const obj = psk.obj != null ? psk.obj : SK.center;
       if (obj >= SK.objHi) u.brain.ensureBoss = true; else if (obj <= SK.objLo) u.brain.ensureBoss = false;
+      if (mood && mood.fb && typeof Feedback !== 'undefined') Feedback.apply(u, mood.fb);
       u.hp = u.maxHp = u.hpShow = Math.round(s.hp * this.cfg.hpScale * (ru.hpMul || 1));
       u.mpMax = s.mp; u.mp = s.mp * this.cfg.mana.startRatio;
       const all = F.forms ? [].concat(...Object.values(F.forms)) : F.skills;
@@ -1417,7 +1418,7 @@ const Battle = (() => {
       const units = this.units.filter(u => u.team < 2 && !u.struct).map(u => {
         const slot = Number(u.id.split('-')[1]) || 0, md = this.teams[u.team].moods, nick = (md && md[slot] && md[slot].nick) || '';
         return { id: u.id, team: u.team, slot, nick, ch: u.f, dmg: Math.round(u.dmg), healed: Math.round(u.healed), kills: u.kills, alive: u.alive,
-          deaths: u.deaths, taken: Math.round(u.taken || 0), skills: u.skN || 0, ults: u.ultN || 0, deliv: u.deliv, coresIn: u.coresIn, dpts: u.dpts };
+          deaths: u.deaths, taken: Math.round(u.taken || 0), skills: u.skN || 0, ults: u.ultN || 0, deliv: u.deliv, coresIn: u.coresIn, dpts: u.dpts, fb: u.fbApplied || null };
       });
       const mv = Battle.pickMvp(units), TC = CONFIG.tactics;
       const tac = { st: this.strat.map(s => { const o = {}; TC.team.forEach(c => { o[c.id] = s[c.id]; }); return o; }),

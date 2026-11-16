@@ -1085,7 +1085,9 @@ header.top, header.app-header, #topbar, .topbar{
   function setSpeedUI(el) { $$('.speed').forEach(b => b.classList.toggle('on', b === el)); }
 
   /* ---------- 결과 / 요약 ---------- */
+  let lastRes = null;
   function showResult(info) {
+    lastRes = info;
     const { won, draw, res, M } = info;
     const best = Battle.pickMvp(res.units);
     const rows = res.units.map(u => `<tr class="${u === best ? 'mvp' : ''}"><td style="color:${CONFIG.ui.teamColors[u.team]}">${u.ch.name}${u === best ? ' ★' : ''}</td><td>${u.ch.icon}</td><td>${u.dmg}</td><td>${u.healed}</td><td>${u.kills}</td><td>${u.deliv || 0}회 (${u.dpts || 0}점)</td><td>${u.alive ? '생존' : '재출격 대기'}</td></tr>`).join('');
@@ -1096,7 +1098,7 @@ header.top, header.app-header, #topbar, .topbar{
       ${info.fan ? `<p class="note">${info.fan.ticket ? `🎟 티켓 수입 +${Pros.money(info.fan.ticket.income)} · ` : ''}👥 ${info.fan.fans.d ? `팬 ${info.fan.fans.d > 0 ? '+' : ''}${info.fan.fans.d.toLocaleString('ko-KR')}명(${info.fan.fans.pct > 0 ? '+' : ''}${(info.fan.fans.pct * 100).toFixed(1)}%)` : '팬 변동 없음'}</p>` : ''}
       ${info.notes && info.notes.length ? `<ul class="notes">${info.notes.map(n => `<li>${n}</li>`).join('')}</ul>` : ''}
       <table class="tbl small"><thead><tr><th>파이터</th><th>타입</th><th>피해</th><th>치유</th><th>처치</th><th>코어 제출</th><th>상태</th></tr></thead><tbody>${rows}</tbody></table>
-      <div class="modal-actions">${info.analysisId ? `<button class="btn big" data-ui="resOpen" data-id="${info.analysisId}">전투 분석 보기</button>` : ''}<button class="btn primary big" data-act="resultContinue">계속</button></div>`, 'result', false);
+      <div class="modal-actions">${info.analysisId ? `<button class="btn big" data-ui="resOpen" data-id="${info.analysisId}">전투 분석 보기</button>` : ''}${typeof Feedback !== 'undefined' && G().club && G().club.lineup ? '<button class="btn big" data-act="fbOpen" data-from="result">💬 선수 피드백</button>' : ''}<button class="btn primary big" data-act="resultContinue">계속</button></div>`, 'result', false);
   }
   /* 시즌 종료 스카웃 제안 영역: 제안 온 팀 또는 현재 팀 잔류만 선택 가능 */
   function scoutHTML(s) {
@@ -1125,7 +1127,7 @@ header.top, header.app-header, #topbar, .topbar{
       ${scoutHTML(s)}`, 'result scout-modal', false);
   }
 
-  return { teamLogo, addView: (n, f) => { views[n] = f; }, onStatus: f => statusHooks.push(f), init, go, refresh, status, toast, modal, closeModal, showFighter, setCodexForm, showResult, showSummary, showTeam, draftSelect, draftSelected, draftUpdate, setDraftFilter,
+  return { teamLogo, addView: (n, f) => { views[n] = f; }, onStatus: f => statusHooks.push(f), init, go, refresh, status, toast, modal, closeModal, showFighter, setCodexForm, showResult, reShowResult: () => { if (lastRes) showResult(lastRes); }, showSummary, showTeam, draftSelect, draftSelected, draftUpdate, setDraftFilter,
     toggleLegend: () => { legendOpen = !legendOpen; refresh(); }, battleStarted, setPauseLabel, setSpeedUI, setAutoLabel, toggleLogFilter,
     setTacSlot: s => { tacSlot = +s; refresh(); }, setLeagueTab: t => { leagueTab = t; refresh(); }, setSelLeague: id => openLeague(id), dc: p => { Object.assign(dcS, p); refresh(); }, selLeague: () => selLg, setRoleFilter: r => { roleFilter = r; refresh(); }, get view() { return view; } };
 })();

@@ -124,7 +124,7 @@ const Game = {
     M.teams.forEach((tm, i) => {
       const isMe = tm.id === 'player';
       tm.fighters = d.picks[i]; tm.brains = League.brainsOf(g, tm.id); tm.moods = League.moodsOf(g, tm.id);
-      if (isMe) { tm.tactics = Draft.slotsFor(g, tm.fighters); tm.strategy = Draft.normalizeStrategy(g.strategy); }
+      if (isMe) { tm.tactics = Draft.slotsFor(g, tm.fighters); tm.strategy = Draft.normalizeStrategy(g.strategy); tm.moods = Feedback.attach(g, tm.moods); }
       else { const ai = Draft.aiTeam(League.team(g, tm.id).level || g.difficulty, tm.fighters, d.picks[1 - i]); tm.tactics = ai.tactics; tm.strategy = ai.strategy; tm.cmd = League.team(g, tm.id).level || g.difficulty; }
     });
     this.save(); UI.go('match');
@@ -156,6 +156,7 @@ const Game = {
     if (won) { g.streak++; g.bestStreak = Math.max(g.bestStreak, g.streak); } else g.streak = 0;
     g.totals.games++; if (won) g.totals.wins++;
     Club.trackGame(g, won);
+    Feedback.afterMatch(g, res, M, notes);
     const fan = Club.afterMatch(g, { kind: M.kind, home: M.kind !== 'league' || M.m.a === 'player', won: res.winner === M.pIdx, draw: res.winner === -1, myRank: myRank0, oppRank: oppRank0 });
     Club.checkChallenges(g).forEach(c => notes.push(`🏅 도전과제 달성: ${c.name} (+${Pros.money(c.reward)})`));
     const oppId = M.m.a === 'player' ? M.m.b : M.m.a;
@@ -252,7 +253,7 @@ const Game = {
   },
   nextSeason() {
     const g = this.G; g.season++; g.seasonLines = []; g.scout = null;
-    League.newSeason(g); News.seasonStart(g, League.when(g)); this.save(); UI.closeModal(); UI.go('league'); UI.toast(`${League.yearOf(g)}년 시즌 시작`, 'good');
+    Feedback.season(g); League.newSeason(g); News.seasonStart(g, League.when(g)); this.save(); UI.closeModal(); UI.go('league'); UI.toast(`${League.yearOf(g)}년 시즌 시작`, 'good');
   },
 
   /* ---------- 이벤트 라우팅 ---------- */
@@ -352,6 +353,6 @@ const Game = {
   }
 };
 
-Object.assign(Game.actions, Club.actions, MyData.actions);
+Object.assign(Game.actions, Club.actions, MyData.actions, Feedback.actions);
 
 window.addEventListener('DOMContentLoaded', () => Game.init());

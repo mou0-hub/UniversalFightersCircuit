@@ -91,7 +91,7 @@ const ProUI = (() => {
       <button class="btn" data-act="proAuto">라인업 자동 채우기</button></div>
       ${goalBox}${spBox}<div class="dc-tiles">${tile('구단 자금', money(c.funds), '시즌 종료 시 정산', c.funds < 0 ? 'neg' : '')}${tile('선수단 연봉 / 셀러리캡', money(pay), `${ros.length}/${CONFIG.club.maxRoster}명 · 상한 ${money(capV)}${ci.grow > 0.0005 ? ` (+${(ci.grow * 100).toFixed(0)}%${ci.atMax ? ' 한계' : ''})` : ''} · ${capLeft >= 0 ? '여유 ' + money(capLeft) : '초과 ' + money(-capLeft)}${capBar(pay, capV)}<small class="cap-note">${capLeft < 0 ? `사치세 예상 시즌당 ${money(ci.taxNow)} · ` : ''}재계약 한도 ${money(ci.hard)} · 최소 연봉 ${money(ci.floor)}</small>`, capLeft < 0 ? 'neg' : '')}${tile('예상 구단주 지급', money(exp), `현재 ${rank}위 기준`)}${tile('예상 순수익', (net >= 0 ? '+' : '') + money(net), '지급 − 연봉', net < 0 ? 'neg' : 'pos')}${tile('팬 수', fi.fans.toLocaleString('ko-KR') + '명', `최대 ${fi.max.toLocaleString('ko-KR')}명 · 이번 시즌 ${fi.seasonGain >= 0 ? '+' : ''}${fi.seasonGain.toLocaleString('ko-KR')}`)}${tile('이번 시즌 티켓 수입', money(fi.tix), `${fi.games}경기 · 경기당 평균 ${money(fi.avg)} · 관중 ${Math.round(fi.fill * 100)}% (수용 ${fi.stadium.toLocaleString('ko-KR')}명)`)}</div>
       <div class="lineup">${slots}</div>
-      <div class="glass panel"><h3>선수단 <small>${ros.length}명</small></h3>${list || '<p class="empty">선수가 없습니다. 이적시장에서 영입하세요.</p>'}${ros.length < 3 ? '<p class="note">경기를 하려면 최소 3명이 필요합니다.</p>' : ''}</div>${fin}${chBox}</section>`;
+      <div class="glass panel"><h3>선수단 <small>${ros.length}명</small></h3>${list || '<p class="empty">선수가 없습니다. 이적시장에서 영입하세요.</p>'}${ros.length < 3 ? '<p class="note">경기를 하려면 최소 3명이 필요합니다.</p>' : ''}</div>${typeof Feedback !== 'undefined' ? Feedback.panel(g) : ''}${fin}${chBox}</section>`;
   }
 
   function market() {
