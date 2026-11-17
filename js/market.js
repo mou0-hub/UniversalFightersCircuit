@@ -36,26 +36,24 @@ const Market = (() => {
   function capFail(G, add, minus, own) {
     const cap = Club.cap(G), after = Club.payroll(G) - (minus || 0) + add;
     if (after <= cap) return null;
-    if (own) { const hard = Club.hardCap(G); return after <= hard ? null : `하드캡 초과입니다. (연봉 합 ${Pros.money(after)} / 재계약 한도 ${Pros.money(hard)})`; }
-    return `셀러리캡 초과입니다. (연봉 합 ${Pros.money(after)} / 상한 ${Pros.money(cap)})`;
+    if (own) { const hard = Club.hardCap(G); return after <= hard ? null : `하드캡 초과입니다. (선발 연봉 합 ${Pros.money(after)} / 재계약 한도 ${Pros.money(hard)})`; }
+    return `셀러리캡 초과입니다. (선발 연봉 합 ${Pros.money(after)} / 상한 ${Pros.money(cap)})`;
   }
 
   function signFA(G, id) {
     const p = Pros.get(G, id), m = ensure(G); if (!p || !m.fa.includes(id)) return { ok: false, msg: '이미 다른 팀과 계약한 선수입니다.' };
     if (rosterFull(G)) return { ok: false, msg: `선수단은 최대 ${CONFIG.club.maxRoster}명입니다.` };
-    const cf = capFail(G, p.salary); if (cf) return { ok: false, msg: cf };
     const fee = signFee(p); if (!canAfford(G, fee)) return { ok: false, msg: `계약금이 부족합니다. (필요 ${Pros.money(fee)})` };
-    G.club.funds -= fee; m.fa = m.fa.filter(x => x !== id); p.team = 'player'; p.sg = 0; p.sw = 0; G.club.roster.push(id);
+    G.club.funds -= fee; m.fa = m.fa.filter(x => x !== id); p.team = 'player'; p.sg = 0; p.sw = 0; p.tn = 0; G.club.roster.push(id);
     return { ok: true, msg: `${p.nick} 영입 완료 (계약금 ${Pros.money(fee)})` };
   }
   function buyListed(G, id) {
     const p = Pros.get(G, id), t = G.league.teams.find(x => (x.pros || []).includes(id)); if (!p || !t) return { ok: false, msg: '이적 대상이 아닙니다.' };
     if (rosterFull(G)) return { ok: false, msg: `선수단은 최대 ${CONFIG.club.maxRoster}명입니다.` };
-    const cf = capFail(G, p.salary); if (cf) return { ok: false, msg: cf };
     const transfer = p.fee, fee = transfer + signFee(p); if (!canAfford(G, fee)) return { ok: false, msg: `자금이 부족합니다. (이적료+계약금 ${Pros.money(fee)})` };
     G.club.funds -= fee; t.pros = t.pros.filter(x => x !== id);
     const rep = Pros.gen(G, p.grade === 'S' ? 'A' : p.grade === 'A' ? 'B' : 'C'); t.pros.push(rep.id); rep.team = t.id;
-    p.listed = false; p.fee = 0; p.team = 'player'; p.sg = 0; p.sw = 0; G.club.roster.push(id);
+    p.listed = false; p.fee = 0; p.team = 'player'; p.sg = 0; p.sw = 0; p.tn = 0; G.club.roster.push(id);
     return { ok: true, msg: `${p.nick} 이적 완료 (이적료 ${Pros.money(transfer)} + 계약금 ${Pros.money(signFee(p))})` };
   }
   function release(G, id) {
@@ -87,7 +85,7 @@ const Market = (() => {
     const p = Pros.get(G, id); if (!p || !G.club.roster.includes(id)) return { ok: false, msg: '선수단에 없는 선수입니다.' };
     if (p.refused === G.season) return { ok: false, msg: `${p.nick} 선수는 이번 시즌 재계약을 거부한 상태입니다.` };
     const fee = renewFee(p), ns = renewSalary(p);
-    const cf = capFail(G, ns, p.salary, true); if (cf) return { ok: false, msg: `재계약 제한 — ${cf}` };
+    const cf = G.club.lineup.includes(id) ? capFail(G, Club.capSal(p, ns), Club.capSal(p), true) : null; if (cf) return { ok: false, msg: `재계약 제한 — ${cf}` };
     if (!canAfford(G, fee)) return { ok: false, msg: `재계약금이 부족합니다. (필요 ${Pros.money(fee)})` };
     const mo = Club.mood(G, p), B = CONFIG.pro.morale, chance = Math.max(0, Math.min(0.95, (B.refuseBelow - mo.score) / B.refuseBelow));
     if (chance > 0 && Math.random() < chance) { p.refused = G.season; return { ok: false, msg: `${p.nick} 선수가 재계약을 거부했습니다. (${mo.why})` }; }

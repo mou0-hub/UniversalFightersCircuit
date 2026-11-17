@@ -373,18 +373,15 @@ const Battle = (() => {
       this.nextWave = this.t + ticks(W.every * (final ? W.finalEveryMul : 1));
       if (this.cores.length + W.count > W.max) return;
       this.waveN++;
-      const big = this.waveN % W.bigEvery === 0;
       for (let n = 0; n < W.count; n += 2) {
         let p = null;
         for (let k = 0; k < 60 && !p; k++) {
-          let x, y;
-          if (big) { const a = rnd(0, Math.PI * 2), r = rnd(W.bigRing[0], W.bigRing[1]); x = A.w / 2 + Math.cos(a) * r; y = A.h / 2 + Math.sin(a) * r; }
-          else { x = rnd(10, A.w - 10); y = rnd(12, A.h - 12); }
+          const x = rnd(10, A.w - 10), y = rnd(12, A.h - 12);
           if (this.spawnOk(x, y) && this.spawnOk(A.w - x, A.h - y)) p = { x, y };
         }
         if (!p) continue;
-        this.newCore(big ? 'big' : 'small', p.x, p.y, 0, false);
-        this.newCore(big ? 'big' : 'small', A.w - p.x, A.h - p.y, 0, false);
+        this.newCore('small', p.x, p.y, 0, false);
+        this.newCore('small', A.w - p.x, A.h - p.y, 0, false);
       }
     }
     dropCores(u) {
@@ -1286,9 +1283,17 @@ const Battle = (() => {
       const pl = t.bossDef; if (!pl || !src || src.team > 1) return;
       const team = src.team, B = CONFIG.battle.map.core.boss, BF = B.buff, n = pl.kind === 'late' ? B.late : B.first;
       this.bossKills[team]++;
+      const placed = [];
       for (let i = 0; i < n; i++) {
-        const a = Math.PI * 2 * i / n + Math.random() * 0.5, r = B.scatterR * Math.sqrt((i + 0.5) / n), p = this.clampPos(t.x + Math.cos(a) * r, t.y + Math.sin(a) * r);
-        this.newCore('small', p.x, p.y, B.lockSec, true);
+        let best = null, bs = -1;
+        for (let k = 0; k < 30; k++) {
+          const a = Math.PI * 2 * (i + rnd(-0.4, 0.4)) / n, r = rnd(B.scatterMin, B.scatterR), p = this.clampPos(t.x + Math.cos(a) * r, t.y + Math.sin(a) * r);
+          const g = placed.reduce((m, q) => Math.min(m, Math.hypot(q.x - p.x, q.y - p.y)), 1e9);
+          if (g > bs) { bs = g; best = p; }
+          if (g >= B.minGap) break;
+        }
+        placed.push(best);
+        this.newCore('small', best.x, best.y, B.lockSec, true);
       }
       let buffed = 0;
       for (const u of this.units) {
@@ -1378,6 +1383,7 @@ const Battle = (() => {
     tick() {
       if (this.over) return;
       this.t++;
+      if (this.t % 10 === 0 && typeof Feedback !== 'undefined') Feedback.tick(this);
       for (const u of this.units) {
         u.px = u.x; u.py = u.y;
         if (!u.alive) continue;

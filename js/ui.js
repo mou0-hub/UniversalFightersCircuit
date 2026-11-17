@@ -4,7 +4,7 @@ const UI = (() => {
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const G = () => Game.G;
-  let view = 'league', selLg = null, legendOpen = true, leagueTab = 'season', roleFilter = 'all', tacSlot = 0, selected = null, draftRole = 'all';
+  let view = 'league', selLg = null, legendOpen = true, leagueTab = 'season', introAuto = '', roleFilter = 'all', tacSlot = 0, selected = null, draftRole = 'all';
   const logOff = new Set();
 
   /* ---------- 파이터 표시 도우미 ---------- */
@@ -324,6 +324,7 @@ header.top, header.app-header, #topbar, .topbar{
       else if (k === 'cxSlide') cxGoSlide(+el.dataset.i, true);
       else if (k === 'strPresetAll') { const g = G(); g.strategy = Draft.normalizeStrategy(Draft.presetStrategy(el.dataset.p)); g.slotRole = ['auto', 'auto', 'auto']; g.slotPreset = el.dataset.p; Game.save(); refresh(); }
       else if (k === 'scout') showScout(el.dataset.id);
+      else if (k === 'tourEnter') { const g = G(); (g.tourSeen = g.tourSeen || {})[tourKey(g, el.dataset.k)] = 1; Game.save(); refresh(); }
       else if (k === 'scoutApply') { const g = G(); g.strategy = Draft.normalizeStrategy(Draft.presetStrategy(el.dataset.p)); g.slotRole = ['auto', 'auto', 'auto']; g.slotPreset = el.dataset.p; Game.save(); closeModal(); refresh(); toast('추천 전술을 적용했습니다'); }
       else if (k === 'tacTab') { tacTab = el.dataset.t === 'slot' ? 'slot' : 'team'; tacPage = 0; refresh(); }
       else if (k === 'tacPage') {
@@ -479,16 +480,24 @@ header.top, header.app-header, #topbar, .topbar{
   }
   function showScout(id) {
     const g = G(), a = Scout.analyze(g, id); if (!a) return;
-    const gp = a.power.gap, gapTxt = gp == null ? '비교 정보 없음' : gp > 0 ? `우리가 평균 ${gp} 앞섬` : gp < 0 ? `우리가 평균 ${-gp} 뒤짐` : '비슷함';
-    const sk = l => l.length ? l.map(x => `${x.icon} ${x.name}`).join(', ') : '뚜렷하지 않음';
-    const prosHtml = a.pros.length ? a.pros.map(r => `<li><b>${r.p.nick}</b><em>${r.grade}</em><span>${r.role} · ${r.style}${r.engage ? ' · ' + r.engage : ''}</span></li>`).join('') : '<li><span>선수 정보가 없습니다.</span></li>';
-    const recHtml = a.rec.map((r, i) => `<div class="ob-rec ${i === 0 ? 'top' : ''}"><header><b>${i === 0 ? '추천 · ' : ''}${r.name}</b><button class="btn small ${i === 0 ? 'primary' : 'ghost'}" data-ui="scoutApply" data-p="${r.id}">적용</button></header><p>${r.desc}</p>${r.why.length ? `<ul>${r.why.map(w => `<li>${w}</li>`).join('')}</ul>` : '<ul><li>특별히 유리한 점은 없지만 무난하게 운영할 수 있습니다</li></ul>'}</div>`).join('');
-    modal(`<div class="tm-head"><h3>${a.name} 분석</h3><small>${a.tag}${a.lv ? ' · 난이도 ' + a.lv.name : ''}${a.rank ? ' · 리그 ' + a.rank + '위' : ''}</small></div>
-      <div class="ob-sec"><h4>전력 비교</h4><p>선수단 등급 기준 · ${gapTxt}</p>${a.notes.length ? `<ul class="ob-note">${a.notes.map(n => `<li>${n}</li>`).join('')}</ul>` : ''}</div>
-      <div class="ob-sec"><h4>예상 운영 방식</h4><ul class="ob-strat">${a.strat.map(x => `<li title="${x.desc}"><span>${x.cat}</span><b>${x.name}</b></li>`).join('')}</ul></div>
-      <div class="ob-sec"><h4>선수단</h4><ul class="ob-pros">${prosHtml}</ul><p>강점 · ${sk(a.skill.strong)}</p><p>약점 · ${sk(a.skill.weak)}</p></div>
-      <div class="ob-sec"><h4>밴 추천</h4><div class="opp-line">${a.bans.map(id => mini(FD(id))).join('')}</div><p>${a.sample >= 3 ? `최근 ${a.sample}경기에서 자주 고른 파이터 기준` : '주력 파이터 기준 (경기 기록이 쌓이면 정확해집니다)'}</p></div>
-      <div class="ob-sec"><h4>추천 전술</h4>${recHtml}</div>
+    const gp = a.power.gap, cls = gp == null || gp === 0 ? '' : gp > 0 ? 'up' : 'dn';
+    const gapTxt = gp == null ? '비교 정보 없음' : gp > 0 ? `우리가 평균 ${gp} 앞섬` : gp < 0 ? `우리가 평균 ${-gp} 뒤짐` : '비슷함';
+    const share = gp == null ? 50 : Math.max(8, Math.min(92, Math.round(a.power.me / (a.power.me + a.power.opp) * 100)));
+    const st = k => a.strat.find(x => x.key === k), chips = (l, c) => l.length ? l.map(x => `<span class="ob-chip ${c}">${x.icon} ${x.name}</span>`).join('') : '<span class="ob-chip">뚜렷하지 않음</span>';
+    const prosHtml = a.pros.length ? a.pros.map(r => `<li><em class="ob-gr" data-g="${r.grade}">${r.grade}</em><div><b>${r.p.nick}</b><span>${r.role} · ${r.style}${r.engage ? ' · ' + r.engage : ''}</span></div></li>`).join('') : '<li class="ob-none">선수 정보가 없습니다.</li>';
+    const recHtml = a.rec.map((r, i) => `<article class="ob-rec ${i === 0 ? 'top' : ''}"><header><div>${i === 0 ? '<span class="ob-badge">추천</span>' : ''}<b>${r.name}</b></div><button class="btn small ${i === 0 ? 'primary' : 'ghost'}" data-ui="scoutApply" data-p="${r.id}">적용</button></header><p>${r.desc}</p><ul>${(r.why.length ? r.why : ['특별히 유리한 점은 없지만 무난하게 운영할 수 있습니다']).map(w => `<li>${w}</li>`).join('')}</ul></article>`).join('');
+    modal(`<header class="ob-head">${teamLogo(a.name, 56)}<div><h3>${a.name}</h3><div class="ob-meta"><span>${a.tag}</span>${a.lv ? `<span>난이도 ${a.lv.name}</span>` : ''}${a.rank ? `<span>리그 ${a.rank}위</span>` : ''}</div></div></header>
+      <div class="ob-sum">
+        <div><small>전력 차이</small><b class="${cls}">${gp == null ? '-' : (gp > 0 ? '+' : '') + gp}</b><em>${gapTxt}</em></div>
+        <div><small>예상 기조</small><b>${st('stance') ? st('stance').name : '-'}</b><em>보스 ${st('boss') ? st('boss').name : '-'}</em></div>
+        <div><small>추천 전술</small><b>${a.rec[0].name}</b><em>${a.rec[0].why.length ? a.rec[0].why.length + '가지 근거' : '기본 운영'}</em></div>
+      </div>
+      <div class="ob-gauge"><i style="width:${share}%"></i></div><div class="ob-gl"><span>우리</span><span>상대</span></div>
+      ${a.notes.length ? `<ul class="ob-note">${a.notes.map(n => `<li>${n}</li>`).join('')}</ul>` : ''}
+      <section class="ob-sec"><h4>예상 운영 방식</h4><ul class="ob-strat">${a.strat.map(x => `<li title="${x.desc}"><small>${x.cat}</small><b>${x.name}</b></li>`).join('')}</ul></section>
+      <section class="ob-sec"><h4>선수단</h4><ul class="ob-pros">${prosHtml}</ul><div class="ob-skill"><span>강점</span>${chips(a.skill.strong, 'good')}</div><div class="ob-skill"><span>약점</span>${chips(a.skill.weak, 'bad')}</div></section>
+      <section class="ob-sec"><h4>밴 추천</h4><div class="ob-ban">${a.bans.map(id => mini(FD(id))).join('')}<p>${a.sample >= 3 ? `최근 ${a.sample}경기에서 자주 고른 파이터 기준` : '주력 파이터 기준입니다. 경기 기록이 쌓이면 더 정확해집니다.'}</p></div></section>
+      <section class="ob-sec"><h4>추천 전술</h4>${recHtml}</section>
       <div class="modal-actions"><button class="btn" data-act="closeModal">닫기</button></div>`, 'tm-box ob-box');
   }
   function showTeam(id) {
@@ -500,12 +509,24 @@ header.top, header.app-header, #topbar, .topbar{
       <div class="pro-list">${pros.length ? pros.map((p, i) => `<small class="tm-pick">${i + 1}픽</small>${ProUI.card(p, '', { front: true })}`).join('') : '<p class="empty">선수 정보가 없습니다.</p>'}</div>
       <div class="modal-actions"><button class="btn" data-act="closeModal">닫기</button></div>`, 'tm-box');
   }
+  const TOUR_KINDS = ['msi', 'playoff', 'worlds'];
+  const tourKey = (g, k) => `${g.season || 1}:${k}`;
+  const tourSeen = (g, k) => !!(g.tourSeen && g.tourSeen[tourKey(g, k)]);
+  function tourIntroHTML(k) {
+    const g = G(), t = g[k], I = (CONFIG.tourIntro || {})[k] || {}, name = I.name || (k === 'playoff' ? CONFIG.league.playoffName : t.name), mine = t.seeds.includes('player');
+    return `<div class="ti">
+      <div class="ti-art">${I.img ? `<img src="${I.img}" alt="" onerror="this.remove()">` : ''}<span class="ti-tag">${League.yearOf(g)} 시즌</span></div>
+      <div class="ti-info"><h2>${I.title || name + ' 개최!'}</h2><p>${I.desc || ''}</p>
+        <dl class="ti-meta"><div><dt>참가 팀</dt><dd>${t.seeds.length}<small>팀</small></dd></div><div><dt>방식</dt><dd>${t.rounds[0].length * 2}<small>강 토너먼트</small></dd></div><div><dt>내 팀</dt><dd class="${mine ? 'on' : ''}">${mine ? '출전' : '미출전'}</dd></div></dl>
+        <button class="btn primary big ti-go" data-ui="tourEnter" data-k="${k}">${name} ${mine ? '참가' : '입장'}<span>→</span></button></div></div>`;
+  }
   const views = {};
   views.league = () => {
     const g = G(), h = Game.hero();
+    if (TOUR_KINDS.includes(g.phase) && g[g.phase] && !tourSeen(g, g.phase) && introAuto !== tourKey(g, g.phase)) { leagueTab = g.phase; introAuto = tourKey(g, g.phase); }
     const heroLogo = teamLogo(g.baseTeam, 68);
     const tabs = [['season', '정규시즌'], ['msi', 'MSI'], ['playoff', CONFIG.league.playoffName], ['worlds', '월드 챔피언십']];
-    const body = leagueTab === 'season' ? standingsHTML() : bracketHTML(g[leagueTab]);
+    const body = leagueTab === 'season' ? standingsHTML() : (g[leagueTab] && !tourSeen(g, leagueTab) ? tourIntroHTML(leagueTab) : bracketHTML(g[leagueTab]));
     const log = g.league.playerLog.slice(-8).reverse().map(r => `<li class="${r.won ? 'w' : r.draw ? 'd' : 'l'}"><span>${r.tag}</span><b>${r.won ? '승' : r.draw ? '무' : '패'}</b><em>${r.opp}</em><small>${r.reward ? '+' + r.reward : ''}</small></li>`).join('');
     return `<section class="league-grid">
       <div class="col">

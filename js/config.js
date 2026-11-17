@@ -28,14 +28,14 @@ const MAP_ROADS = [
   { w: 6, pts: [[14, 14], [88, 57]] }, { w: 6, pts: [[211, 136], [137, 93]] }
 ];
 const MAP_CORE = {
-  small: { value: 1, slots: 1 }, big: { value: 3, slots: 2 },
+  small: { value: 1, slots: 1 },
   carryCap: 6, slowPer: 0.03, slowMax: 0.18,
   pickR: 6, grabR: 14, lockSec: 1.0, senseR: 45,   /* pickR 줍는 거리 · grabR 다른 일 중에도 코어를 주우러 틀어 가는 거리 · senseR 코어 발견 거리 */
   startSmall: 3, startRing: [22, 48],
-  wave: { every: 8, count: 2, max: 14, bigEvery: 4, finalSec: 30, finalEveryMul: 0.5, bigRing: [35, 60] },
+  wave: { every: 8, count: 2, max: 14, finalSec: 30, finalEveryMul: 0.5 },
   deposit: { r: 12, channelSec: 1.2, perCoreSec: 0.3, comboAt: 4, comboBonus: 1, hitKeep: 0.5 },
   boss: {
-    first: 8, late: 12, scatterR: 10, lockSec: 1.5,
+    first: 8, late: 12, scatterR: 46, scatterMin: 12, minGap: 13, lockSec: 1.5,
     buff: { sec: 40, atk: 0.25, ap: 0.25, spd: 0.15, taken: -0.15, healPct: 0.3, noCarrySlow: true },
     valueFirst: 4.0, valueLate: 5.5
   },
@@ -628,8 +628,8 @@ const CONFIG = {
     rep: { winMul: 1.5, lossMul: 0.5, lossNone: 0.35, titleMul: 1.5 }
   },
   club: {
-    currency: '크레딧', maxRoster: 6,
-    /* 셀러리캡: 선수단 연봉 합 상한 (이적료·계약금은 자금에서 별도). 초과 시 영입·재계약·이동 승계 불가 */
+    currency: '크레딧', maxRoster: 10,      /* 선수단 최대 인원(벤치 포함) — 셀러리캡은 선발 3명에게만 적용 */
+    /* 셀러리캡: 라인업 선발 3명의 '캡 반영 연봉' 합 상한 (벤치 선수는 캡과 무관, 이적료·계약금은 자금에서 별도). 초과 시 선발 배치·재계약·이동 승계 불가 */
     cap: { easy: 5200, normal: 8200, hard: 11500, master: 15500 },
     /* 캡 운영: 같은 리그에 머무는 동안 성적·수입에 따라 매 시즌 정산 때 성장(maxGrow 또는 다음 단계 캡 × nextRatio 까지).
        재계약(자기 선수)만 소프트캡을 hardOver 비율까지 넘길 수 있고, 초과분에는 시즌 평균 연봉 기준 tax 비율의 사치세. 시즌 평균 연봉이 하한(floor)보다 낮으면 부족분 × floorPen 벌금(floorGrace 시즌 유예) */
@@ -637,7 +637,8 @@ const CONFIG = {
       maxGrow: 0.3, nextRatio: 0.9, maxStep: 0.08,
       step: { base: 0.02, top: 0.015, topRank: 4, league: 0.03, msi: 0.01, worlds: 0.02 },
       revW: 0.15, revMin: -0.01, revMax: 0.03, refUp: 1.1,
-      hardOver: 0.15, tax: 0.5, floor: 0.4, floorPen: 0.5, floorGrace: 1
+      hardOver: 0.15, tax: 0.5, floor: 0.4, floorPen: 0.5, floorGrace: 1,
+      tenure: { perSeason: 0.08, max: 0.4 }      /* 장기 보유 감면: 한 구단에서 보낸 시즌마다 캡 반영 연봉이 perSeason 만큼 줄어듦(최대 max). 실제 지급 연봉은 그대로 */
     },
     startSize: 5,
     startMix: { easy: { C: 0.7, B: 0.3, A: 0, S: 0 }, normal: { C: 0.55, B: 0.4, A: 0.05, S: 0 }, hard: { C: 0.4, B: 0.5, A: 0.1, S: 0 }, master: { C: 0.3, B: 0.55, A: 0.15, S: 0 } },
@@ -745,6 +746,23 @@ const CONFIG = {
       { n: 5, id: 'seasons_5', name: '장기 집권', reward: 1000 }, { n: 10, name: '십 년 감독', reward: 3000 },
       { n: 20, name: '영원한 감독', reward: 8000 }, { n: 30, name: '구단의 역사', reward: 15000 } ] }
   ],
+
+  facility: {
+    managers: { img: 'img/manager{n}.png', cost: [0, 600, 1000, 1500, 2200, 3000], names: ['매니저 1', '매니저 2', '매니저 3', '매니저 4', '매니저 5', '매니저 6'] },
+    order: ['shop', 'goods', 'cafe', 'fanzone', 'training', 'dorm', 'medical', 'lounge'],
+    costMul: { easy: 0.8, normal: 1, hard: 1.5, master: 2 },
+    base: { formFloor: 30, mentalFloor: 40 }, troubleMin: 0.4,
+    defs: {
+      shop:     { name: '매점',   icon: '🍔', max: 5, cost: [300, 500, 800, 1200, 1800],  fx: { inc: 0.16 },                          desc: '홈 경기 부가 수입이 늘어납니다.' },
+      goods:    { name: '굿즈샵', icon: '👕', max: 5, cost: [300, 500, 800, 1200, 1800],  fx: { inc: 0.12, fan: 0.015 },              desc: '부가 수입과 팬 증가가 소폭 늘어납니다.' },
+      cafe:     { name: '카페',   icon: '☕', max: 4, cost: [250, 400, 650, 1000],        fx: { inc: 0.06, mental: 0.4 },             desc: '부가 수입과 멘탈이 소폭 오릅니다.' },
+      fanzone:  { name: '팬존',   icon: '🎤', max: 5, cost: [450, 700, 1100, 1600, 2400], fx: { tix: 0.06, fan: 0.03 },               desc: '티켓 수입과 팬 증가가 늘어납니다.' },
+      training: { name: '연습장', icon: '🎯', max: 5, cost: [500, 800, 1200, 1800, 2600], fx: { form: 1.6, formFloor: 3 },           desc: '선발 폼 평균이 오르고 슬럼프가 얕아집니다.' },
+      dorm:     { name: '합숙소', icon: '🛏', max: 5, cost: [400, 650, 1000, 1500, 2200], fx: { trouble: 0.08, mental: 0.4 },        desc: '트러블이 줄고 멘탈이 안정됩니다.' },
+      medical:  { name: '의료실', icon: '🩺', max: 4, cost: [350, 600, 950, 1400],        fx: { recover: 1, mentalFloor: 4, mental: 0.4 }, desc: '컨디션 회복이 빨라지고 멘탈 하한이 오릅니다.' },
+      lounge:   { name: '라운지', icon: '🛋', max: 5, cost: [400, 650, 1000, 1500, 2200], fx: { mental: 1, chem: 1.6 },              desc: '멘탈과 팀워크(케미)가 오릅니다.' }
+    }
+  },
 
   ui: { teamColors: ['#5ee7ff', '#ff6ec7'], starCount: 90 },
   fighters: {}   // fighters.js 에서 채워집니다

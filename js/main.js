@@ -353,6 +353,6 @@ const Game = {
   }
 };
 
-Object.assign(Game.actions, Club.actions, MyData.actions, Feedback.actions);
+Object.assign(Game.actions, Club.actions, MyData.actions, Feedback.actions, Facility.actions);
 
 window.addEventListener('DOMContentLoaded', () => Game.init());

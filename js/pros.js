@@ -173,7 +173,7 @@ const Pros = (() => {
       role, favs, style: pick(P().styles).id,
       mental: rnd(62, 95), form: rnd(48, 68), trouble: troubleMaker ? rnd(60, 92) : rnd(0, 34), slack: slacker ? rnd(60, 92) : rnd(0, 34),
       salary: round10((gr.salary[0] + (gr.salary[1] - gr.salary[0]) * (0.75 * t + 0.25 * Math.random())) * (1 + Math.min(P().potential.premiumMax, (pot - ovr) * P().potential.premium))), years: rnd(P().contract[0], P().contract[1]),
-      team: null, listed: false, fee: 0, games: 0, wins: 0, sg: 0, sw: 0
+      team: null, listed: false, fee: 0, games: 0, wins: 0, sg: 0, sw: 0, tn: 0
     };
     skills(pro); st.by[id] = pro; return pro;
   }

@@ -320,13 +320,12 @@ const Arena = (() => {
       chip(x, y + r + 8, 'DEPOSIT', z.name, '#67e8f9');
     }
     for (const c of battle.cores) {
-      const x = c.x * SC, y = c.y * SC, big = c.type === 'big', locked = c.lockUntil > battle.t, bob = 2.5 * Math.sin(t * 0.004 + c.id), R = big ? 11 : 6, col = big ? '#fb923c' : '#fde047';
+      const x = c.x * SC, y = c.y * SC, locked = c.lockUntil > battle.t, bob = 2.5 * Math.sin(t * 0.004 + c.id), R = 6, col = '#fde047';
       ctx.save(); ctx.globalAlpha = locked ? 0.35 + 0.25 * Math.sin(t * 0.03) : 1;
       ctx.fillStyle = 'rgba(0,0,0,.4)'; ell(x, y + 3, R * 1.3, R * 0.5); ctx.fill();
-      const g = ctx.createRadialGradient(x, y - 8 - bob, 0, x, y - 8 - bob, R * 2.6); g.addColorStop(0, big ? 'rgba(251,146,60,.55)' : 'rgba(253,224,71,.5)'); g.addColorStop(1, 'rgba(253,224,71,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y - 8 - bob, R * 2.6, 0, 7); ctx.fill();
-      ctx.shadowColor = col; ctx.shadowBlur = big ? 18 : 10; ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x, y - 8 - bob, R, 0, 7); ctx.fill();
+      const g = ctx.createRadialGradient(x, y - 8 - bob, 0, x, y - 8 - bob, R * 2.6); g.addColorStop(0, 'rgba(253,224,71,.5)'); g.addColorStop(1, 'rgba(253,224,71,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y - 8 - bob, R * 2.6, 0, 7); ctx.fill();
+      ctx.shadowColor = col; ctx.shadowBlur = 10; ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x, y - 8 - bob, R, 0, 7); ctx.fill();
       ctx.shadowBlur = 0; ctx.fillStyle = '#fff'; ctx.globalAlpha *= 0.85; ctx.beginPath(); ctx.arc(x - R * 0.25, y - 8 - bob - R * 0.25, R * 0.38, 0, 7); ctx.fill();
-      if (big) { ctx.globalAlpha = locked ? 0.35 + 0.25 * Math.sin(t * 0.03) : 0.6 + 0.4 * pulse; ctx.strokeStyle = '#fff7ed'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y - 8 - bob, R + 5, 0, 7); ctx.stroke(); ctx.strokeStyle = col; ctx.lineWidth = 1.5; hexReg(x, y - 8 - bob, R + 10, t * 0.0008); ctx.stroke(); }
       ctx.restore();
     }
     for (const p of M.pods) {      // 홀로그램 메디팩
