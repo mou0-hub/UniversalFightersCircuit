@@ -748,7 +748,25 @@ const CONFIG = {
   ],
 
   facility: {
-    managers: { img: 'img/manager{n}.png', cost: [0, 600, 1000, 1500, 2200, 3000], names: ['매니저 1', '매니저 2', '매니저 3', '매니저 4', '매니저 5', '매니저 6'] },
+    costScale: 3,                                  /* 시설 업그레이드 비용 전체 배율 (1 = 기존) */
+    managers: {
+      img: 'img/manager{n}.png', costScale: 3,       /* 매니저 해금 비용 전체 배율 */
+      /* cond: trophy(t=league|msi|worlds|intl) · wins · games · streak · season · rep · fac(id) · facSum · fans  /  fx: sk(능력치 가산) + inc fan tix form mental trouble recover chem grow */
+      list: [
+        { name: '현장 스태프',       role: '서머 파이널 현장 운영',      cost: 0,    cond: [],                                                   fx: { sk: { react: 3 }, fan: 0.05 } },
+        { name: '대회 운영 팀장',    role: '토너먼트 대진·운영 총괄',    cost: 600,  cond: [{ k: 'trophy', t: 'league', n: 1 }],                 fx: { sk: { judge: 5 } } },
+        { name: '전술 분석관',       role: '팀 데이터 분석·육성 보조',   cost: 900,  cond: [{ k: 'wins', n: 40 }],                              fx: { sk: { posn: 5 }, grow: 0.10 } },
+        { name: '라운지 케어 매니저', role: '선수 컨디션·멘탈 케어',     cost: 1200, cond: [{ k: 'fac', id: 'lounge', n: 2 }, { k: 'fac', id: 'dorm', n: 2 }], fx: { mental: 4, trouble: 0.10 } },
+        { name: '이벤트 호스트',     role: '팬 이벤트·행사 진행',        cost: 1800, cond: [{ k: 'fac', id: 'fanzone', n: 3 }, { k: 'rep', n: 60 }],  fx: { fan: 0.12, tix: 0.08 } },
+        { name: '코스믹 어드바이저', role: '우주 항로 안내·궁극기 코칭', cost: 3000, cond: [{ k: 'trophy', t: 'intl', n: 1 }],                   fx: { sk: { ult: 6, obj: 3 } } },
+        { name: '프로팀 코치',       role: '게이밍 하우스 훈련 총괄',    cost: 3600, cond: [{ k: 'fac', id: 'training', n: 3 }, { k: 'wins', n: 100 }],   fx: { sk: { aim: 5, fight: 4 }, form: 1 } },
+        { name: '리조트 컨시어지',   role: '휴양·컨디션 회복 담당',      cost: 4800, cond: [{ k: 'fac', id: 'lounge', n: 4 }, { k: 'fac', id: 'medical', n: 3 }, { k: 'season', n: 3 }], fx: { mental: 3, recover: 1, fan: 0.06 } },
+        { name: '굿즈 부티크 디렉터', role: '굿즈 기획·브랜드 운영',     cost: 6600, cond: [{ k: 'fac', id: 'goods', n: 4 }, { k: 'fans', n: 15000 }, { k: 'rep', n: 75 }], alt: 10, fx: { inc: 0.12, tix: 0.06, fan: 0.08 } },
+        { name: '캠퍼스 홍보대사',   role: '대학 연계 홍보·신규 팬 유치', cost: 9000,  pic: 13, cond: [{ k: 'facSum', n: 20 }, { k: 'wins', n: 200 }, { k: 'rep', n: 80 }, { k: 'fans', n: 20000 }], fx: { fan: 0.12, grow: 0.12, sk: { react: 4, team: 4 } } },
+        { name: '웨스턴 스트리트 호스트', role: '로드쇼·팬 투어 기획',   cost: 13500, pic: 11, cond: [{ k: 'trophy', t: 'worlds', n: 1 }, { k: 'facSum', n: 28 }, { k: 'fans', n: 30000 }, { k: 'rep', n: 85 }, { k: 'season', n: 8 }], fx: { inc: 0.2, tix: 0.12, fan: 0.12, sk: { clutch: 5 } } },
+        { name: '홈 스튜디오 큐레이터', role: '비공개 콘텐츠 기획·운영', cost: 21000, pic: 12, cond: [{ k: 'trophy', t: 'worlds', n: 3 }, { k: 'wins', n: 500 }, { k: 'facSum', n: 36 }, { k: 'fans', n: 40000 }, { k: 'rep', n: 95 }, { k: 'season', n: 15 }], fx: { inc: 0.3, tix: 0.2, fan: 0.2, mental: 5, sk: { ult: 6, clutch: 6, obj: 4 } } }
+      ]
+    },
     order: ['shop', 'goods', 'cafe', 'fanzone', 'training', 'dorm', 'medical', 'lounge'],
     costMul: { easy: 0.8, normal: 1, hard: 1.5, master: 2 },
     base: { formFloor: 30, mentalFloor: 40 }, troubleMin: 0.4,

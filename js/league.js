@@ -29,6 +29,7 @@ const League = (() => {
       const p = Pros.get(G, pid);
       if (!p) return { form: 55, mental: 70, trouble: 0, slack: 0 };
       if (typeof News !== 'undefined' && News.ensureProMood) News.ensureProMood(p);
+      if (p.fxb) Facility.clean(p);
       return { form: p.form ?? 55, mental: p.mental ?? 70, trouble: p.trouble ?? 0, slack: p.slack ?? 0, nick: p.nick, sk: Pros.skills(p) };
     });
   }

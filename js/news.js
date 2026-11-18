@@ -692,14 +692,15 @@ const News = (() => {
     const repDelta = applyMatchRep(G, info);
     const rep = ensureRep(G);
     const rated = rateLineup(G, info);
-    /* 경기 결과로 폼/멘탈이 변동된 뒤, 높은 확률로 기본값(55/70)으로 복구. 복구 안 되면 다음 경기 AI에 영향 */
-    if (G.club && G.club.lineup) {
-      G.club.lineup.filter(Boolean).forEach(pid => {
+    /* 경기 결과로 폼/멘탈이 변동된 뒤, 높은 확률로 기본값(55/70)으로 복구. 복구 안 되면 다음 경기 AI에 영향. 내 선수단 전체에만 적용(시설 기본값) */
+    if (G.club && G.club.roster) {
+      G.club.roster.forEach(pid => {
         const p = Pros.get(G, pid); if (!p) return;
         ensureProMood(p);
-        if (Math.random() < 0.75) {          // 약 75% 확률로 원상복구
-          p.form = 55;
-          p.mental = 70;
+        if (Math.random() < 0.75) {          // 약 75% 확률로 원상복구 (기본값은 구장 시설 레벨만큼 상승)
+          const bs = Facility.base(G);
+          p.form = bs.form;
+          p.mental = bs.mental; p.fxb = 1;
         }
       });
     }
@@ -1247,7 +1248,7 @@ const News = (() => {
     if (G.club && G.club.roster) G.club.roster.forEach(id => {
       const p = Pros.get(G, id); if (!p) return;
       ensureProMood(p);
-      p.form = clamp(Math.round(p.form * 0.85 + 50 * 0.15), 0, 100);
+      p.form = clamp(Math.round(p.form * 0.85 + (50 + Facility.fx(G).form) * 0.15), 0, 100);
     });
     return mk(G, date, 'season', 'league', `${y}년 시즌 개막 — 여론은 리셋에 가깝다`, [
       `${y}년 ${League.lgOf(G).name} 리그 개막.`,

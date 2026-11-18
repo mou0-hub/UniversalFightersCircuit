@@ -140,6 +140,7 @@ const Pros = (() => {
       }
     }
     if (d > 0) {
+      if (G.club && (G.club.roster || []).includes(p.id)) d *= 1 + Facility.fx(G).grow;                 // 매니저 육성 보너스
       d *= share >= D.playHi ? D.playHiMul : share < D.playLo ? D.playLoMul : 1;
       if (ctx.rank && ctx.rank <= D.rankTop) d *= D.rankTopMul; else if (ctx.rank && ctx.rank >= D.rankLow) d *= D.rankLowMul;
       if (p.mental >= D.mentalHi) d *= D.mentalHiMul;

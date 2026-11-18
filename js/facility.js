@@ -4,24 +4,32 @@ const Facility = (() => {
   const FC = () => CONFIG.facility, money = n => Pros.money(n);
   const lv = (g, id) => ((g && g.club && g.club.facilities) || {})[id] || 0;
   const diff = g => g.difficulty || (League.lgOf(g) || {}).diff || 'normal';
-  const costOf = (g, id) => { const d = FC().defs[id], l = lv(g, id); return l >= d.max ? null : Math.round(d.cost[l] * (FC().costMul[diff(g)] || 1) / 10) * 10; };
+  const costOf = (g, id) => { const d = FC().defs[id], l = lv(g, id); return l >= d.max ? null : Math.round(d.cost[l] * (FC().costScale || 1) * (FC().costMul[diff(g)] || 1) / 10) * 10; };
 
   /* ---------- 효과 ---------- */
-  const ZERO = { inc: 0, fan: 0, tix: 0, form: 0, formFloor: 0, mental: 0, mentalFloor: 0, trouble: 0, recover: 0, chem: 0 };
+  const ZERO = { inc: 0, fan: 0, tix: 0, form: 0, formFloor: 0, mental: 0, mentalFloor: 0, trouble: 0, recover: 0, chem: 0, grow: 0 };
   function fx(g) {
-    const o = { ...ZERO };
+    const o = { ...ZERO, sk: {} }, m = (MG()[mgState(g).cur - 1] || {}).fx || {};
     FC().order.forEach(id => { const l = lv(g, id), c = FC().defs[id].fx; Object.keys(c).forEach(k => { o[k] += c[k] * l; }); });
+    Object.keys(m).forEach(k => { if (k === 'sk') Object.assign(o.sk, m.sk); else o[k] = (o[k] || 0) + m[k]; });
     return o;
   }
   const troubleMul = g => Math.max(FC().troubleMin, 1 - fx(g).trouble);
+  const B0 = () => ({ form: 55, mental: 70, ...FC().base });
+  const shift = (g, b0) => {
+    const b1 = base(g), df = b1.form - b0.form, dm = b1.mental - b0.mental; if (!df && !dm) return;
+    ((g.club && g.club.roster) || []).forEach(id => { const p = Pros.get(g, id); if (!p) return; p.form = Math.max(0, Math.min(100, (p.form ?? 55) + df)); p.mental = Math.max(0, Math.min(100, (p.mental ?? 70) + dm)); p.fxb = 1; });
+  };
+  const clean = p => { const b = B0(); p.form = Math.min(p.form ?? b.form, b.form); p.mental = Math.min(p.mental ?? b.mental, b.mental); delete p.fxb; };
+  const base = g => { const x = fx(g), b = B0(); return { form: Math.min(100, Math.round(b.form + x.form)), mental: Math.min(100, Math.round(b.mental + x.mental)) }; };
   function eff(g, p) {
     const x = fx(g), B = FC().base, sk = Pros.skills(p);
     const up = (v, add, fl) => Math.round(Math.min(100, Math.max(v, fl) + add));
     return {
-      form: up(p.form ?? 55, x.form, x.formFloor ? B.formFloor + x.formFloor : 0),
-      mental: up(p.mental ?? 70, x.mental, x.mentalFloor ? B.mentalFloor + x.mentalFloor : 0),
+      form: up(p.form ?? 55, 0, x.formFloor ? B.formFloor + x.formFloor : 0),
+      mental: up(p.mental ?? 70, 0, x.mentalFloor ? B.mentalFloor + x.mentalFloor : 0),
       trouble: Math.round((p.trouble ?? 0) * troubleMul(g)),
-      sk: x.chem ? { ...sk, team: Math.min(99, (sk.team || 0) + x.chem) } : sk
+      sk: (() => { const s = { ...sk }; if (x.chem) s.team = Math.min(99, (s.team || 0) + x.chem); Object.keys(x.sk).forEach(k => { s[k] = Math.min(99, (s[k] || 0) + x.sk[k]); }); return s; })()
     };
   }
   const matchIncome = (g, ticket) => Math.round(ticket.income * fx(g).inc / 10) * 10;
@@ -31,7 +39,7 @@ const Facility = (() => {
     const c = costOf(g, id);
     if (c == null) return { ok: false, msg: `${d.name}은(는) 이미 최대 레벨입니다.` };
     if (g.club.funds < c) return { ok: false, msg: `자금이 부족합니다. (필요 ${money(c)})` };
-    g.club.funds -= c; const f = g.club.facilities = g.club.facilities || {}; f[id] = (f[id] || 0) + 1; pop = id;
+    const b0 = base(g); g.club.funds -= c; const f = g.club.facilities = g.club.facilities || {}; f[id] = (f[id] || 0) + 1; pop = id; shift(g, b0);
     return { ok: true, msg: `${d.name} ${f[id] === 1 ? '건설' : 'Lv.' + f[id] + ' 업그레이드'} 완료 (−${money(c)})` };
   }
 
@@ -279,31 +287,49 @@ const Facility = (() => {
   const pct = v => Math.round(v * 100), n1 = v => +v.toFixed(1);
   const LBL = {
     inc: v => `부가 수입 +${pct(v)}%`, fan: v => `팬 증가 +${pct(v)}%`, tix: v => `티켓 수입 +${pct(v)}%`,
-    form: v => `폼 +${n1(v)}`, formFloor: v => `폼 하한 +${n1(v)}`, mental: v => `멘탈 +${n1(v)}`, mentalFloor: v => `멘탈 하한 +${n1(v)}`,
-    trouble: v => `트러블 −${pct(v)}%`, recover: v => `회복 +${n1(v)}`, chem: v => `팀워크 +${n1(v)}`
+    form: v => `기본 폼 +${n1(v)}`, formFloor: v => `폼 하한 +${n1(v)}`, mental: v => `기본 멘탈 +${n1(v)}`, mentalFloor: v => `멘탈 하한 +${n1(v)}`,
+    trouble: v => `트러블 −${pct(v)}%`, recover: v => `회복 +${n1(v)}`, chem: v => `팀워크 +${n1(v)}`, grow: v => `육성 성장 +${pct(v)}%`
   };
   const fxText = (c, l) => Object.keys(c).map(k => LBL[k](c[k] * l)).join(' · ');
-  let sel = 'shop', pop = null;
+  let sel = 'shop', pop = null, mgPos = -1;
+  const FIX = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
 
   const buyBtn = (g, id) => {
     const c = costOf(g, id), l = lv(g, id);
     if (c == null) return '<button class="btn dis" disabled>최대 레벨</button>';
     return `<button class="btn ${g.club.funds >= c ? 'primary' : 'dis'}" data-act="facBuy" data-id="${id}">${l ? '업그레이드' : '건설'} · ${money(c)}</button>`;
   };
-  const MC = () => FC().managers, MN = () => MC().cost.length;
+  const MG = () => FC().managers.list;
+  const MC = () => FC().managers, MN = () => MG().length;
   const mgState = g => (g.mgr = g.mgr || { have: [1], cur: 1 });
   const mgImg = n => MC().img.replace('{n}', n);
-  const mgName = n => (MC().names && MC().names[n - 1]) || `매니저 ${n}`;
-  const mgCost = (g, n) => Math.round(MC().cost[n - 1] * (FC().costMul[diff(g)] || 1) / 10) * 10;
+  const mgPic = n => mgImg((MG()[n - 1] || {}).pic || n);
+  const mgName = n => (MG()[n - 1] || {}).name || `매니저 ${n}`;
+  const mgCost = (g, n) => Math.round(MG()[n - 1].cost * (MC().costScale || 1) * (FC().costMul[diff(g)] || 1) / 10) * 10;
+  const skName = k => (CONFIG.pro.skills.find(s => s.id === k) || { name: k }).name;
+  const mgFxText = f => [...Object.keys(f).filter(k => k !== 'sk').map(k => (LBL[k] ? LBL[k](f[k]) : `${k} +${f[k]}`)), ...Object.keys(f.sk || {}).map(k => `${skName(k)} +${f.sk[k]}`)].join(' · ');
+  const TRO = { league: '리그 우승', msi: 'MSI 우승', worlds: '월드 챔피언십 우승', intl: '국제대회(MSI·월드) 우승' };
+  function condOf(g, c) {
+    const T = g.trophies || [], tot = g.totals || {}, fl = FC().order.reduce((s, id) => s + lv(g, id), 0);
+    const cur = { trophy: () => T.filter(t => (c.t === 'intl' ? t.k === 'msi' || t.k === 'worlds' : t.k === c.t)).length, wins: () => tot.wins || 0, games: () => tot.games || 0, streak: () => g.bestStreak || 0, season: () => g.season || 1, rep: () => Math.max((g.rep && g.rep.peak) || 0, (g.rep && g.rep.v) || 0), fac: () => lv(g, c.id), facSum: () => fl, fans: () => (g.club && g.club.fans) || 0 }[c.k]();
+    const text = { trophy: `${TRO[c.t]} ${c.n}회`, wins: `통산 ${c.n}승`, games: `통산 ${c.n}경기`, streak: `최다 연승 ${c.n}`, season: `${c.n}시즌째`, rep: `감독 평판 ${c.n} 이상`, fac: `${FC().defs[c.id] ? FC().defs[c.id].name : c.id} Lv.${c.n}`, facSum: `시설 레벨 합 ${c.n}`, fans: `팬 ${c.n.toLocaleString('ko-KR')}명` }[c.k];
+    return { ok: cur >= c.n, cur: Math.min(cur, c.n), need: c.n, text };
+  }
+  const mgConds = (g, n) => (MG()[n - 1].cond || []).map(c => condOf(g, c));
   function unlockMgr(g, n) {
     const s = mgState(g), c = mgCost(g, n);
     if (s.have.includes(n)) return { ok: false, msg: '이미 해금한 매니저입니다.' };
+    if (mgConds(g, n).some(x => !x.ok)) return { ok: false, msg: '해금 조건을 아직 달성하지 못했습니다.' };
     if (g.club.funds < c) return { ok: false, msg: `자금이 부족합니다. (필요 ${money(c)})` };
-    g.club.funds -= c; s.have.push(n); s.cur = n;
+    const b0 = base(g); g.club.funds -= c; s.have.push(n); s.cur = n; shift(g, b0);
     return { ok: true, msg: `${mgName(n)} 해금! (−${money(c)})` };
   }
-  const mgrPopup = (g, n) => `<div class="fac-mgr-pop"><img src="${mgImg(n)}" alt="" onerror="this.hidden=true"><b>${mgName(n)}</b><small>🔒 잠금 · 필요 ${money(mgCost(g, n))}</small></div>
-      <div class="fac-pop-foot"><small>보유 ${money(g.club.funds)}</small><button class="btn ${g.club.funds >= mgCost(g, n) ? 'primary' : 'dis'}" data-act="mgrBuy" data-n="${n}">해금 · ${money(mgCost(g, n))}</button></div>`;
+  const mgrPopup = (g, n) => {
+    const m = MG()[n - 1], cs = mgConds(g, n), ready = cs.every(x => x.ok) && g.club.funds >= mgCost(g, n);
+    return `<div class="fac-mgr-pop"><img src="${mgPic(n)}" alt="" onerror="this.hidden=true"><b>${m.name}</b><small>${m.role}</small><em>${mgFxText(m.fx)}</em></div>
+      <ul class="fac-cond">${cs.map(x => `<li class="${x.ok ? 'ok' : ''}"><span>${x.ok ? '✔' : '✖'} ${x.text}</span><small>${x.cur.toLocaleString('ko-KR')} / ${x.need.toLocaleString('ko-KR')}</small></li>`).join('') || '<li class="ok"><span>✔ 조건 없음</span></li>'}</ul>
+      <div class="fac-pop-foot"><small>보유 ${money(g.club.funds)}</small><button class="btn ${ready ? 'primary' : 'dis'}" data-act="mgrBuy" data-n="${n}">해금 · ${money(mgCost(g, n))}</button></div>`;
+  };
   const nick = () => { try { return localStorage.getItem('cosmic_manager') || ''; } catch (e) { return ''; } };
 
   function popup(g, id) {
@@ -315,18 +341,20 @@ const Facility = (() => {
   }
 
   function screen() {
+    const lt = document.querySelector('.fac-mgr-list'); if (lt) mgPos = lt.scrollLeft;
     const g = Game.G, c = g && g.club;
     if (!c) return '<section class="glass panel"><p class="empty">구단 정보가 없습니다.</p></section>';
-    const ids = FC().order, defs = FC().defs, x = fx(g), lu = Club.lineup(g).filter(Boolean);
+    const ids = FC().order, defs = FC().defs, x = fx(g), bs = base(g), lu = Club.lineup(g).filter(Boolean);
     const avg = f => (lu.length ? Math.round(lu.reduce((s, p) => s + f(p), 0) / lu.length) : null);
     const chip = (k, v) => `<span class="fac-chip"><small>${k}</small><b>${v}</b></span>`;
     const pair = (k, a, b) => (a == null ? '' : chip(k, a === b ? a : `${a} → ${b}`));
     const chips = [
-      pair('선발 폼', avg(p => p.form ?? 55), avg(p => eff(g, p).form)),
-      pair('선발 멘탈', avg(p => p.mental ?? 70), avg(p => eff(g, p).mental)),
+      chip('폼 기본값', bs.form === B0().form ? bs.form : `${B0().form} → ${bs.form}`),
+      chip('멘탈 기본값', bs.mental === B0().mental ? bs.mental : `${B0().mental} → ${bs.mental}`),
       pair('트러블', avg(p => p.trouble ?? 0), avg(p => eff(g, p).trouble)),
       x.inc ? chip('부가 수입', `+${pct(x.inc)}%`) : '', x.tix ? chip('티켓 수입', `+${pct(x.tix)}%`) : '', x.fan ? chip('팬 증가', `+${pct(x.fan)}%`) : '',
-      x.recover ? chip('컨디션 회복', `+${n1(x.recover)}`) : '', x.chem ? chip('팀워크', `+${n1(x.chem)}`) : ''
+      x.recover ? chip('컨디션 회복', `+${n1(x.recover)}`) : '', x.chem ? chip('팀워크', `+${n1(x.chem)}`) : '', x.grow ? chip('육성 성장', `+${pct(x.grow)}%`) : '',
+      ...Object.keys(x.sk).map(k => chip(skName(k), `+${x.sk[k]}`))
     ].join('');
     const order = ids.slice().sort((p, q) => LOT[p][0] + LOT[p][1] - LOT[q][0] - LOT[q][1]);
     const spots = order.map(id => {
@@ -335,11 +363,11 @@ const Facility = (() => {
     }).join('');
     const drop = pop && lv(g, pop) ? (() => { const [gx, gy] = LOT[pop], p0 = sp(gx, gy); return `<img class="fac-drop" src="${spriteUrl(pop, lv(g, pop))}" style="left:${((p0[0] - 32) / W * 100).toFixed(2)}%;top:${((p0[1] - 52) / H * 100).toFixed(2)}%;width:${(64 / W * 100).toFixed(2)}%" alt="">`; })() : '';
     const sc = scene(ids.map(id => lv(g, id)), sel, Math.min(6, Math.floor((c.fans || 0) / 2000)));
-    const ms = mgState(g), ths = Array.from({ length: MN() }, (_, i) => i + 1).map(n => `<button class="fac-th ${ms.cur === n ? 'on' : ''} ${ms.have.includes(n) ? '' : 'lock'}" data-act="mgrSel" data-n="${n}" title="${mgName(n)}"><img src="${mgImg(n)}" alt="" onerror="this.hidden=true">${ms.have.includes(n) ? '' : '<i>🔒</i>'}</button>`).join('');
+    const ms = mgState(g), cm = MG()[ms.cur - 1], flip = !!(cm.alt && (ms.alt || {})[ms.cur]), ths = Array.from({ length: MN() }, (_, i) => i + 1).map(n => `<button class="fac-th ${ms.cur === n ? 'on' : ''} ${ms.have.includes(n) ? '' : 'lock'}" data-act="mgrSel" data-n="${n}" title="${mgName(n)}"><img src="${mgPic(n)}" alt="" onerror="this.hidden=true">${ms.have.includes(n) ? '' : '<i>🔒</i>'}</button>`).join('');
     pop = null;
     return `<section class="fac-view"><div class="glass panel team-head"><div><h2>🏟 구장 꾸미기</h2><p>시설을 눌러 건설하고 업그레이드하세요.</p></div><button class="btn" data-act="nav" data-view="club">← 구단 관리</button></div>
       <div class="fac-layout">
-        <aside class="glass fac-mgr"><div class="fac-mgr-img"><img src="${mgImg(ms.cur)}" alt="" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span hidden>🧑‍💼</span></div><div class="fac-mgr-list">${ths}</div><div class="fac-mgr-info"><b>${mgName(ms.cur)}</b><small>${nick() ? nick() + ' 감독 · ' : ''}${g.teamName || ''}</small><em>💰 ${money(c.funds)}</em></div></aside>
+        <aside class="glass fac-mgr"><div class="fac-mgr-img ${cm.alt ? 'has-alt' : ''} ${flip ? 'flip' : ''}" ${cm.alt ? 'data-act="mgrAlt"' : ''}><img src="${mgPic(ms.cur)}" alt="" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span hidden>🧑‍💼</span>${cm.alt ? `<img class="fac-mgr-alt" src="${mgImg(cm.alt)}" alt="" onerror="this.hidden=true">` : ''}</div><div class="fac-mgr-slide"><button class="fac-mgr-arrow" data-act="mgrNav" data-dir="-1">‹</button><div class="fac-mgr-list">${ths}</div><button class="fac-mgr-arrow" data-act="mgrNav" data-dir="1">›</button><img class="fac-mgr-fix" src="${FIX}" alt="" onload="var t=this.parentNode.querySelector('.fac-mgr-list'),c=t.querySelector('.on');t.scrollLeft=${mgPos}>=0?${mgPos}:(c?c.offsetLeft-(t.clientWidth-c.offsetWidth)/2:0);this.remove()"></div><div class="fac-mgr-info"><b>${mgName(ms.cur)}</b><small>${cm.role}</small><span class="fac-mgr-fx">${mgFxText(cm.fx)}</span><small>${nick() ? nick() + ' 감독 · ' : ''}${g.teamName || ''}</small><em>💰 ${money(c.funds)}</em></div></aside>
         <div class="fac-right"><div class="fac-effects">${chips || '<span class="fac-none">적용 중인 효과가 없습니다.</span>'}</div><div class="fac-scene"><img class="fac-bg" src="${sc}" alt="">${drop}${spots}</div></div>
       </div></section>`;
   }
@@ -352,10 +380,12 @@ const Facility = (() => {
   const actions = {
     facSel(el) { sel = el.dataset.id; UI.refresh(); UI.modal(popup(Game.G, sel), 'fac-modal'); },
     facBuy(el) { sel = el.dataset.id; done(buy(Game.G, sel)); },
-    mgrSel(el) { const g = Game.G, n = +el.dataset.n, s = mgState(g); if (s.have.includes(n)) { s.cur = n; Game.save(); UI.refresh(); } else UI.modal(mgrPopup(g, n), 'fac-modal'); },
+    mgrSel(el) { const g = Game.G, n = +el.dataset.n, s = mgState(g); if (s.have.includes(n)) { const b0 = base(g); s.cur = n; shift(g, b0); Game.save(); UI.refresh(); } else UI.modal(mgrPopup(g, n), 'fac-modal'); },
+    mgrNav(el) { const t = el.parentNode.querySelector('.fac-mgr-list'); t.scrollBy({ left: +el.dataset.dir * t.clientWidth * .8, behavior: 'smooth' }); },
+    mgrAlt(el) { const s = mgState(Game.G); s.alt = s.alt || {}; s.alt[s.cur] = !s.alt[s.cur]; el.classList.toggle('flip', !!s.alt[s.cur]); Game.save(); },
     mgrBuy(el) { const r = unlockMgr(Game.G, +el.dataset.n); UI.toast(r.msg, r.ok ? 'good' : 'warn'); if (r.ok) { Game.save(); UI.closeModal(); UI.refresh(); } }
   };
 
   UI.addView('facility', screen);
-  return { lv, fx, eff, troubleMul, matchIncome, costOf, buy, actions };
+  return { lv, fx, eff, base, clean, mgrFx: g => (MG()[mgState(g).cur - 1] || {}).fx || {}, troubleMul, matchIncome, costOf, buy, actions };
 })();

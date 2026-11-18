@@ -38,16 +38,19 @@ const ProUI = (() => {
 
   function card(p, actions, o = {}) {
     const r = CONFIG.roles[p.role], ra = Pros.rarity(p), fk = (o.scope || 'x') + ':' + p.id, on = flipped.has(fk);
+    const g0 = Game.G, mine = !!(g0 && g0.club && (g0.club.roster || []).includes(p.id));
+    if (!mine && p.fxb) Facility.clean(p);
+    const pv = mine ? { ...p, ...(({ form, mental, trouble }) => ({ form, mental, trouble }))(Facility.eff(g0, p)) } : p;
     const front = `<div class="pro-card front ${o.cls || ''} ${ra ? 'rare-' + ra.id : ''}" style="--gc:${gcol(p.grade)}">
       <span class="flip-ico">↻</span>
       <div class="pro-grade"><b>${p.grade}</b><small>${CONFIG.pro.grades[p.grade].name}</small></div>
       <div class="pro-main"><h4>${p.nick}<small>${p.real} · ${p.nation ? Pros.nationName(p.nation) + ' · ' : ''}${p.age}세</small>${ra ? `<span class="rare-badge ${ra.id}">${ra.icon} ${ra.name}</span>` : ''}</h4>
         <div class="pro-pref"><span title="선호 역할군">${r.icon} ${r.name}</span><span title="선호 플레이">🎮 ${Pros.styleName(p.style)}</span><span class="pro-favs" title="선호 캐릭터">${p.favs.map(pmini).join('')}</span></div>
-        <div class="pro-tags">${tags(p)}</div></div>
+        <div class="pro-tags">${tags(pv)}</div></div>
       <div class="pro-stat"><div><small>능력</small><b>${p.ovr}</b><span class="pot-line">잠재 <b>${p.pot != null ? p.pot : p.ovr}</b></span></div>
-        <div><small>폼 ${p.form != null ? p.form : '-'}</small>${bar(p.form != null ? p.form : 50, (p.form != null && p.form < 40) ? 'bad' : '')}</div>
-        <div><small>멘탈 ${p.mental}</small>${bar(p.mental, p.mental < 45 ? 'bad' : '')}</div>
-        <div><small>트러블 ${p.trouble}</small>${bar(p.trouble, 'warn')}</div></div>
+        <div><small>폼 ${pv.form != null ? pv.form : '-'}</small>${bar(pv.form != null ? pv.form : 50, (pv.form != null && pv.form < 40) ? 'bad' : '')}</div>
+        <div><small>멘탈 ${pv.mental}</small>${bar(pv.mental, pv.mental < 45 ? 'bad' : '')}</div>
+        <div><small>트러블 ${pv.trouble}</small>${bar(pv.trouble, 'warn')}</div></div>
       <div class="pro-money"><b>${money(p.salary)}</b><small>연봉 · 계약 ${p.years}년</small>${o.extra || ''}</div>
       <div class="pro-act">${actions || ''}</div></div>`;
     if (o.front) return front.replace('<span class="flip-ico">↻</span>', '');

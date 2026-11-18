@@ -22,7 +22,7 @@ const Game = {
     if (prev) {
       G.trophies = prev.trophies || [];
       G.slotTactics = prev.slotTactics || Draft.neutralSlots(); G.slotRole = prev.slotRole || ['auto', 'auto', 'auto']; G.slotPreset = prev.slotPreset || null;
-      G.strategy = prev.strategy; G.usage = prev.usage; G.totals = prev.totals; G.bestStreak = prev.bestStreak; G.stats = prev.stats; G.mine = prev.mine;
+      G.strategy = prev.strategy; G.usage = prev.usage; G.totals = prev.totals; G.bestStreak = prev.bestStreak; G.stats = prev.stats; G.mine = prev.mine; G.mgr = prev.mgr;
     }
     G.news = prev && prev.news ? prev.news : []; G.rep = (prev && prev.rep) || { v: 50, peak: 50, last: 0 }; this.G = G;
     let initOpts = {};
