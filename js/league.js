@@ -159,6 +159,7 @@ const League = (() => {
   }
   function tourSimCurrent(G, t) {
     for (const m of t.rounds[t.roundIdx]) {
+      if (m.a === 'player' || m.b === 'player') continue;
       while (m.winner == null) { const r = simulate(G, m.a, m.b, t.rule, m); tourResolve(t, m, r, r.picks); }
     }
   }

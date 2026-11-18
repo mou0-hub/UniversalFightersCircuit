@@ -1145,7 +1145,7 @@ header.top, header.app-header, #topbar, .topbar{
     modal(`<div class="res-head win"><h2>${s.year ? s.year + '년 ' : ''}시즌 ${s.season} 종료</h2><p>${G().teamName} 최종 순위 ${s.rank}위</p></div>
       <ul class="notes">${s.lines.map(l => `<li>${l}</li>`).join('')}</ul>
       ${s.growth && s.growth.length ? `<h3>📈 선수 성장 결과</h3><table class="tbl small"><thead><tr><th>선수</th><th>나이</th><th>능력</th><th>변화</th><th>잠재</th><th>등급</th></tr></thead><tbody>${s.growth.map(x => `<tr><td>${x.nick}</td><td>${x.age}</td><td>${x.from} → ${x.to}</td><td>${x.d > 0 ? '▲ +' + x.d : x.d < 0 ? '▼ ' + x.d : '-'}</td><td>${x.pot}</td><td>${x.promoted ? x.oldGrade + ' → ' + x.grade + ' 승급' : x.grade}${x.note ? ' · ' + x.note : ''}</td></tr>`).join('')}</tbody></table>` : ''}
-      ${scoutHTML(s)}`, 'result scout-modal', false);
+      ${scoutHTML(s)}`, 'result scout-modal', true);
   }
 
   return { teamLogo, addView: (n, f) => { views[n] = f; }, onStatus: f => statusHooks.push(f), init, go, refresh, status, toast, modal, closeModal, showFighter, setCodexForm, showResult, reShowResult: () => { if (lastRes) showResult(lastRes); }, showSummary, showTeam, draftSelect, draftSelected, draftUpdate, setDraftFilter,

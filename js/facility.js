@@ -9,7 +9,7 @@ const Facility = (() => {
   /* ---------- 효과 ---------- */
   const ZERO = { inc: 0, fan: 0, tix: 0, form: 0, formFloor: 0, mental: 0, mentalFloor: 0, trouble: 0, recover: 0, chem: 0, grow: 0 };
   function fx(g) {
-    const o = { ...ZERO, sk: {} }, m = (MG()[mgState(g).cur - 1] || {}).fx || {};
+    const o = { ...ZERO, sk: {} }, m = mgSum(g);
     FC().order.forEach(id => { const l = lv(g, id), c = FC().defs[id].fx; Object.keys(c).forEach(k => { o[k] += c[k] * l; }); });
     Object.keys(m).forEach(k => { if (k === 'sk') Object.assign(o.sk, m.sk); else o[k] = (o[k] || 0) + m[k]; });
     return o;
@@ -302,6 +302,7 @@ const Facility = (() => {
   const MG = () => FC().managers.list;
   const MC = () => FC().managers, MN = () => MG().length;
   const mgState = g => (g.mgr = g.mgr || { have: [1], cur: 1 });
+  const mgSum = g => { const t = { sk: {} }; mgState(g).have.forEach(n => { const m = (MG()[n - 1] || {}).fx || {}; Object.keys(m).forEach(k => { if (k === 'sk') Object.keys(m.sk).forEach(q => { t.sk[q] = (t.sk[q] || 0) + m.sk[q]; }); else t[k] = (t[k] || 0) + m[k]; }); }); return t; };
   const mgImg = n => MC().img.replace('{n}', n);
   const mgPic = n => mgImg((MG()[n - 1] || {}).pic || n);
   const mgName = n => (MG()[n - 1] || {}).name || `매니저 ${n}`;
@@ -387,5 +388,5 @@ const Facility = (() => {
   };
 
   UI.addView('facility', screen);
-  return { lv, fx, eff, base, clean, mgrFx: g => (MG()[mgState(g).cur - 1] || {}).fx || {}, troubleMul, matchIncome, costOf, buy, actions };
+  return { screen, lv, fx, eff, base, clean, mgrFx: mgSum, troubleMul, matchIncome, costOf, buy, actions };
 })();

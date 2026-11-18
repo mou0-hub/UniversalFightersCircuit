@@ -3609,7 +3609,8 @@ small {
 
 @media (max-width: 900px) {
   .fac-layout { grid-template-columns: 1fr; }
-  .fac-mgr-img { flex: none; height: 240px; min-height: 0; font-size: 44px; }
+  .fac-mgr-img { flex: none; width: 100%; height: min(68vh, 560px); min-height: 0; font-size: 44px; }
+  .fac-mgr-img img { object-fit: cover; object-position: center 70%; }
 }
 
 @media (max-width: 720px) {

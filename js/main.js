@@ -75,7 +75,7 @@ const Game = {
       const total = g.league.schedule.length, r = g.league.round, mid = CONFIG.league.midRound;
       return { sub: `${this.lg().name} 리그 · ${League.stage(g)} · 현재 ${League.rankOf(g, 'player')}위${r < mid ? ` · ${mid}라운드 후 MSI` : ''}`, title: `${r + 1}라운드 / ${total}`, pct: r / total * 100, label: '밴픽 시작' };
     }
-    if (g.phase === 'seasonEnd') return { sub: '시즌 종료', title: `시즌 ${g.season} 마무리`, pct: 100, label: '시즌 요약 보기' };
+    if (g.phase === 'seasonEnd') return { sub: '시즌 종료', title: `시즌 ${g.season} 마무리`, pct: 100, label: '시즌 종료' };
     const t = g[g.phase], total = Math.log2(t.rounds[0].length * 2);
     return { sub: t.name, title: League.roundName(t, t.roundIdx), pct: t.roundIdx / total * 100, label: '밴픽 시작' };
   },
@@ -96,10 +96,10 @@ const Game = {
     if (kind === 'season') { m = League.playerMatch(g); kind = 'league'; label = `정규시즌 ${g.league.round + 1}라운드`; }
     else if (this.isTour(kind)) { t = g[kind]; m = League.tourPlayerMatch(t); rule = t.rule; label = `${t.name} ${League.roundName(t, t.roundIdx)}`; }
     if (!m) return;
-    label = `${League.fmtDate(League.when(g))} · ${label}`;
+    label = `${League.fmtDate(League.when(g))} · ${label}${t && m.bo > 1 ? ' · ' + League.seriesLabel(m, 'player') : ''}`;
     this.match = { kind, m, t, label, rule, pIdx: m.a === 'player' ? 0 : 1,
       teams: [m.a, m.b].map(id => ({ id, name: League.name(g, id) })) };
-    this.draft = Draft.create();
+    this.draft = Draft.create(t ? League.fearlessOf(m) : null);
     News.preview(g, this.match, League.when(g)); this.save();
     UI.go('draft');
     this.runAi();
@@ -150,15 +150,14 @@ const Game = {
       League.completeRound(g, M.m, res);
     } else {
       tag = League.roundName(M.t, M.t.roundIdx);
-      League.tourResolve(M.t, M.m, res);
-      won = M.m.winner === 'player';
+      won = League.tourResolve(M.t, M.m, res, M.picks) === M.pIdx;
     }
     if (won) { g.streak++; g.bestStreak = Math.max(g.bestStreak, g.streak); } else g.streak = 0;
     g.totals.games++; if (won) g.totals.wins++;
     Club.trackGame(g, won);
     Feedback.afterMatch(g, res, M, notes);
     const fan = Club.afterMatch(g, { kind: M.kind, home: M.kind !== 'league' || M.m.a === 'player', won: res.winner === M.pIdx, draw: res.winner === -1, myRank: myRank0, oppRank: oppRank0 });
-    Club.checkChallenges(g).forEach(c => notes.push(`🏅 도전과제 달성: ${c.name} (+${Pros.money(c.reward)})`));
+    Club.checkChallenges(g).forEach(c => notes.push(`🏅 도전과제 달성: ${c.name} — 구단 관리에서 보상 수령`));
     const oppId = M.m.a === 'player' ? M.m.b : M.m.a;
     g.league.playerLog.push({ tag: M.kind === 'league' ? tag : ({ playoff: 'PO ', msi: 'MSI ', worlds: 'WC ' }[M.kind] || '') + tag, opp: League.name(g, oppId), won, draw, picks: M.picks[M.pIdx] });
 
@@ -173,9 +172,9 @@ const Game = {
       else if (g.league.round === CONFIG.league.midRound) { News.halfEnd(g, when); this.startMsi(notes); }
     } else {
       const t = M.t;
-      const ri = t.roundIdx; League.tourSimCurrent(g, t); League.tourAdvance(t); News.tourRound(g, t, ri, M, when);
-      if (!t.champion && M.m.winner !== 'player') League.tourSimAll(g, t);
-      if (!won) notes.push(`${t.name} 탈락 — 남은 경기는 자동으로 진행되었습니다.`);
+      const ri = t.roundIdx, done = M.m.winner != null; League.tourSimCurrent(g, t); League.tourAdvance(t); if (done) News.tourRound(g, t, ri, M, when);
+      if (done && !t.champion && M.m.winner !== 'player') League.tourSimAll(g, t);
+      if (done && M.m.winner !== 'player') notes.push(`${t.name} 탈락 — 남은 경기는 자동으로 진행되었습니다.`);
       if (t.champion) this.finishTour(M.kind, notes);
     }
     this.save();
@@ -212,7 +211,7 @@ const Game = {
   award(kind) {
     const g = this.G, key = kind === 'playoff' ? 'league' : kind, T = CONFIG.trophies[key];
     g.trophies.push({ k: key, lg: g.leagueId, season: g.season, team: g.teamName });
-    Club.checkChallenges(g).forEach(c => UI.toast(`🏅 도전과제 달성: ${c.name} (+${Pros.money(c.reward)})`, 'good'));
+    Club.checkChallenges(g).forEach(c => UI.toast(`🏅 도전과제 달성: ${c.name} — 구단 관리에서 보상 수령`, 'good'));
     UI.toast(`${T.icon} ${this.lg().name} ${T.name} 트로피 획득!`, 'good'); Sound.play('win');
   },
   finishTour(kind, notes) {

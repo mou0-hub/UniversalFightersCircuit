@@ -2,7 +2,7 @@
 
 const ProUI = (() => {
   const G = () => Game.G, FD = id => CONFIG.fighters[id], money = n => Pros.money(n);
-  const st = { tab: 'fa', grade: 'all' };
+  const st = { tab: 'fa', grade: 'all', cTab: 'goal' };
   const GR = ['S', 'A', 'B', 'C'];
   const flipped = new Set();                       // 뒤집어 둔 카드 키 '위치:선수id' (같은 선수라도 선발 / 선수단 / 시장 카드는 따로 뒤집힘)
   const tier = v => (v >= 90 ? 's' : v >= 75 ? 'a' : v >= 60 ? 'b' : 'c');
@@ -75,26 +75,30 @@ const ProUI = (() => {
         <button class="btn primary" data-act="spAccept">수락</button>
         <button class="btn ghost" data-act="spDecline">거절</button>
       </div></div>` : '';
-    const prog = (typeof Club !== 'undefined' && Club.goalProgress) ? Club.goalProgress(g) : null;
-    const og = c.ownerGoal;
-    let goalBox = '';
-    if (og) {
-      const risk = prog ? prog.risk : 'on';
-      const riskLabel = risk === 'danger' ? '위험' : risk === 'warn' ? '주의' : (og.status === 'success' ? '달성' : og.status === 'fail' ? '실패' : '순항');
-      const riskCls = risk === 'danger' ? 'neg' : risk === 'warn' ? 'warn' : (og.status === 'success' ? 'pos' : '');
-      const hint = prog ? prog.hint : (og.desc || '');
-      goalBox = `<div class="glass panel owner-goal ${riskCls}"><div class="og-head"><h3>🎯 구단주 목표</h3><span class="og-badge ${risk}">${riskLabel}</span></div>
-        <p class="og-label"><b>${og.label}</b><small>달성 시 +${money(Club.goalReward(g, og))}</small></p>
-        <p class="og-hint">${hint}</p>
-        <small>${og.desc || ''}${og.status === 'active' ? ' · 시즌 종료 시 평가' : og.status === 'success' ? ' · 달성 완료' : ' · 미달성'}</small>
-      </div>`;
-    }
-    const chs = Club.challenges(g), chBox = `<div class="glass panel"><h3>🏅 도전과제 <small>${chs.filter(x => x.done).length}/${chs.length}</small></h3><div class="ch-grid">${chs.map(x => `<div class="ch-item ${x.done ? 'done' : ''}"><b>${x.icon} ${x.name}</b><small>${x.desc}</small>${bar(Math.round(x.value / x.n * 100))}<em>${x.done ? '달성 완료' : `${Math.min(x.value, x.n)}/${x.n}`} · 보상 ${money(x.reward)}</em></div>`).join('')}</div></div>`;
-    return `<section class="pro-view"><div class="glass panel team-head"><div class="club-main">${UI.teamLogo(g.baseTeam, 72)}<div><b class="club-team">${g.teamName}</b><small class="club-lg">${(CONFIG.leagues.find(l => l.id === g.leagueId) || {}).name || ''} 리그</small><h2>${CONFIG.nav.club}</h2><p>이적시장·FA 시장에서 프로게이머를 영입해 3명을 라인업(1·2·3번)에 배치하세요. 1번 선수가 첫 번째 픽, 2번이 두 번째 픽, 3번이 세 번째 픽 파이터를 맡습니다. 선수의 등급(C~S)이 높을수록 전투 AI가 정교합니다. 선수단은 최대 ${CONFIG.club.maxRoster}명까지 두고, 셀러리캡은 선발 3명에게만 적용됩니다(한 구단에서 오래 뛸수록 캡 반영 연봉이 줄어듭니다).</p></div></div>
-      <div class="pro-act"><button class="btn" data-act="nav" data-view="facility">🏟 구장 꾸미기</button><button class="btn" data-act="proAuto">라인업 자동 채우기</button></div></div>
-      ${goalBox}${spBox}<div class="dc-tiles">${tile('구단 자금', money(c.funds), '시즌 종료 시 정산', c.funds < 0 ? 'neg' : '')}${tile('선발 연봉 / 셀러리캡', money(pay), `선수단 ${ros.length}/${CONFIG.club.maxRoster}명 (총 연봉 ${money(wage)}) · 상한 ${money(capV)}${ci.grow > 0.0005 ? ` (+${(ci.grow * 100).toFixed(0)}%${ci.atMax ? ' 한계' : ''})` : ''} · ${capLeft >= 0 ? '여유 ' + money(capLeft) : '초과 ' + money(-capLeft)}${capBar(pay, capV)}<small class="cap-note">${capLeft < 0 ? `사치세 예상 시즌당 ${money(ci.taxNow)} · ` : ''}재계약 한도 ${money(ci.hard)} · 최소 연봉 ${money(ci.floor)}</small>`, capLeft < 0 ? 'neg' : '')}${tile('예상 구단주 지급', money(exp), `현재 ${rank}위 기준`)}${tile('예상 순수익', (net >= 0 ? '+' : '') + money(net), '지급 − 선수단 총 연봉', net < 0 ? 'neg' : 'pos')}${tile('팬 수', fi.fans.toLocaleString('ko-KR') + '명', `최대 ${fi.max.toLocaleString('ko-KR')}명 · 이번 시즌 ${fi.seasonGain >= 0 ? '+' : ''}${fi.seasonGain.toLocaleString('ko-KR')}`)}${tile('이번 시즌 티켓 수입', money(fi.tix), `${fi.games}경기 · 경기당 평균 ${money(fi.avg)} · 관중 ${Math.round(fi.fill * 100)}% (수용 ${fi.stadium.toLocaleString('ko-KR')}명)`)}</div>
+    const gs = Club.allGoals(g), gOk = gs.filter(x => x.status === 'success').length;
+    const goalCard = (og, i) => {
+      const prog = Club.goalProgress(g, og), risk = prog ? prog.risk : 'on', ok = og.status === 'success', fail = og.status === 'fail';
+      const badge = ok ? 'success' : fail ? 'fail' : risk, name = ok ? '달성' : fail ? '실패' : risk === 'danger' ? '위험' : risk === 'warn' ? '주의' : '순항';
+      const cls = ok ? 'pos' : fail || risk === 'danger' ? 'neg' : risk === 'warn' ? 'warn' : '';
+      return `<div class="glass panel owner-goal ${cls}"><div class="og-head"><h3>${i ? '🎯' : '⭐'} ${og.label}</h3><span class="og-badge ${badge}">${name}</span></div>
+        <p class="og-hint">${prog ? prog.hint : og.desc || ''}</p>${bar(prog ? prog.pct : ok ? 100 : 0)}
+        <small>달성 시 +${money(Club.goalReward(g, og))}${og.desc ? ' · ' + og.desc : ''}</small></div>`;
+    };
+    const goalBody = gs.length ? `<div class="goal-head"><h3>🎯 시즌 목표 <small>${gOk}/${gs.length} 달성</small></h3><small>시즌 종료 시 평가 · ⭐ 핵심 목표만 평판에 반영</small></div><div class="goal-list">${gs.map(goalCard).join('')}</div>` : '<p class="empty glass panel">이번 시즌 목표가 없습니다.</p>';
+    const chs = Club.challenges(g), rdy = chs.filter(x => x.ready).length, nf = n => n.toLocaleString('ko-KR');
+    const chCard = x => `<div class="ch-item ${x.finished ? 'done' : ''} ${x.ready ? 'ready' : ''}"><b>${x.icon} ${x.name}</b><small>${x.desc}</small>${bar(Math.round(Math.min(1, x.value / x.n) * 100))}<em>${x.finished ? '모든 단계 달성' : `${nf(Math.min(x.value, x.n))}/${nf(x.n)} · 보상 ${money(x.reward)}`}</em>
+      <div class="ch-foot"><small>${x.claimed}/${x.total}단계</small>${x.finished ? '' : `<button class="btn small ${x.ready ? 'primary' : 'dis'}" ${x.ready ? '' : 'disabled'} data-act="chClaim" data-id="${x.id}">보상받기</button>`}</div></div>`;
+    const chBody = `<div class="glass panel"><h3>🏅 도전과제 <small>${chs.reduce((t, x) => t + x.claimed, 0)}/${chs.reduce((t, x) => t + x.total, 0)}단계</small></h3><div class="ch-grid">${chs.map(chCard).join('')}</div></div>`;
+    const rosterBody = `<div class="glass panel team-head"><div><h2>👥 선수단 관리</h2><p>이적시장·FA 시장에서 프로게이머를 영입해 3명을 라인업(1·2·3번)에 배치하세요. 1번 선수가 첫 번째 픽, 2번이 두 번째 픽, 3번이 세 번째 픽 파이터를 맡습니다. 선수의 등급(C~S)이 높을수록 전투 AI가 정교합니다. 선수단은 최대 ${CONFIG.club.maxRoster}명까지 두고, 셀러리캡은 선발 3명에게만 적용됩니다(한 구단에서 오래 뛸수록 캡 반영 연봉이 줄어듭니다).</p></div><div class="pro-act"><button class="btn" data-act="proAuto">라인업 자동 채우기</button></div></div>
+      <div class="dc-tiles">${tile('구단 자금', money(c.funds), '시즌 종료 시 정산', c.funds < 0 ? 'neg' : '')}${tile('선발 연봉 / 셀러리캡', money(pay), `선수단 ${ros.length}/${CONFIG.club.maxRoster}명 (총 연봉 ${money(wage)}) · 상한 ${money(capV)}${ci.grow > 0.0005 ? ` (+${(ci.grow * 100).toFixed(0)}%${ci.atMax ? ' 한계' : ''})` : ''} · ${capLeft >= 0 ? '여유 ' + money(capLeft) : '초과 ' + money(-capLeft)}${capBar(pay, capV)}<small class="cap-note">${capLeft < 0 ? `사치세 예상 시즌당 ${money(ci.taxNow)} · ` : ''}재계약 한도 ${money(ci.hard)} · 최소 연봉 ${money(ci.floor)}</small>`, capLeft < 0 ? 'neg' : '')}${tile('예상 구단주 지급', money(exp), `현재 ${rank}위 기준`)}${tile('예상 순수익', (net >= 0 ? '+' : '') + money(net), '지급 − 선수단 총 연봉', net < 0 ? 'neg' : 'pos')}${tile('팬 수', fi.fans.toLocaleString('ko-KR') + '명', `최대 ${fi.max.toLocaleString('ko-KR')}명 · 이번 시즌 ${fi.seasonGain >= 0 ? '+' : ''}${fi.seasonGain.toLocaleString('ko-KR')}`)}${tile('이번 시즌 티켓 수입', money(fi.tix), `${fi.games}경기 · 경기당 평균 ${money(fi.avg)} · 관중 ${Math.round(fi.fill * 100)}% (수용 ${fi.stadium.toLocaleString('ko-KR')}명)`)}</div>
       <div class="lineup">${slots}</div>
-      <div class="glass panel"><h3>선수단 <small>${ros.length}명</small></h3>${list || '<p class="empty">선수가 없습니다. 이적시장에서 영입하세요.</p>'}${ros.length < 3 ? '<p class="note">경기를 하려면 최소 3명이 필요합니다.</p>' : ''}</div>${typeof Feedback !== 'undefined' ? Feedback.panel(g) : ''}${fin}${chBox}</section>`;
+      <div class="glass panel"><h3>선수단 <small>${ros.length}명</small></h3>${list || '<p class="empty">선수가 없습니다. 이적시장에서 영입하세요.</p>'}${ros.length < 3 ? '<p class="note">경기를 하려면 최소 3명이 필요합니다.</p>' : ''}</div>${typeof Feedback !== 'undefined' ? Feedback.panel(g) : ''}${fin}`;
+    const tabs = [['goal', '🎯 시즌 목표'], ['roster', '👥 선수단 관리'], ['fac', '🏟 구장 꾸미기'], ['ch', '🏅 도전과제' + (rdy ? ` 🔔${rdy}` : '')]];
+    if (!tabs.some(t => t[0] === st.cTab)) st.cTab = 'goal';
+    const body = st.cTab === 'fac' ? Facility.screen(true) : { goal: goalBody, roster: rosterBody, ch: chBody }[st.cTab];
+    return `<section class="pro-view"><div class="glass panel team-head"><div class="club-main">${UI.teamLogo(g.baseTeam, 72)}<div><b class="club-team">${g.teamName}</b><small class="club-lg">${(CONFIG.leagues.find(l => l.id === g.leagueId) || {}).name || ''} 리그</small><h2>${CONFIG.nav.club}</h2></div></div>
+      <div class="mk-funds"><small>구단 자금</small><b>${money(c.funds)}</b></div></div>
+      ${spBox}<nav class="dc-tabs">${tabs.map(([id, n]) => `<button class="dc-tab ${st.cTab === id ? 'on' : ''}" data-act="clubTab" data-tab="${id}">${n}</button>`).join('')}</nav>${body}</section>`;
   }
 
   function market() {
@@ -190,6 +194,11 @@ const ProUI = (() => {
 .ch-item { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.03); }
 .ch-item small, .ch-item em { font-size: 12px; font-style: normal; color: var(--muted); }
 .ch-item.done { border-color: rgba(52,211,153,.5); background: rgba(52,211,153,.08); }
+.ch-item.ready { border-color: var(--gold); background: rgba(251,191,36,.08); box-shadow: 0 0 14px rgba(251,191,36,.25); }
+.ch-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
+.goal-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 12px; } .goal-head h3 { margin: 0; } .goal-head small { color: var(--muted); }
+.goal-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; } .owner-goal .og-head h3 { font-size: 15px; }
+.og-badge.fail { color: #fb7185; border-color: rgba(251,113,133,.5); }
 .cap-bar { display: block; height: 6px; margin-top: 4px; overflow: hidden; border-radius: 99px; background: rgba(255,255,255,.08); }
 .cap-bar u { display: block; height: 100%; background: linear-gradient(90deg, #34d399, #6ee7ff); transition: width .4s ease; }
 .cap-note { display: block; margin-top: 4px; font-size: 11px; color: var(--muted); }
