@@ -51,8 +51,23 @@ const League = (() => {
     while (!d.done) { const c = Draft.current(d); Draft.apply(d, Draft.aiChoose(d, c.team, tms[c.team])); }
     return d;
   }
+  /* 빠른 모드(시즌 건너뛰기): AI 대 AI 경기는 전투 시뮬 대신 팀 전력 기반 확률로 즉시 결정 */
+  let fastMode = false;
+  const setFast = v => { fastMode = !!v; };
+  const pow = t => (t.pow != null ? t.pow : (t.pow = (Math.random() - 0.5) * 0.4));
+  function quick(G, aId, bId) {
+    const A = team(G, aId), B = team(G, bId), li = t => Math.max(0, CONFIG.leagues.findIndex(l => l.id === (t.lg || G.leagueId)));
+    const pA = Math.min(0.9, Math.max(0.1, 0.5 + (pow(A) - pow(B)) * 0.5 + (li(A) - li(B)) * 0.06)), w = Math.random() < pA ? 0 : 1, r = Math.random();
+    const hp = [0, 0], sc = [0, 0]; hp[w] = 0.4 + 0.5 * r; hp[1 - w] = 0.1 + 0.3 * r; sc[w] = 12 + Math.floor(r * 8); sc[1 - w] = 4 + Math.floor(Math.random() * 8);
+    return { winner: w, hp, score: sc, scoreText: sc[0] + ':' + sc[1], ticks: 3600 };
+  }
   function simulate(G, aId, bId, rule, series) {
     const d = autoDraft(team(G, aId), team(G, bId), series ? fearlessOf(series) : null), p = d.picks;
+    if (fastMode && aId !== 'player' && bId !== 'player') {
+      const res = quick(G, aId, bId); res.picks = p;
+      Stats.record(G, { ids: [aId, bId], picks: p, bans: d.bans, winner: res.winner });
+      return res;
+    }
     const res = Battle.simulate([input(G, aId, p[0], p[1]), input(G, bId, p[1], p[0])], rule);
     Stats.record(G, { ids: [aId, bId], picks: p, bans: d.bans, winner: res.winner });       // 데이터 센터 집계
     res.picks = p;
@@ -197,5 +212,5 @@ const League = (() => {
     return G.league.round < L().midRound ? '전반기' : '후반기';
   }
 
-  return { team, name, tag, brainsOf, moodsOf, lgOf, when, fmtDate, isoDate, stage, yearOf, CAL, newSeason, sorted, rankOf, playerMatch, completeRound, intlField, createTour, roundName, tourPlayerMatch, tourResolve, tourSimCurrent, tourAdvance, tourSimAll, tourStart, shuffle, fearlessOf, seriesLabel };
+  return { team, name, tag, brainsOf, moodsOf, lgOf, when, fmtDate, isoDate, stage, yearOf, CAL, newSeason, sorted, rankOf, playerMatch, completeRound, intlField, createTour, roundName, tourPlayerMatch, tourResolve, tourSimCurrent, tourAdvance, tourSimAll, tourStart, shuffle, fearlessOf, seriesLabel, setFast };
 })();

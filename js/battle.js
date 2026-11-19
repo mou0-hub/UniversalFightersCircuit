@@ -979,29 +979,89 @@ const Battle = (() => {
       }
       this.aiCommand(0); this.aiCommand(1);
     }
-    /* AI 지휘: 상황을 읽고 팀 지시를 씁니다 (사람이 지휘하지 않는 팀 · 자동 지휘 중인 팀) */
+    /* AI 지휘관: 상황을 수치로 읽고 → 지시마다 기대 이득(점수 환산)을 계산해 → CP 사정에 맞춰 가장 큰 이득의 지시를 냅니다. 의미가 없어졌거나 멈춰 있는 지시는 무료로 해제합니다 */
     aiCommand(team) {
-      const lv = this.autoCmd[team]; if (!lv || this.t < this.aiAt[team]) return;
-      const A = CONFIG.orders.ai[lv] || CONFIG.orders.ai.normal; this.aiAt[team] = this.t + ticks(A.every);
-      const cur = this.ord[team];
-      if (this.cp[team].v <= A.keep || this.t < this.cmdAt[team] || Math.random() > A.p || (cur && this.t < cur.until - ticks(3))) return;
-      for (const id of this.aiWants(team, lv)) if (this.order(team, 'team', id).ok) return;
+      const lv = this.autoCmd[team]; if (!lv || this.over || this.t < this.aiAt[team]) return;
+      const OC = CONFIG.orders, C = OC.cmd, A = OC.ai[lv] || OC.ai.normal; this.aiAt[team] = this.t + ticks(A.every);
+      const S = this.cmdRead(team), V = this.cmdValue(team, S), o0 = this.ord[team];
+      let cur = o0 && this.t < o0.until ? o0.id : 'auto';
+      if (cur !== 'auto' && ((V[cur] || 0) < C.dropBelow || (S.idle >= C.idleSec && C.passive.includes(cur)))) { this.order(team, 'team', 'auto'); cur = 'auto'; }
+      if (this.t < this.cmdAt[team]) return;
+      const cp = this.cp[team].v, bar = (A.min + C.cpBar * (OC.cpMax - cp) / OC.cpMax) * (cp >= OC.cpMax ? C.fullBar : 1), hold = cur === 'auto' ? 0 : (V[cur] || 0) + C.switchGap;
+      const nz = v => v * (1 + A.noise * (Math.random() * 2 - 1)), list = Object.keys(V).filter(id => id !== cur).map(id => ({ id, scope: 'team', v: nz(V[id]) }));
+      if (A.unit) for (const q of this.cmdUnits(team, S)) list.push({ ...q, scope: 'unit', v: nz(q.v) });
+      list.sort((a, b) => b.v - a.v);
+      for (const q of list.slice(0, 3)) {
+        if (q.v < Math.max(bar, hold) || (cp <= A.keep && q.v < C.urgent)) return;
+        if ((q.scope === 'unit' ? this.order(team, 'unit', q.id, { uid: q.uid }) : this.order(team, 'team', q.id)).ok) return;
+      }
     }
-    aiWants(team, lv) {
-      const lead = Math.round(this.score[team] - this.score[1 - team]), left = this.sudden ? 0 : (this.cfg.maxTicks - this.t) / TPS, hard = lv === 'hard' || lv === 'master';
-      const boss = this.units.find(b => b.team === 2 && b.alive), soon = !this.sudden && this.bossSoon(14);
-      const mine = this.units.filter(u => u.team === team && u.alive && !u.struct), foes = this.units.filter(u => u.team === 1 - team && u.alive && !u.struct && !this.hidden(u));
-      const sum = l => l.reduce((q, u) => q + this.coreValue(u), 0), myC = sum(mine), foeC = sum(foes);
-      const bigV = this.cores.filter(c => c.known[team] && c.lockUntil <= this.t).reduce((q, c) => q + c.value, 0), w = [];
-      if (boss && foes.some(e => dist(e, boss) <= 24) && boss.hp < boss.maxHp * 0.92) w.push(boss.hp < boss.maxHp * 0.5 || lead <= -2 ? 'boss' : hard ? 'bossWait' : null);
-      if (soon) w.push(lead <= -2 ? 'boss' : lv === 'easy' ? null : 'bossWait');
-      if (foeC >= 3 && (lead <= 1 || foeC >= 5)) w.push('kill');
-      if (myC >= 4) w.push('convoy');
-      if (lead >= 3 && left < 70) w.push(hard ? 'ambush' : 'retreat');
-      if (lead <= -3 && left < 80) w.push('wave');
-      if (bigV >= 4 && !boss && (lead <= 0 || hard)) w.push('wave');
-      if (this.sudden) w.push('wave');
-      return w.filter(Boolean);
+    /* 현재 상황 읽기: 전력비 · 코어 · 보스 · 정체(멈춰 있음) */
+    cmdRead(team) {
+      const C = CONFIG.orders.cmd, K = CONFIG.battle.map.core, o = 1 - team, mem = (this.cmdMem || (this.cmdMem = [{}, {}]))[team];
+      const live = i => this.units.filter(u => u.team === i && u.alive && !u.struct && !this.gone(u)), pw = l => l.reduce((q, u) => q + this.power(u), 0), cv = u => this.coreValue(u);
+      const mine = live(team), foes = live(o), seen = foes.filter(e => !this.hidden(e));
+      const S = { mine, foes, seen, lead: this.score[team] - this.score[o], left: this.sudden ? 0 : (this.cfg.maxTicks - this.t) / TPS, myP: pw(mine), foeP: pw(foes) };
+      S.myCar = mine.filter(u => cv(u) > 0).sort((a, b) => cv(b) - cv(a)); S.myC = S.myCar.reduce((q, u) => q + cv(u), 0);
+      S.foeCar = seen.filter(e => cv(e) > 0); S.foeC = S.foeCar.reduce((q, e) => q + cv(e), 0);
+      S.known = this.cores.filter(c => c.known[team] && c.lockUntil <= this.t);
+      S.free = S.known.reduce((q, c) => {
+        const dm = mine.length ? Math.min(...mine.map(u => dist(u, c))) : 1e9, de = seen.length ? Math.min(...seen.map(e => dist(e, c))) : 1e9;
+        return q + c.value * (de < dm ? C.contested : 1) * clamp(1.2 - dm / C.reach, 0.25, 1);
+      }, 0);
+      const boss = this.sudden ? null : this.units.find(b => b.team === 2 && b.alive) || null, nx = !boss && !this.sudden ? this.bossPlan.find(p => !p.spawned && p.atTick != null && p.atTick - this.t <= ticks(C.soonSec)) : null, pl = boss ? boss.bossDef : nx;
+      S.boss = boss; S.bossN = pl ? (pl.kind === 'late' ? K.boss.late : K.boss.first) : 0; S.hr = boss ? boss.hp / boss.maxHp : 1; S.myNear = []; S.foeNear = []; S.rate = 0; S.eta = 1e9; S.ttk = 1e9;
+      if (boss) {
+        S.myNear = mine.filter(u => dist(u, boss) <= C.near); S.foeNear = seen.filter(e => dist(e, boss) <= C.near);
+        if (mem.boss !== boss) { mem.boss = boss; mem.bHp = boss.hp; mem.bAt = this.t; mem.rate = 0; }
+        else if (this.t > mem.bAt) { mem.rate = mem.rate * 0.5 + Math.max(0, (mem.bHp - boss.hp) / ((this.t - mem.bAt) / TPS)) * 0.5; mem.bHp = boss.hp; mem.bAt = this.t; }
+        S.rate = mem.rate; S.ttk = mem.rate > 0.5 ? boss.hp / mem.rate : 1e9;
+        S.eta = mine.length ? Math.min(...mine.map(u => dist(u, boss) / Math.max(1, this.eff(u, 'spd') * TPS))) : 1e9;
+      }
+      let mv = 0, n = 0; const pp = mem.pos || {}, dt = mem.posAt ? (this.t - mem.posAt) / TPS : 0;
+      for (const u of mine) { const p = pp[u.id]; if (p) { mv += Math.hypot(u.x - p.x, u.y - p.y); n++; } }
+      const calm = !seen.some(e => mine.some(u => dist(u, e) <= C.calmR)) && !mine.some(u => u.depProg > 0);
+      mem.idle = n && dt > 0 && mv / n / dt < C.idleSpd && calm ? (mem.idle || 0) + dt : 0;
+      mem.pos = {}; for (const u of mine) mem.pos[u.id] = { x: u.x, y: u.y }; mem.posAt = this.t; S.idle = mem.idle;
+      return S;
+    }
+    /* 팀 지시별 기대 이득 (점수 환산). 쓸 수 없는 지시는 빠집니다 */
+    cmdValue(team, S) {
+      const C = CONFIG.orders.cmd, V = {}; if (!S.mine.length) return V;
+      const ra = 1 + C.appetite * clamp(-S.lead / C.needLead, -1, 1), sf = 1 + C.appetite * clamp(S.lead / C.needLead, 0, 1), wake = S.idle >= C.idleSec ? C.idleBoost : 0;
+      const win = r => clamp((r - 0.5) * C.raceK + 0.5, 0.05, 0.95), tv = this.sudden ? 1 : clamp((S.left - C.endCut) / C.endRamp, 0, 1);
+      if (S.bossN) {
+        const boss = S.boss, bv = S.bossN * C.bossCap + C.bossBuff, hr = S.hr, fP = S.foeNear.reduce((q, e) => q + this.power(e), 0);
+        const w = win(S.myP / Math.max(1, S.myP + fP + C.joinFar * Math.max(0, S.foeP - fP))), timeOk = clamp((S.left - C.killSec * hr) / C.depSec, 0, 1);
+        const working = !!boss && S.foeNear.length > 0 && !S.myNear.length && S.rate > 0.5, late = working && S.eta > S.ttk + C.etaSlack;
+        let b = (bv * w - (1 - w) * C.bossLoss - C.carryPen * S.myC) * timeOk * (boss ? 1 : C.pre);
+        if (working) b *= late ? C.lateMul : 1 + C.stealBoost * (1 - hr);
+        V.boss = b > 0 ? b * ra + wake : b * ra;
+        if (working && !late) V.bossWait = bv * C.stealP * clamp(1.4 - hr, 0.3, 1) * timeOk * (w < C.contest ? 1 : 0.4);
+      }
+      if (S.known.length) V.wave = this.sudden ? C.suddenWave : S.free * C.wave * tv * ra + (S.free * tv > 0.5 ? wake : 0);
+      if (S.myCar.length && !this.sudden && this.coreValue(S.myCar[0]) >= 2) {
+        const cc = this.coreValue(S.myCar[0]), near = S.seen.filter(e => dist(e, S.myCar[0]) <= C.threatR).length;
+        V.convoy = (cc * clamp(C.riskBase + C.riskFoe * near + (S.left <= C.endCut + 8 ? C.riskEnd : 0), 0, 0.95) - C.escortCost) * sf;
+      }
+      if (S.foeC >= 2 && !this.sudden) {
+        const tg = S.foeCar.reduce((a, e) => (this.coreValue(e) > this.coreValue(a) ? e : a)), d = Math.min(...S.mine.map(u => dist(u, tg)));
+        const w = win(S.myP / Math.max(1, S.myP + S.seen.filter(e => dist(e, tg) <= C.near).reduce((q, e) => q + this.power(e), 0)));
+        V.kill = (S.foeC * C.kill * clamp(1.3 - d / C.reach, 0, 1) * w - (1 - w) * C.killLoss) * tv * ra;
+        if (V.kill > 0) V.kill += wake;
+      }
+      for (const id of Object.keys(V)) if (this.orderBlock(team, id, false)) delete V[id];
+      return V;
+    }
+    /* 개인 지시 후보: 마감 직전·위험한 운반자 제출, 보스 막판 궁 즉발 */
+    cmdUnits(team, S) {
+      const C = CONFIG.orders.cmd, out = []; if (this.sudden) return out;
+      for (const u of S.myCar.slice(0, 2)) {
+        const hurt = u.hp < u.maxHp * C.hurtHp && S.seen.some(e => dist(e, u) <= C.threatR), v = this.coreValue(u) * (S.left <= C.depLeft ? C.depEnd : hurt ? C.depHurt : 0);
+        if (v > 0) out.push({ id: 'deposit', uid: u.id, v });
+      }
+      if (S.boss && S.foeNear.length) for (const u of S.mine) if (u.ultCd <= 0 && dist(u, S.boss) <= u.role.range + C.ultReach) out.push({ id: 'ultNow', uid: u.id, v: C.ultBoss * (S.bossN * C.bossCap + C.bossBuff) * Math.max(0.2, 1.2 - S.hr) });
+      return out.filter(q => !this.orderBlock(team, q.id, true, this.units.find(x => x.id === q.uid), { uid: q.uid }));
     }
     orderGoal(u, o, team) {
       const K = CONFIG.battle.map.core, M = this.map, near = (list, p) => list.reduce((a, c) => (dist(p, a) <= dist(p, c) ? a : c));

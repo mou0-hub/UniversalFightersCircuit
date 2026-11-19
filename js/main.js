@@ -34,7 +34,17 @@ const Game = {
       initOpts = { pool: prev.club.roster.map(id => Pros.get(prev, id)).filter(Boolean), keepFunds: plan.keep };
     }
     if (prev && prev.club) initOpts.moved = true;
-    Club.init(G, initOpts); League.newSeason(G); News.seasonStart(G, League.when(G)); this.match = null; this.draft = null; this.battleOn = false; clearTimeout(this.aiTimer);
+    Club.init(G, initOpts);
+    if (prev && prev.club && prev.club.facilities && Object.keys(prev.club.facilities).length) {      // 리그 이동 시 시설 레벨 유지
+      G.club.facilities = { ...prev.club.facilities };
+      const bs = Facility.base(G), b0 = { form: 55, mental: 70, ...CONFIG.facility.base }, df = bs.form - b0.form, dm = bs.mental - b0.mental;
+      if (df || dm) (G.club.roster || []).forEach(id => { const p = Pros.get(G, id); if (p && !p.fxb) { p.form = Math.max(0, Math.min(100, (p.form ?? 55) + df)); p.mental = Math.max(0, Math.min(100, (p.mental ?? 70) + dm)); p.fxb = 1; } });
+    }
+    if (prev && prev.club) {      // 리그 이동 시 도전과제 수령 기록·구단주 목표 달성 수 유지
+      ['ch', 'chSeen'].forEach(k => { if (prev.club[k]) G.club[k] = { ...prev.club[k] }; });
+      if (prev.club.goalWins) G.club.goalWins = prev.club.goalWins;
+    }
+    League.newSeason(G); News.seasonStart(G, League.when(G)); this.match = null; this.draft = null; this.battleOn = false; clearTimeout(this.aiTimer);
     this.save(); UI.closeModal(); UI.go('league'); UI.toast(`${lg.name} 리그 · ${teamName} 감독으로 부임했습니다.`, 'good');
   },
   save() { try { localStorage.setItem(CONFIG.game.saveKey, JSON.stringify(this.G)); } catch (e) { /* 저장 불가 환경은 무시 */ } },
@@ -250,6 +260,63 @@ const Game = {
     this.carry = { lg: leagueId, team: teamName, sel: new Set(Club.carryDefault(g, leagueId)) };
     ProUI.carry();
   },
+  /* ---------- 시즌 건너뛰기: 남은 경기를 모두 치르며(밴픽 자동) 진행 게이지 표시 ---------- */
+  autoProgress() {
+    const g = this.G, R = g.league.schedule.length, T = 3; let done = g.league.round;
+    ['msi', 'playoff', 'worlds'].forEach(k => {
+      const t = g[k]; if (!t) return;
+      done += t.champion ? T : (g.phase === k ? T * t.roundIdx / Math.log2(t.rounds[0].length * 2) : 0);
+    });
+    return Math.min(100, done / (R + 3 * T) * 100);
+  },
+  autoMatch() {
+    const g = this.G; let kind = g.phase, m, t = null, rule = null;
+    if (kind === 'season') { m = League.playerMatch(g); kind = 'league'; }
+    else if (this.isTour(kind)) { t = g[kind]; m = League.tourPlayerMatch(t); rule = t.rule; }
+    if (!m) throw new Error('진행할 경기를 찾지 못했습니다.');
+    const M = { kind, m, t, rule, label: '', pIdx: m.a === 'player' ? 0 : 1, teams: [m.a, m.b].map(id => ({ id, name: League.name(g, id) })) };
+    const d = Draft.create(t ? League.fearlessOf(m) : null);
+    while (!d.done) { const c = Draft.current(d); Draft.apply(d, Draft.aiChoose(d, c.team, League.team(g, M.teams[c.team].id), g.usage)); }
+    M.picks = d.picks; M.bans = d.bans; this.match = M; this.draft = d;
+    M.picks[M.pIdx].forEach(f => { g.usage[f] = (g.usage[f] || 0) + 1; });
+    M.teams.forEach((tm, i) => {
+      tm.fighters = d.picks[i]; tm.brains = League.brainsOf(g, tm.id); tm.moods = League.moodsOf(g, tm.id);
+      if (tm.id === 'player') { tm.tactics = Draft.slotsFor(g, tm.fighters); tm.strategy = Draft.normalizeStrategy(g.strategy); tm.moods = Feedback.attach(g, tm.moods); tm.cmd = Arena.skipCmd() ? 'normal' : null; }
+      else { const ai = Draft.aiTeam(League.team(g, tm.id).level || g.difficulty, tm.fighters, d.picks[1 - i]); tm.tactics = ai.tactics; tm.strategy = ai.strategy; tm.cmd = League.team(g, tm.id).level || g.difficulty; }
+    });
+    this.finishMatch(Battle.simulate(M.teams, rule));
+    this.match = null; this.draft = null;
+  },
+  async autoSeason() {
+    const g = this.G;
+    if (!g || g.phase === 'seasonEnd' || this.battleOn || this.auto) return;
+    if (!Club.ready(g)) { UI.toast('프로게이머 3명을 라인업(1·2·3번)에 배치해야 합니다.', 'warn'); UI.go('club'); return; }
+    if (!confirm('남은 시즌 경기를 모두 자동 진행합니다. (밴픽·전술 자동) 계속할까요?')) return;
+    clearTimeout(this.aiTimer); this.draft = null; this.match = null;
+    if (!document.getElementById('auto-css')) {
+      const sty = document.createElement('style'); sty.id = 'auto-css';
+      sty.textContent = `.auto-ov{position:fixed;top:0;right:0;bottom:0;left:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.6)}
+.auto-box{display:flex;flex-direction:column;gap:12px;width:min(420px,90vw);padding:22px;border-radius:14px;background:#1b1f2a;font-size:14px;color:#fff;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+.auto-bar{overflow:hidden;height:14px;border-radius:7px;background:rgba(255,255,255,.12)}
+.auto-bar i{display:block;width:0;height:100%;border-radius:7px;background:linear-gradient(90deg,#4da3ff,#7cf0c0);transition:width .2s}`;
+      document.head.appendChild(sty);
+    }
+    const ov = document.createElement('div'); ov.className = 'auto-ov';
+    ov.innerHTML = '<div class="auto-box"><b>시즌 자동 진행 중…</b><div class="auto-bar"><i></i></div><span class="auto-txt"></span><button class="btn small">중단</button></div>';
+    document.body.appendChild(ov);
+    League.setFast(true);
+    const bar = ov.querySelector('i'), txt = ov.querySelector('.auto-txt'), st = this.auto = { stop: false };
+    ov.querySelector('button').onclick = () => { st.stop = true; };
+    try {
+      for (let n = 0; g.phase !== 'seasonEnd' && !st.stop && n < 600; n++) {
+        this.autoMatch();
+        const p = this.autoProgress(); bar.style.width = p.toFixed(1) + '%'; txt.textContent = `${League.stage(g)} · ${p.toFixed(0)}%`;
+        await new Promise(r => setTimeout(r, 0));
+      }
+    } catch (e) { console.error(e); UI.toast('자동 진행 중 오류: ' + e.message, 'warn'); }
+    League.setFast(false); ov.remove(); this.auto = null; this.match = null; this.draft = null; this.save(); UI.status(); UI.go('league');
+    if (g.phase === 'seasonEnd') UI.showSummary();
+  },
   nextSeason() {
     const g = this.G; g.season++; g.seasonLines = []; g.scout = null;
     Feedback.season(g); League.newSeason(g); News.seasonStart(g, League.when(g)); this.save(); UI.closeModal(); UI.go('league'); UI.toast(`${League.yearOf(g)}년 시즌 시작`, 'good');
@@ -265,6 +332,8 @@ const Game = {
       UI.go(el.dataset.view);
     },
     advance() { if (this.G.phase === 'seasonEnd') UI.showSummary(); else this.openMatch(); },
+    skipSeason() { this.autoSeason(); },
+    skipCmdToggle() { Arena.setSkipCmd(!Arena.skipCmd()); const t = '건너뛰기 자동지시: ' + (Arena.skipCmd() ? '사용' : '안 함'); document.querySelectorAll('[data-act="skipCmdToggle"]').forEach(b => { b.textContent = t; }); },
     leagueTab(el) { UI.setLeagueTab(el.dataset.tab); },
     roleFilter(el) { UI.setRoleFilter(el.dataset.role); },
     closeModal() { UI.closeModal(); UI.refresh(); },

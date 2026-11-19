@@ -42,10 +42,13 @@ const Arena = (() => {
   }
   const setSpeed = s => { speed = s; };
   const setPaused = p => { paused = p; };
+  /* 건너뛰기 시 자동 지시 사용 여부 (한 번 설정하면 브라우저에 저장되어 유지, 기본 사용) */
+  const skipCmd = () => { try { return localStorage.getItem('skipAutoCmd') !== '0'; } catch (e) { return true; } };
+  const setSkipCmd = v => { try { localStorage.setItem('skipAutoCmd', v ? '1' : '0'); } catch (e) { /* 저장 불가 환경은 무시 */ } };
   function skip() {
     if (!battle || !running) return;
     battle.manual = [false, false];      // 건너뛰기 시 궁극기는 자동 사용
-    battle.autoCmd = battle.autoCmd.map(c => c || 'normal');      // 지휘도 자동으로 맡김
+    if (skipCmd()) battle.autoCmd = battle.autoCmd.map(c => c || 'normal');      // 지휘도 자동으로 맡김 (설정이 '사용'일 때만)
     fast = true; let n = 0;
     while (!battle.over && n++ < 20000) battle.tick();
     fast = false;
@@ -720,5 +723,5 @@ const Arena = (() => {
     }
   }
 
-  return { mount, unmount, prepare, start, setSpeed, setPaused, skip, castUlt: id => (battle && running && !paused ? battle.castUlt(id) : { ok: false, msg: '경기 진행 중에만 사용할 수 있습니다.' }), get battle() { return battle; }, get running() { return running; } };
+  return { mount, unmount, prepare, start, setSpeed, setPaused, skip, skipCmd, setSkipCmd, castUlt: id => (battle && running && !paused ? battle.castUlt(id) : { ok: false, msg: '경기 진행 중에만 사용할 수 있습니다.' }), get battle() { return battle; }, get running() { return running; } };
 })();

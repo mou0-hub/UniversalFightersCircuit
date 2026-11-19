@@ -312,8 +312,8 @@ const Facility = (() => {
   const TRO = { league: '리그 우승', msi: 'MSI 우승', worlds: '월드 챔피언십 우승', intl: '국제대회(MSI·월드) 우승' };
   function condOf(g, c) {
     const T = g.trophies || [], tot = g.totals || {}, fl = FC().order.reduce((s, id) => s + lv(g, id), 0);
-    const cur = { trophy: () => T.filter(t => (c.t === 'intl' ? t.k === 'msi' || t.k === 'worlds' : t.k === c.t)).length, wins: () => tot.wins || 0, games: () => tot.games || 0, streak: () => g.bestStreak || 0, season: () => g.season || 1, rep: () => Math.max((g.rep && g.rep.peak) || 0, (g.rep && g.rep.v) || 0), fac: () => lv(g, c.id), facSum: () => fl, fans: () => (g.club && g.club.fans) || 0 }[c.k]();
-    const text = { trophy: `${TRO[c.t]} ${c.n}회`, wins: `통산 ${c.n}승`, games: `통산 ${c.n}경기`, streak: `최다 연승 ${c.n}`, season: `${c.n}시즌째`, rep: `감독 평판 ${c.n} 이상`, fac: `${FC().defs[c.id] ? FC().defs[c.id].name : c.id} Lv.${c.n}`, facSum: `시설 레벨 합 ${c.n}`, fans: `팬 ${c.n.toLocaleString('ko-KR')}명` }[c.k];
+    const cur = { trophy: () => T.filter(t => (!c.lg || t.lg === c.lg) && (c.t === 'intl' ? t.k === 'msi' || t.k === 'worlds' : t.k === c.t)).length, wins: () => tot.wins || 0, games: () => tot.games || 0, streak: () => g.bestStreak || 0, season: () => g.season || 1, rep: () => Math.max((g.rep && g.rep.peak) || 0, (g.rep && g.rep.v) || 0), fac: () => lv(g, c.id), facSum: () => fl, fans: () => (g.club && g.club.fans) || 0 }[c.k]();
+    const text = { trophy: `${c.lg ? ((CONFIG.leagues.find(l => l.id === c.lg) || {}).name || c.lg) + ' ' : ''}${TRO[c.t]} ${c.n}회`, wins: `통산 ${c.n}승`, games: `통산 ${c.n}경기`, streak: `최다 연승 ${c.n}`, season: `${c.n}시즌째`, rep: `감독 평판 ${c.n} 이상`, fac: `${FC().defs[c.id] ? FC().defs[c.id].name : c.id} Lv.${c.n}`, facSum: `시설 레벨 합 ${c.n}`, fans: `팬 ${c.n.toLocaleString('ko-KR')}명` }[c.k];
     return { ok: cur >= c.n, cur: Math.min(cur, c.n), need: c.n, text };
   }
   const mgConds = (g, n) => (MG()[n - 1].cond || []).map(c => condOf(g, c));

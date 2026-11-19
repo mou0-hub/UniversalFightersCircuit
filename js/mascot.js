@@ -3,6 +3,8 @@
 const Mascot = (() => {
   const C = () => CONFIG.mascot, G = () => Game.G;
   const pick = a => a[Math.floor(Math.random() * a.length)];
+  /* 터치 반응 영역(얼굴·가슴) 위에서 쓰는 하트 커서 */
+  const HEART = `url("data:image/svg+xml,${encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><path d='M16 28S3 19.5 3 11.2C3 7 6.2 4.5 9.6 4.5c2.5 0 4.7 1.4 6.4 3.9 1.7-2.5 3.9-3.9 6.4-3.9C25.8 4.5 29 7 29 11.2 29 19.5 16 28 16 28z' fill='#ff4d8d' stroke='white' stroke-width='2' stroke-linejoin='round'/></svg>")}") 16 15`;
   const KEY = 'cl_mascot_min', POS = 'cl_mascot_pos';
   let el, pose, img, bubble, pip, hideTimer = 0, chatTimer = 0, animTimer = 0, blushTimer = 0;
   let curNo = null, lastLog = -1, lastPhase = '', recent = [];
@@ -206,6 +208,11 @@ const Mascot = (() => {
       <button class="mc-min" data-mc="min" title="접기">−</button></div>
       <button class="mc-pip" data-mc="open" title="매니저 펼치기"></button>`;
     document.body.appendChild(el);
+    if (C().heartCursor !== false) {
+      const st = document.createElement('style');
+      st.textContent = `#mascot:not(.drag) .mc-zone[data-mz="face"], #mascot:not(.drag) .mc-zone[data-mz="chest"] { cursor: ${HEART}, pointer; }`;
+      document.head.appendChild(st);
+    }
     pose = el.querySelector('.mc-pose'); img = el.querySelector('.mc-img'); bubble = el.querySelector('.mc-bubble'); pip = el.querySelector('.mc-pip');
     if (C().debug) el.classList.add('dbg');
     let saved = null; try { saved = localStorage.getItem(KEY); } catch (e) { /* 무시 */ }

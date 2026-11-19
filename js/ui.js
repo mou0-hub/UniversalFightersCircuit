@@ -532,7 +532,7 @@ header.top, header.app-header, #topbar, .topbar{
       <div class="col">
         <div class="glass hero"><div class="hero-main">${heroLogo}<div><span class="hero-sub">${h.sub}</span><h2>${h.title}</h2>
           <div class="prog"><i style="width:${h.pct}%"></i></div></div></div>
-          <button class="btn primary big" data-act="advance" ${h.disabled ? 'disabled' : ''}>${h.label}</button></div>
+          <button class="btn primary big" data-act="advance" ${h.disabled ? 'disabled' : ''}>${h.label}</button>${g.phase !== 'seasonEnd' ? '<button class="btn big" data-act="skipSeason">시즌 건너뛰기</button><button class="btn ghost" data-act="skipCmdToggle">건너뛰기 자동지시: ' + (Arena.skipCmd() ? '사용' : '안 함') + '</button>' : ''}</div>
         <div class="glass panel">${calBarHTML(g)}</div>
         <div class="tabs">${tabs.map(([k, n]) => `<button class="tab ${leagueTab === k ? 'on' : ''}" data-act="leagueTab" data-tab="${k}">${n}</button>`).join('')}</div>
         <div class="glass panel">${body}</div>
@@ -1021,7 +1021,7 @@ header.top, header.app-header, #topbar, .topbar{
       <div class="controls glass"><button class="btn" data-act="pause" id="btnPause" disabled>일시정지</button>
         ${CONFIG.battle.speeds.map((s, i) => `<button class="btn speed ${i === 0 ? 'on' : ''}" data-act="speed" data-s="${s}">${s}배속</button>`).join('')}
         <button class="btn" data-act="autoUlt" id="btnAuto">궁극기 자동: ${Game.autoUlt ? '켜짐' : '꺼짐'}</button>
-        <button class="btn ghost" data-act="skipBattle" id="btnSkip" disabled>결과까지 건너뛰기</button></div>
+        <button class="btn ghost" data-act="skipBattle" id="btnSkip" disabled>결과까지 건너뛰기</button><button class="btn ghost" data-act="skipCmdToggle">건너뛰기 자동지시: ${Arena.skipCmd() ? '사용' : '안 함'}</button></div>
         <div class="cmd glass off" id="cmdPanel"><div class="cmd-head"><b>지휘</b><span class="cmd-cp" id="cmdCp"></span><small id="cmdNow">자동 (설정한 전술)</small><button class="btn ghost cmd-off" data-cmd="auto:" id="cmdAuto">자동 지휘: 꺼짐</button><button class="btn ghost cmd-off" data-cmd="off:">지시 해제</button></div><div id="cmdBody"></div></div></div>
       <aside class="log-col glass"><div class="log-head"><h3>전투 로그</h3><div class="chips">${cats.map(([k, n]) => `<button class="chip on" data-act="logFilter" data-cat="${k}">${n}</button>`).join('')}</div></div><div class="log" id="log"></div></aside></section>`;
   };
