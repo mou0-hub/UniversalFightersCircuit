@@ -6,7 +6,7 @@ const Game = {
   init() {
     Sound.init(); Sound.bgm('lobby');
     this.G = this.load();
-    UI.init(); UI.go(this.G ? 'league' : 'select');
+    UI.init(); if (typeof Mascot !== 'undefined') Mascot.init(); UI.go(this.G ? 'league' : 'select');
     if (this.G && this.G.phase === 'seasonEnd') UI.showSummary();
   },
 

@@ -388,5 +388,6 @@ const Facility = (() => {
   };
 
   UI.addView('facility', screen);
-  return { screen, lv, fx, eff, base, clean, mgrFx: mgSum, troubleMul, matchIncome, costOf, buy, actions };
+  const mgrLook = g => { const s = mgState(g), m = MG()[s.cur - 1] || {}, no = m.alt && (s.alt || {})[s.cur] ? m.alt : (m.pic || s.cur); return { no, src: mgImg(no), name: mgName(s.cur), n: s.cur }; };
+  return { screen, mgrLook, lv, fx, eff, base, clean, mgrFx: mgSum, troubleMul, matchIncome, costOf, buy, actions };
 })();
