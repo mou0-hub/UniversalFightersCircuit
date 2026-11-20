@@ -54,11 +54,18 @@ const League = (() => {
   /* 빠른 모드(시즌 건너뛰기): AI 대 AI 경기는 전투 시뮬 대신 팀 전력 기반 확률로 즉시 결정 */
   let fastMode = false;
   const setFast = v => { fastMode = !!v; };
-  const pow = t => (t.pow != null ? t.pow : (t.pow = (Math.random() - 0.5) * 0.4));
+  /* 팀 전력: 선발 3명의 능력치(ovr)에 폼·멘탈을 가미한 평균. 정상 경기와 같은 선수 데이터를 사용 */
+  function strength(G, id) {
+    const t = team(G, id), ids = id === 'player' ? ((G.club && G.club.lineup) || []).filter(Boolean) : (t.pros || []);
+    const ps = ids.map(x => Pros.get(G, x)).filter(Boolean);
+    if (ps.length) return ps.reduce((s, p) => s + p.ovr + ((p.form ?? 55) - 55) * 0.15 + ((p.mental ?? 70) - 70) * 0.08, 0) / ps.length;
+    const gr = (t.brains || []).map(g => CONFIG.pro.grades[g]).filter(Boolean);            // 선수 데이터가 없으면 등급 평균
+    return gr.length ? gr.reduce((s, g) => s + (g.ovr[0] + g.ovr[1]) / 2, 0) / gr.length : 60;
+  }
   function quick(G, aId, bId) {
-    const A = team(G, aId), B = team(G, bId), li = t => Math.max(0, CONFIG.leagues.findIndex(l => l.id === (t.lg || G.leagueId)));
-    const pA = Math.min(0.9, Math.max(0.1, 0.5 + (pow(A) - pow(B)) * 0.5 + (li(A) - li(B)) * 0.06)), w = Math.random() < pA ? 0 : 1, r = Math.random();
-    const hp = [0, 0], sc = [0, 0]; hp[w] = 0.4 + 0.5 * r; hp[1 - w] = 0.1 + 0.3 * r; sc[w] = 12 + Math.floor(r * 8); sc[1 - w] = 4 + Math.floor(Math.random() * 8);
+    const diff = strength(G, aId) - strength(G, bId), pA = Math.min(0.95, Math.max(0.05, 1 / (1 + Math.pow(10, -diff / 25))));      // 능력치 10 차이 ≈ 승률 72%
+    const w = Math.random() < pA ? 0 : 1, r = Math.random(), hp = [0, 0], sc = [0, 0];
+    hp[w] = 0.4 + 0.5 * r; hp[1 - w] = 0.1 + 0.3 * r; sc[w] = 12 + Math.floor(r * 8); sc[1 - w] = 4 + Math.floor(Math.random() * 8);
     return { winner: w, hp, score: sc, scoreText: sc[0] + ':' + sc[1], ticks: 3600 };
   }
   function simulate(G, aId, bId, rule, series) {

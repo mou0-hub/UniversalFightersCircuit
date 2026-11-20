@@ -175,7 +175,7 @@
       const P = this.tp[u.team].pod; if (!P || P.until <= this.t || P.id === u.id || (u.goal && u.goal.type === 'pod')) return false;
       if (this.t - u.hitT < 30) return false;
       const threats = enemies.filter(e => e.team < 2 && !e.struct && !this.hidden(e) && dist(u, e) <= 40);
-      if (threats.some(e => dist(u, e) <= 14)) return false;
+      if (!threats.length || threats.some(e => dist(u, e) <= 14)) return false;
       const p = this.safePoint(u, allies, threats); if (!p) return false;
       u.actT = this.t; if (dist(u, p) > 1.5) this.stepNav(u, p.x, p.y, this.eff(u, 'spd'));
       return true;
@@ -228,7 +228,7 @@
       else if (dn === 'regroup') ruled = true;
       if (!ruled) {
         if (T.bank) { st = 'defend'; dep = 'early'; lv = Math.max(lv, 5); }
-        else if (T.gamble) { st = bossUp ? 'boss' : 'slay'; dep = 'early'; amb = !bossUp; lv = Math.max(lv, 5); }
+        else if (T.gamble) { const car = this.foesOf(team).some(e => carried(e) >= A().chase.minVal); st = bossUp ? 'boss' : car ? 'slay' : 'collect'; dep = 'early'; amb = !bossUp && car; lv = Math.max(lv, 5); }
         else if (T.sdGuard) { st = 'defend'; lv = Math.max(lv, 4); }
         else if (T.catchUp && st === 'balanced') { st = 'collect'; dep = 'early'; lv = Math.max(lv, 4); }
         else if (T.push < -0.15 && st === 'balanced') st = 'collect';
@@ -488,7 +488,10 @@
       else {
         if (SB === 'contest') { v *= 1.25; cap = dn === 'boss' ? 3 : clamp(Math.ceil(BL / 2.5), 1, 3); }
         if (T.bank) { v *= hitting && hpR < AB.bankHp ? AB.bankSteal : SB === 'contest' ? AB.bankContest : AB.bankMul; stage = Math.max(stage, 1.2); cap = Math.min(cap, 2); }
-        else if (T.gamble) { v *= AB.gambleMul; cap = 3; }
+        else if (T.gamble) {
+          if (pitFp > myP * AB.avoid) { v *= 0.5; stage = Math.max(stage, 1.5); } else { v *= AB.gambleMul; cap = 3; }
+          if (hitting && hpR < AB.stealHp) { v *= 1.4; stage = Math.max(stage, 1.2); }
+        }
         else {
           if (hitting && hpR < AB.stealHp) { v *= 1.4; stage = Math.max(stage, 1.2); }
           if (nearFoes >= 2 && mineNear < 2) v *= 0.75;

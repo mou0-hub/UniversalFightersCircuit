@@ -301,7 +301,7 @@ const Facility = (() => {
   };
   const MG = () => FC().managers.list;
   const MC = () => FC().managers, MN = () => MG().length;
-  const mgState = g => (g.mgr = g.mgr || { have: [1], cur: 1 });
+  const mgState = g => { const s = (g.mgr = g.mgr || { have: [1], cur: 1 }); s.have = s.have.filter(n => MG()[n - 1]); if (!s.have.includes(1)) s.have.unshift(1); if (!MG()[s.cur - 1]) s.cur = 1; return s; };
   const mgSum = g => { const t = { sk: {} }; mgState(g).have.forEach(n => { const m = (MG()[n - 1] || {}).fx || {}; Object.keys(m).forEach(k => { if (k === 'sk') Object.keys(m.sk).forEach(q => { t.sk[q] = (t.sk[q] || 0) + m.sk[q]; }); else t[k] = (t[k] || 0) + m[k]; }); }); return t; };
   const mgImg = n => MC().img.replace('{n}', n);
   const mgPic = n => mgImg((MG()[n - 1] || {}).pic || n);

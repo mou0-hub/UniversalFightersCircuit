@@ -167,6 +167,7 @@ const Game = {
     Club.trackGame(g, won);
     Feedback.afterMatch(g, res, M, notes);
     const fan = Club.afterMatch(g, { kind: M.kind, home: M.kind !== 'league' || M.m.a === 'player', won: res.winner === M.pIdx, draw: res.winner === -1, myRank: myRank0, oppRank: oppRank0 });
+    if (fan.winPay) notes.push(`💰 승리 수당 +${Pros.money(fan.winPay)}`);
     Club.checkChallenges(g).forEach(c => notes.push(`🏅 도전과제 달성: ${c.name} — 구단 관리에서 보상 수령`));
     const oppId = M.m.a === 'player' ? M.m.b : M.m.a;
     g.league.playerLog.push({ tag: M.kind === 'league' ? tag : ({ playoff: 'PO ', msi: 'MSI ', worlds: 'WC ' }[M.kind] || '') + tag, opp: League.name(g, oppId), won, draw, picks: M.picks[M.pIdx] });
@@ -228,7 +229,7 @@ const Game = {
     const g = this.G, t = g[kind]; News.tourEnd(g, kind, League.when(g));
     if (t.seeds.includes('player')) g.seasonLines.push(`${t.name}: ${this.tourText(t)}`);
     if (t.champion === 'player') {
-      notes.push(`${t.name} 우승!`); this.award(kind);
+      notes.push(`${t.name} 우승!`); this.award(kind); notes.push(`💰 우승 상금 +${Pros.money(Club.champPay(g, kind))}`);
       const ft = Club.fanTitle(g, kind === 'playoff' ? 'league' : kind); notes.push(`👥 우승 효과로 팬 ${ft.d >= 0 ? '+' : ''}${ft.d.toLocaleString('ko-KR')}명 (${(ft.pct * 100).toFixed(1)}%)`);
     }
     else if (t.champion) notes.push(`${t.name} 우승: ${League.name(g, t.champion)}`);
@@ -269,6 +270,14 @@ const Game = {
     });
     return Math.min(100, done / (R + 3 * T) * 100);
   },
+  /* 건너뛰기 밴픽(내 팀): 픽은 현재 선발 3명의 선호 캐릭터로만(n번째 픽은 n번 선수 우선), 밴은 선발 선호 캐릭터를 피해서 */
+  skipPick(g, d, team) {
+    const c = Draft.current(d), favs = (Club.lineup(g) || []).filter(Boolean).map(p => p.favs || []), all = [...new Set(favs.flat())];
+    if (c.type === 'ban') return Draft.aiChoose(d, team, { fav: all }, g.usage);
+    const used = new Set(Draft.taken(d)), k = d.picks[team].length, ok = i => CONFIG.fighters[i] && !used.has(i);
+    const own = (favs[k] || []).filter(ok), pool = own.length ? own : all.filter(ok);
+    return pool.length ? pool[Math.floor(Math.random() * pool.length)] : Draft.aiChoose(d, team, { fav: all }, g.usage);
+  },
   autoMatch() {
     const g = this.G; let kind = g.phase, m, t = null, rule = null;
     if (kind === 'season') { m = League.playerMatch(g); kind = 'league'; }
@@ -276,7 +285,10 @@ const Game = {
     if (!m) throw new Error('진행할 경기를 찾지 못했습니다.');
     const M = { kind, m, t, rule, label: '', pIdx: m.a === 'player' ? 0 : 1, teams: [m.a, m.b].map(id => ({ id, name: League.name(g, id) })) };
     const d = Draft.create(t ? League.fearlessOf(m) : null);
-    while (!d.done) { const c = Draft.current(d); Draft.apply(d, Draft.aiChoose(d, c.team, League.team(g, M.teams[c.team].id), g.usage)); }
+    while (!d.done) {
+      const c = Draft.current(d), tid = M.teams[c.team].id;
+      if (!(tid === 'player' && Draft.apply(d, this.skipPick(g, d, c.team)))) Draft.apply(d, Draft.aiChoose(d, c.team, League.team(g, tid), g.usage));
+    }
     M.picks = d.picks; M.bans = d.bans; this.match = M; this.draft = d;
     M.picks[M.pIdx].forEach(f => { g.usage[f] = (g.usage[f] || 0) + 1; });
     M.teams.forEach((tm, i) => {

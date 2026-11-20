@@ -52,6 +52,8 @@ const Club = (() => {
     ensureFans(G); const c = G.club, F = FN();
     c.recent = [...c.recent, o.draw ? 0.5 : o.won ? 1 : 0].slice(-F.mob.recent);
     c.lossStreak = !o.won && !o.draw ? (c.lossStreak || 0) + 1 : 0;
+    let winPay = 0;
+    if (o.won) { const ow = C().owner, mul = ow.leagueMul[League.lgOf(G).diff] || 1; winPay = round10((ow.winPay[o.kind] || 0) * mul); c.funds += winPay; c.winInc = (c.winInc || 0) + winPay; }
     let ticket = null;
     if (o.home) {
       ticket = ticketFor(G, o.kind); c.funds += ticket.income; ticket.extra = Facility.matchIncome(G, ticket); c.funds += ticket.extra; c.facInc = (c.facInc || 0) + ticket.extra;
@@ -61,7 +63,12 @@ const Club = (() => {
     const fp = fanPct(G, o), before = c.fans, pct = fp > 0 ? fp * (1 + Facility.fx(G).fan) : fp;
     let d = Math.round(before * pct); if (pct !== 0 && Math.abs(d) < F.minDelta) d = Math.sign(pct) * F.minDelta;
     d = moveFans(G, d); c.fanLast = d;
-    return { ticket, fans: { d, pct: before ? d / before : 0, after: c.fans } };
+    return { ticket, winPay, fans: { d, pct: before ? d / before : 0, after: c.fans } };
+  }
+  /* 대회 우승 즉시 상금 */
+  function champPay(G, kind) {
+    const ow = C().owner, mul = ow.leagueMul[League.lgOf(G).diff] || 1, amt = round10((ow.champPay[kind === 'playoff' ? 'league' : kind] || 0) * mul);
+    G.club.funds += amt; G.club.winInc = (G.club.winInc || 0) + amt; return amt;
   }
   function fanTitle(G, key) {
     ensureFans(G); const c = G.club, before = c.fans, pct = FN().title[key] || 0;
@@ -718,5 +725,5 @@ const Club = (() => {
     chClaim(el) { done(claimChallenge(Game.G, el.dataset.id)); }
   };
 
-  return { afterMatch, fanTitle, fanInfo, ensureFans, capInfo, hardCap, capFloor, renewRoom, cap, capLeft, mood, trackGame, moveCheck, promoLines, startAllowed, carryPlan, carryDefault, tierOf, init, seasonSetup, migrate, challenges, checkChallenges, claimChallenge, allGoals, goalReward, ensureRoster, roster, lineup, ready, brains, moods, payroll, wage, capSal, setSlot, autoFill, ownerPay, settle, assignGoal, goalProgress, checkPressure, evaluateGoal, trySponsor, acceptSponsor, declineSponsor, actions };
+  return { afterMatch, champPay, fanTitle, fanInfo, ensureFans, capInfo, hardCap, capFloor, renewRoom, cap, capLeft, mood, trackGame, moveCheck, promoLines, startAllowed, carryPlan, carryDefault, tierOf, init, seasonSetup, migrate, challenges, checkChallenges, claimChallenge, allGoals, goalReward, ensureRoster, roster, lineup, ready, brains, moods, payroll, wage, capSal, setSlot, autoFill, ownerPay, settle, assignGoal, goalProgress, checkPressure, evaluateGoal, trySponsor, acceptSponsor, declineSponsor, actions };
 })();

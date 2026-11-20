@@ -612,19 +612,19 @@ const News = (() => {
     let d = 0, why = '';
     if (draw) { d = chance(0.5) ? 0 : -1; why = '무승부'; }
     else if (won) {
-      d = 3 + (streak >= 3 ? 2 : 0) + (streak >= 5 ? 2 : 0);
-      if (M && M.kind === 'playoff') d += 2;
-      if (M && (M.kind === 'msi' || M.kind === 'worlds')) d += 3;
+      d = 5 + (streak >= 3 ? 2 : 0) + (streak >= 5 ? 2 : 0);
+      if (M && M.kind === 'playoff') d += 3;
+      if (M && (M.kind === 'msi' || M.kind === 'worlds')) d += 4;
       why = streak >= 3 ? `${streak}연승 중 승리` : '승리';
     } else {
-      d = -4 - (streak === 0 && G.totals && G.totals.games > 3 ? 1 : 0);
-      if (M && M.kind === 'playoff') d -= 2;
-      if (M && (M.kind === 'msi' || M.kind === 'worlds')) d -= 3;
+      d = -2;
+      if (M && M.kind === 'playoff') d -= 1;
+      if (M && (M.kind === 'msi' || M.kind === 'worlds')) d -= 2;
       why = '패배';
     }
     // 여론은 평판이 낮을수록 패배에 더 가혹, 높을수록 승리에 가산
     const r = ensureRep(G);
-    if (!won && !draw && r.v < 35) d -= 1;
+    if (won && r.v < 50) d += 1;          // 평판이 낮을수록 승리 시 회복이 빠름
     if (won && r.v > 70) d += 1;
     return shiftRep(G, d, why);
   }
@@ -1063,7 +1063,6 @@ const News = (() => {
     const rep = ensureRep(G);
     // 순위 보너스/패널티 (소폭)
     if (me === 1) shiftRep(G, 1, '단독 선두 여론');
-    else if (me >= rows.length - 1) shiftRep(G, -1, '하위권 압박');
     const head = rnd([
       `${League.lgOf(G).name} ${G.league.round}라운드 마감 — 선두 ${lead.name}`,
       `순위표 갱신: ${G.teamName} ${me}위 / 평판 ${rep.v}`
@@ -1201,7 +1200,7 @@ const News = (() => {
     const t = G[kind], ch = t.champion, nm = League.name(G, ch), me = ch === 'player', pl = placing(t), mt = G.teamName, jb = josa(mt, '은', '는');
     const v = { ...base(G), cup: t.name, opp: nm, champ: nm, stage: pl.stage, mvp: '', score: '' };
     if (me) shiftRep(G, kind === 'worlds' ? 12 : kind === 'msi' ? 8 : 6, `${t.name} 우승`);
-    else if (t.seeds && t.seeds.includes('player')) shiftRep(G, -3, `${t.name} 준우승 이하`);
+    else if (t.seeds && t.seeds.includes('player')) shiftRep(G, -1, `${t.name} 준우승 이하`);
     const rep = ensureRep(G);
     const itv = (kindQ, head, lines, cmKind, cv) => { const [h, q] = quoteFor(kindQ, cv, null); return mk(G, date, 'interview', 'intl', head(h), lines(q), eventComments(cmKind, cv, 6)); };
     if (pl.k === 'champ') {
@@ -1233,7 +1232,7 @@ const News = (() => {
   }
   function seasonEnd(G, date) {
     const rank = League.rankOf(G, 'player'), y = League.yearOf(G), v = { ...base(G), opp: '', mvp: '', score: '' };
-    shiftRep(G, rank === 1 ? 5 : rank <= 3 ? 2 : rank >= 8 ? -3 : 0, `시즌 ${rank}위 정산`);
+    shiftRep(G, rank === 1 ? 5 : rank <= 3 ? 2 : rank >= 8 ? -1 : 0, `시즌 ${rank}위 정산`);
     const rep = ensureRep(G);
     return mk(G, date, 'season', 'me', `${y}년 시즌 종료 — ${G.teamName} ${rank}위 · 평판 ${rep.v}`, [
       `${y}년 시즌이 끝났다. 최종 ${rank}위.`,

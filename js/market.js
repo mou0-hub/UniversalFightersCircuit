@@ -80,7 +80,8 @@ const Market = (() => {
     t.pros.push(id); p.team = t.id; p.listed = false; p.fee = 0; p.sg = 0; p.sw = 0;
     return { ok: true, msg: `${p.nick} 판매 완료 → ${League.name(G, t.id)} (+${Pros.money(price)})` };
   }
-  function renewSalary(p) { return Math.max(Math.round(p.salary * (1 + M().renewRaise) / 10) * 10, Math.round(Pros.marketSalary(p) * (M().renewMarket || 0.85) / 10) * 10); }
+  /* 재계약 연봉: 성장·시장가치와 무관하게 현재 연봉에서 renewRaise(2%)만 인상 */
+  function renewSalary(p) { return Math.round(p.salary * (1 + M().renewRaise) / 10) * 10; }
   function renew(G, id) {
     const p = Pros.get(G, id); if (!p || !G.club.roster.includes(id)) return { ok: false, msg: '선수단에 없는 선수입니다.' };
     if (p.refused === G.season) return { ok: false, msg: `${p.nick} 선수는 이번 시즌 재계약을 거부한 상태입니다.` };

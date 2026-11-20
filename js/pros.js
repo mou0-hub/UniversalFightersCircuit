@@ -154,7 +154,7 @@ const Pros = (() => {
     let promoted = false;
     const order = ['C', 'B', 'A', 'S'], nx = order[order.indexOf(p.grade) + 1];
     if (nx && p.ovr >= P().grades[nx].ovr[0] + D.promoteMargin && Math.random() < D.promoteChance) {
-      p.grade = nx; p.salary = Math.max(p.salary, P().grades[nx].salary[0]); promoted = true;
+      p.grade = nx; if (!(G.club && (G.club.roster || []).includes(p.id))) p.salary = Math.max(p.salary, P().grades[nx].salary[0]); promoted = true;      // 내 선수는 승급해도 연봉 유지
     }
     return { id: p.id, nick: p.nick, age: p.age, from, to: p.ovr, d, pot: p.pot, grade: p.grade, oldGrade, promoted, note };
   }

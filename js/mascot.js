@@ -5,10 +5,11 @@ const Mascot = (() => {
   const pick = a => a[Math.floor(Math.random() * a.length)];
   /* 터치 반응 영역(얼굴·가슴) 위에서 쓰는 하트 커서 */
   const HEART = `url("data:image/svg+xml,${encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><path d='M16 28S3 19.5 3 11.2C3 7 6.2 4.5 9.6 4.5c2.5 0 4.7 1.4 6.4 3.9 1.7-2.5 3.9-3.9 6.4-3.9C25.8 4.5 29 7 29 11.2 29 19.5 16 28 16 28z' fill='#ff4d8d' stroke='white' stroke-width='2' stroke-linejoin='round'/></svg>")}") 16 15`;
-  const KEY = 'cl_mascot_min', POS = 'cl_mascot_pos';
+  const KEY = 'cl_mascot_min', POS = 'cl_mascot_pos', SIZE = 'cl_mascot_w';
   let el, pose, img, bubble, pip, hideTimer = 0, chatTimer = 0, animTimer = 0, blushTimer = 0;
   let curNo = null, lastLog = -1, lastPhase = '', recent = [];
   let faceN = 0, faceT = 0, chestN = 0, chestT = 0, drag = null, moved = false, pending = null;
+  let rsz = null, defW = 264;
   let curG = null, seen = {}, lastRank = 0, lastStreak = 0, queue = [], busyUntil = 0, vSince = 0, wasHidden = true;
   const PRI = { champ: 10, runnerUp: 8, out: 8, qualify: 7, miss: 5, rankTop: 4, playoffLine: 4, streak: 4, streakBreak: 3, end: 2, win: 1, lose: 1, tie: 1 };
 
@@ -178,9 +179,10 @@ const Mascot = (() => {
     t = Math.min(Math.max(t, -oy), Math.max(-oy, window.innerHeight - v.height - oy));
     el.style.transform = 'none'; el.style.left = l + 'px'; el.style.top = t + 'px';
   }
+  function fitW() { const w = parseFloat(el.style.width); if (w) setW(w); }
   function clampPos() { if (el.style.transform === 'none' && !el.hidden) { const r = el.getBoundingClientRect(); place(r.left, r.top); } }
   function down(e) {
-    if ((e.button || 0) > 0 || e.target.closest('.mc-min')) return;
+    if ((e.button || 0) > 0 || e.target.closest('.mc-min') || e.target.closest('.mc-rs')) return;
     const r = el.getBoundingClientRect(); moved = false; drag = { x: e.clientX, y: e.clientY, l: r.left, t: r.top, on: false };
     window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
   }
@@ -195,6 +197,34 @@ const Mascot = (() => {
     drag = null;
   }
 
+  /* ---------- 크기 조절: 오른쪽 아래 핸들을 드래그하면 커지고 작아짐 (더블클릭: 원래 크기) ---------- */
+  const natRatio = () => (img && img.naturalWidth ? img.naturalHeight / img.naturalWidth : 1.6);
+  const maxW = () => Math.max(160, Math.min(560, window.innerWidth - 16, (window.innerHeight - 16) / natRatio()));
+  function setW(w) {
+    w = Math.round(Math.min(Math.max(w, 110), maxW()));
+    el.style.width = w + 'px'; el.classList.add('mc-sz');
+    el.style.setProperty('--mc-fs', Math.round(Math.min(18, Math.max(11, 14 * w / defW))) + 'px');
+    return w;
+  }
+  function resetW() { el.style.width = ''; el.style.removeProperty('--mc-fs'); el.classList.remove('mc-sz'); try { localStorage.removeItem(SIZE); } catch (e) { /* 무시 */ } clampPos(); }
+  function rsDown(e) {
+    if ((e.button || 0) > 0) return; e.preventDefault(); e.stopPropagation();
+    const r = el.getBoundingClientRect();
+    if (el.style.transform !== 'none') { el.style.transform = 'none'; el.style.left = r.left + 'px'; el.style.top = r.top + 'px'; }   // 왼쪽 위를 고정한 채 늘어나도록
+    rsz = { x: e.clientX, y: e.clientY, w: r.width, ratio: r.height / r.width };
+    el.classList.add('drag', 'rs-on');
+    window.addEventListener('pointermove', rsMove); window.addEventListener('pointerup', rsUp); window.addEventListener('pointercancel', rsUp);
+  }
+  function rsMove(e) {
+    if (!rsz) return;
+    setW(rsz.w + ((e.clientX - rsz.x) + (e.clientY - rsz.y) / rsz.ratio) / 2); clampPos();
+  }
+  function rsUp() {
+    window.removeEventListener('pointermove', rsMove); window.removeEventListener('pointerup', rsUp); window.removeEventListener('pointercancel', rsUp);
+    el.classList.remove('drag', 'rs-on'); rsz = null;
+    try { const r = el.getBoundingClientRect(); localStorage.setItem(SIZE, String(Math.round(r.width))); localStorage.setItem(POS, JSON.stringify([r.left, r.top])); } catch (e) { /* 무시 */ }
+  }
+
   function setMin(on) {
     el.classList.toggle('is-min', on); try { localStorage.setItem(KEY, on ? '1' : '0'); } catch (e) { /* 저장 불가 환경은 무시 */ }
     clampPos(); if (on) bubble.hidden = true; else { vSince = Date.now(); const g = G(); if (g && g.club && !queue.length) setTimeout(() => situation(g), 300); }
@@ -205,9 +235,20 @@ const Mascot = (() => {
     el = document.createElement('aside'); el.id = 'mascot'; el.className = 'mc'; el.hidden = true;
     el.innerHTML = `<div class="mc-bubble" hidden><span></span></div>
       <div class="mc-fig"><div class="mc-pose"><img class="mc-img" data-mz="body" alt="" draggable="false"><i class="mc-blush"></i><i class="mc-zone" data-mz="face"></i><i class="mc-zone" data-mz="chest"></i></div>
-      <button class="mc-min" data-mc="min" title="접기">−</button></div>
+      <button class="mc-min" data-mc="min" title="접기">−</button>
+      <button class="mc-rs" title="드래그: 크기 조절 · 더블클릭: 원래 크기"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M10 2h4v4M6 14H2v-4M14 2L9.5 6.5M2 14l4.5-4.5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
       <button class="mc-pip" data-mc="open" title="매니저 펼치기"></button>`;
     document.body.appendChild(el);
+    const rst = document.createElement('style');
+    rst.textContent = `#mascot .mc-rs { position: absolute; right: 6px; bottom: 6px; z-index: 3; display: grid; width: 28px; height: 28px; padding: 0; place-items: center; border: 1px solid rgba(255,255,255,.28); border-radius: 50%; background: rgba(10,14,32,.55); color: #fff; box-shadow: 0 4px 14px rgba(0,0,0,.35); opacity: .7; backdrop-filter: blur(8px); cursor: nwse-resize; touch-action: none; transition: opacity .15s ease, background .15s ease, transform .15s ease; }
+#mascot .mc-rs:hover, #mascot.rs-on .mc-rs { background: rgba(255,126,179,.45); opacity: 1; transform: scale(1.1); }
+#mascot.rs-on, #mascot.rs-on * { cursor: nwse-resize !important; }
+#mascot.mc-sz .mc-bubble { font-size: var(--mc-fs); }`;
+    document.head.appendChild(rst);
+    defW = parseFloat(getComputedStyle(el).width) || 264;
+    const rs = el.querySelector('.mc-rs');
+    rs.addEventListener('pointerdown', rsDown); rs.addEventListener('dblclick', e => { e.stopPropagation(); resetW(); });
+    try { const sw = Number(localStorage.getItem(SIZE)); if (sw > 0) setW(sw); } catch (e) { /* 무시 */ }
     if (C().heartCursor !== false) {
       const st = document.createElement('style');
       st.textContent = `#mascot:not(.drag) .mc-zone[data-mz="face"], #mascot:not(.drag) .mc-zone[data-mz="chest"] { cursor: ${HEART}, pointer; }`;
@@ -217,7 +258,7 @@ const Mascot = (() => {
     if (C().debug) el.classList.add('dbg');
     let saved = null; try { saved = localStorage.getItem(KEY); } catch (e) { /* 무시 */ }
     el.classList.toggle('is-min', saved == null ? window.innerWidth <= 900 : saved === '1');
-    el.addEventListener('pointerdown', down); window.addEventListener('resize', clampPos);
+    el.addEventListener('pointerdown', down); window.addEventListener('resize', () => { fitW(); clampPos(); });
     try { const p = JSON.parse(localStorage.getItem(POS)); if (Array.isArray(p) && p.length === 2 && p.every(Number.isFinite)) pending = p; } catch (e) { /* 무시 */ }
     el.addEventListener('click', e => {
       if (moved) { moved = false; return; }
