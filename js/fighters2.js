@@ -3,7 +3,7 @@
 (() => {
   const FD = CONFIG.fighters;
 
-  const foeIn = (r, min) => (b, u, en) => { const t = b.nearest(u, en.filter(e => { const d = b.dist(u, e); return d <= r && d >= (min || 0); })); return t ? { t } : null; };
+  const foeIn = (r, min) => (b, u, en) => b.skillPick(u, en, r, min || 0);
   const anyIn = r => (b, u, en) => (en.some(e => b.dist(u, e) <= r) ? {} : null);
   const clusterPick = (b, u, en, range, r) => {
     let best = null, bn = 0;
@@ -29,7 +29,7 @@
     id: 'salamander', name: '셀리맨더', role: 'mage', color: '#fb923c', title: '화염정령',
     concept: '"어떻게 불태워줄까?"',
     stats: { hp: 800, mp: 330, aspd: 0.85, spd: 7.6, atk: 28, ap: 82, def: 20, res: 26, ten: 0, pen: 0.14, ls: 0, range: 24 },
-    basic: mageBasic, ai: { backline: true, kite: 13, threat: 0.85 },
+    basic: mageBasic, ai: { backline: true, kite: 13, threat: 0.85, style: { ult: 'finish' } },
     tac: { act: ['basic', 'retreat'], fight: ['coop'], pos: ['none', 'cover'], aim: ['carry'] },
     look: { pal: { r: '#ef4444', R: '#991b1b', o: '#fb923c', y: '#fde047', w: '#ffffff', k: '#450a0a' },
       rows: [
@@ -79,7 +79,7 @@
     id: 'plasma', name: '플라즈마', role: 'mage', color: '#38bdf8', title: '전격정령',
     concept: '"무한한 에너지..."',
     stats: { hp: 730, mp: 320, aspd: 1.0, spd: 7.8, atk: 30, ap: 72, def: 20, res: 28, ten: 0.05, pen: 0.10, ls: 0, range: 22 },
-    basic: mageBasic, ai: { backline: true, kite: 11, threat: 0.9 },
+    basic: mageBasic, ai: { backline: true, kite: 11, threat: 0.9, style: {} },
     tac: { act: ['basic'], fight: ['coop'], pos: ['none'], aim: ['carry'] },
     look: { res: 2,
       pal: { w: '#ffffff', c: '#67e8f9', C: '#22d3ee', b: '#3b82f6', B: '#1e3a8a', p: '#8b5cf6', P: '#4c1d95', y: '#fde047', e: '#0c4a6e' },
@@ -128,10 +128,10 @@
       },
       onDealt(b, u, t, res, o) { if (o.skill && !o.noPassive && t.alive && shockN(t, b) >= 5) { t.mem.shock = 0; t.st = t.st.filter(x => x.key !== 'pl_shock'); b.cc(u, t, 'stun', 1.3); } } },
     skills: [
-      { id: 'pl_s1', stack: { fn: (t, b) => shockN(t, b), min: 5 }, name: '충격파', cost: 40, cd: 6, range: 16, sfx: 'aoe', desc: '전방에 전류를 발사해 피해를 주고 둔화시키며 밀어냅니다.', plan: foeIn(16),
-        cast(b, u, pl) { cone(b, u, pl.t, 16, 0.55, '#38bdf8'); b.inCone(b.foes(u), u, pl.t.x, pl.t.y, 16, 0.55).forEach(e => { hit(b, u, e, 'magic', b.raw(u, 38, 0, 0.7), '충격파', { splash: true }); b.cc(u, e, 'slow', 1.6, { amt: 0.35 }); b.knock(u, e, 6); }); } },
-      { id: 'pl_s2', stack: { fn: (t, b) => shockN(t, b), min: 5 }, name: '전하의 창', cost: 35, cd: 6, range: 14, sfx: 'pierce', desc: '전방에 창을 만들어 찌릅니다. 기절 상태의 적에게는 치명 피해(×1.7)를 줍니다.', plan: foeIn(14),
-        cast(b, u, pl) { const e = lineEnd(b, u, pl.t, 15); beam(b, u, e.x, e.y, 3, '#fde047'); b.inLine(b.foes(u), u.x, u.y, e.x, e.y, 3).forEach(x => { const st = x.st.some(s => s.stun); hit(b, u, x, 'magic', b.raw(u, 50, 0, 0.9) * (st ? 1.7 : 1), '전하의 창', { path: true, crit: st }); }); } }
+      { id: 'pl_s1', tags: ['control', 'peel'], stack: { fn: (t, b) => shockN(t, b), min: 5 }, name: '충격파', cost: 40, cd: 6, range: 28, sfx: 'aoe', desc: '전방에 전류를 발사해 피해를 주고 둔화시키며 밀어냅니다.', plan: foeIn(28),
+        cast(b, u, pl) { cone(b, u, pl.t, 28, 0.4, '#38bdf8'); b.inCone(b.foes(u), u, pl.t.x, pl.t.y, 28, 0.4).forEach(e => { hit(b, u, e, 'magic', b.raw(u, 38, 0, 0.7), '충격파', { splash: true }); b.cc(u, e, 'slow', 1.6, { amt: 0.35 }); b.knock(u, e, 6); }); } },
+      { id: 'pl_s2', stack: { fn: (t, b) => shockN(t, b), min: 5 }, name: '전하의 창', cost: 35, cd: 6, range: 32, sfx: 'pierce', desc: '전방에 창을 만들어 찌릅니다. 기절 상태의 적에게는 치명 피해(×1.7)를 줍니다.', plan: foeIn(32),
+        cast(b, u, pl) { const e = lineEnd(b, u, pl.t, 33); beam(b, u, e.x, e.y, 3, '#fde047'); b.inLine(b.foes(u), u.x, u.y, e.x, e.y, 3).forEach(x => { const st = x.st.some(s => s.stun); hit(b, u, x, 'magic', b.raw(u, 50, 0, 0.9) * (st ? 1.7 : 1), '전하의 창', { path: true, crit: st }); }); } }
     ],
     ult: { id: 'pl_ult', name: '재충전', cd: 38, range: 28, sfx: 'buff', desc: '잠시 저지불가 상태가 되어 체력과 마나를 회복하고, 다른 스킬의 쿨타임을 초기화합니다.',
       plan: (b, u, en, al, strict) => (en.some(e => b.dist(u, e) <= 28) && (!strict || u.hp < u.maxHp * 0.6 || u.mp < u.mpMax * 0.25) ? {} : null),
@@ -147,7 +147,7 @@
     id: 'necro', name: '네크로', role: 'mage', color: '#84cc16', title: '방사능 악령',
     concept: '"가루도 남지않게 모두 파괴시켜주마"',
     stats: { hp: 700, mp: 340, aspd: 0.8, spd: 7.2, atk: 26, ap: 72, def: 22, res: 30, ten: 0.05, pen: 0.10, ls: 0, range: 26 },
-    basic: mageBasic, ai: { backline: true, kite: 14, threat: 0.85 },
+    basic: mageBasic, ai: { backline: true, kite: 14, threat: 0.85, style: { ult: 'open' } },
     tac: { act: ['basic', 'retreat'], fight: ['coop'], pos: ['cover', 'none'], aim: ['carry'] },
     look: { pal: { k: '#0b1020', d: '#334155', m: '#64748b', M: '#94a3b8', g: '#a3e635', G: '#365314', w: '#f1f5f9', r: '#7f1d1d' },
       rows: [
@@ -179,7 +179,7 @@
     skills: [
       { id: 'ne_s1', name: '파멸포', cost: 40, cd: 6, range: 30, sfx: 'nuke', desc: '에너지를 발사해 피해를 주고 경직시킵니다. 부식된 적에게는 치명 피해(×1.6)를 줍니다.', plan: foeIn(30),
         cast(b, u, pl) { const t = pl.t, c = corroded(t); beam(b, u, t.x, t.y, 4, '#a3e635'); hit(b, u, t, 'magic', b.raw(u, 50, 0, 0.95) * (c ? 1.6 : 1), '파멸포', { crit: c }); b.cc(u, t, 'stagger', 0.6); } },
-      { id: 'ne_s2', name: '라디오액티브', cost: 45, cd: 9, range: 12, sfx: 'aoe', desc: '주변에 방사능을 발사합니다. 부식된 적은 더 큰 피해(×1.4)를 입습니다. 시전하는 순간 받는 공격을 막아냅니다.', plan: anyIn(12),
+      { id: 'ne_s2', tags: ['peel', 'escape'], name: '라디오액티브', cost: 45, cd: 9, range: 12, sfx: 'aoe', desc: '주변에 방사능을 발사합니다. 부식된 적은 더 큰 피해(×1.4)를 입습니다. 시전하는 순간 받는 공격을 막아냅니다.', plan: anyIn(12),
         cast(b, u) { b.buff(u, 'block', 0.9, { name: '방사능 방벽', f: { block: true } }); ring(b, u.x, u.y, 13, '#a3e635'); b.inCircle(b.foes(u), u.x, u.y, 13).forEach(e => hit(b, u, e, 'magic', b.raw(u, 36, 0, 0.7) * (corroded(e) ? 1.4 : 1), '라디오액티브', { splash: true })); } }
     ],
     ult: { id: 'ne_ult', name: '파멸요격', cd: 38, range: 45, sfx: 'aoe', desc: '잠시 정지한 채 하늘에서 운석을 떨어뜨려 넓은 범위에 큰 피해를 줍니다.', plan: (b, u, en) => clusterPick(b, u, en, 45, 12),
@@ -198,7 +198,7 @@
     id: 'rusellaster', name: '러스엘러스터', role: 'mage', color: '#6d28d9', title: '저주불꽃의 악령',
     concept: '"이유는 없어...저주는 그저 저주일뿐."',
     stats: { hp: 680, mp: 320, aspd: 0.85, spd: 7.4, atk: 28, ap: 46, def: 22, res: 32, ten: 0.08, pen: 0.08, ls: 0.0, range: 22 },
-    basic: mageBasic, ai: { backline: true, kite: 11, threat: 0.85 },
+    basic: mageBasic, ai: { backline: true, kite: 11, threat: 0.85, style: { ult: 'finish' } },
     tac: { act: ['basic'], fight: ['solo', 'coop'], pos: ['none'], aim: ['near'] },
     look: { hair: '#c4b5fd', skin: '#a78bfa', body: '#2e1065', acc: '#a855f7', hairStyle: '3,-1,H;5,-2,H;6,-3,H;7,-2,H;8,-1,H', feat: '4,3,Y;7,3,Y;3,-1,A;8,-1,A', weapon: '11,2,A;11,3,A;12,3,A;11,4,K;11,5,K;11,6,K;11,7,K' },
     passive: { name: '죽음불꽃', desc: '같은 대상을 계속 공격하면 피해량이 점차 상승합니다(최대 +48%). 대상이 바뀌면 초기화됩니다.',
@@ -212,7 +212,7 @@
           if (pl.ally) { beam(b, u, pl.t.x, pl.t.y, 3, '#34d399'); b.heal(u, pl.t, b.raw(u, 50, 0, 1.0), '영혼나누기'); return; }
           beam(b, u, pl.t.x, pl.t.y, 3, '#a855f7'); const r = hit(b, u, pl.t, 'magic', b.raw(u, 45, 0, 0.8), '영혼나누기'); b.heal(u, u, r.dealt * 0.8 + 15, '영혼나누기');
         } },
-      { id: 'ru_s2', name: '저주불꽃', cost: 40, cd: 8, range: 28, sfx: 'debuff', desc: '적에게 4초간 지속 피해를 주고 화상을 입힙니다. 이 동안 적이 받는 피해가 15% 상승합니다.', plan: foeIn(28),
+      { id: 'ru_s2', tags: ['antiheal', 'amp'], name: '저주불꽃', cost: 40, cd: 8, range: 28, sfx: 'debuff', desc: '적에게 4초간 지속 피해를 주고 화상을 입힙니다. 이 동안 적이 받는 피해가 15% 상승합니다.', plan: foeIn(28),
         cast(b, u, pl) {
           const t = pl.t; b.cc(u, t, 'burn', 5); b.buff(t, 'curse', 5, { name: '저주불꽃', good: false, f: { dmgIn: 1.15 }, src: u });
           for (let i = 1; i <= 5; i++) b.later(i * 0.8, bb => { if (t.alive && u.alive) hit(bb, u, t, 'magic', bb.raw(u, 12, 0, 0.3), '저주불꽃', { dot: true }); });
@@ -230,7 +230,7 @@
     id: 'aozu', name: '아오즈', role: 'mage', color: '#34d399', title: '미친 과학자',
     concept: '"미쳤어! 이건 내 걸작이야!"',
     stats: { hp: 960, mp: 260, aspd: 0.95, spd: 8.4, atk: 46, ap: 72, def: 34, res: 26, ten: 0.10, pen: 0.10, ls: 0, range: 6 },
-    basic: { type: 'magic', atk: 0.6, ap: 0.5, proj: 'melee' }, ai: { front: true, threat: 1.0 },
+    basic: { type: 'magic', atk: 0.6, ap: 0.5, proj: 'melee' }, ai: { front: true, threat: 1.0, style: { engage: true, ult: 'open' } },
     tac: { act: ['rush'], fight: ['solo'], pos: ['front'] },
         look: { res: 2,
       pal: { W: '#e5e7eb', w: '#cbd5e1', T: '#0f766e', s: '#fde5cf', S: '#e0b99a', h: '#f8fafc', H: '#cbd5e1', G: '#34d399', g: '#10b981', C: '#bbf7d0',
@@ -299,7 +299,7 @@
     id: 'harvest', name: '하비스트', role: 'mage', color: '#7c3aed', title: '저주악령',
     concept: '"가소로운것들."',
     stats: { hp: 800, mp: 320, aspd: 0.9, spd: 7.8, atk: 40, ap: 68, def: 22, res: 28, ten: 0.05, pen: 0.08, ls: 0.05, range: 24 },
-    basic: mageBasic, ai: { backline: true, kite: 12, threat: 0.9 }, form0: 'mage',
+    basic: mageBasic, ai: { backline: true, kite: 12, threat: 0.9, style: { ult: 'open' } }, form0: 'mage',
     tac: { act: ['basic'], fight: ['coop'], pos: ['none'] },
     look: { res: 2, pal: { h: '#2e1065', H: '#6d28d9', s: '#ead7ff', c: '#c4a5e8', e: '#fb7185', r: '#fda4af', k: '#0f0a1f', l: '#be185d', n: '#e879f9', m: '#1f1235', M: '#8b5cf6', b: '#2a0f55', B: '#5b21b6', V: '#a78bfa', y: '#fbbf24', f: '#d8b4fe', o: '#a855f7', O: '#f5d0fe', W: '#ffffff', g: '#f59e0b', t: '#1c0f33', T: '#5b21b6', z: '#3b1a5a', w: '#e5e7eb' },
       rows: [
@@ -409,7 +409,7 @@
     id: 'minotaur', name: '미노타우로스', role: 'guardian', color: '#b45309', title: '봉인된 날뛰는 괴수',
     concept: '"크오오오오오!!!"',
     stats: { hp: 1220, mp: 160, aspd: 0.8, spd: 7.8, atk: 54, ap: 0, def: 42, res: 32, ten: 0.20, pen: 0.06, ls: 0.05, range: 6.5 },
-    basic: meleeBasic, ai: { front: true, threat: 1.6 },
+    basic: meleeBasic, ai: { front: true, threat: 1.6, style: { engage: true, ult: 'open' } },
     tac: { act: ['rush', 'basic'], fight: ['solo', 'coop'], pos: ['front'] },
     look: { pal: { w: '#fef3c7', W: '#d6c08a', b: '#a16207', B: '#78350f', n: '#f9a8d4', x: '#facc15', k: '#1c1917', r: '#ef4444', f: '#451a03' },
       rows: [
@@ -440,7 +440,7 @@
       { id: 'mt_s2', name: '부수기', cost: 40, cd: 9, range: 10, sfx: 'aoe', desc: '주변 범위에 피해를 주고 기절시킵니다.', plan: anyIn(10),
         cast(b, u) { ring(b, u.x, u.y, 10, '#b45309'); b.inCircle(b.foes(u), u.x, u.y, 10).forEach(e => { hit(b, u, e, 'phys', b.raw(u, 35, 0.8), '부수기', { splash: true }); b.cc(u, e, 'stun', 1.0); }); } }
     ],
-    ult: { id: 'mt_ult', name: '불도저', cd: 34, range: 34, move: true, sfx: 'pierce', desc: '전방으로 돌진해 맞은 적을 에어본시키고 피해를 줍니다. 돌진하는 동안 CC에 면역입니다.', plan: foeIn(34, 6),
+    ult: { id: 'mt_ult', tags: ['gapclose', 'control'], name: '불도저', cd: 34, range: 34, move: true, sfx: 'pierce', desc: '전방으로 돌진해 맞은 적을 에어본시키고 피해를 줍니다. 돌진하는 동안 CC에 면역입니다.', plan: foeIn(34, 6),
       cast(b, u, pl) {
         b.buff(u, 'unstop', 1.5, { name: '불도저', f: { ccImmune: true } });
         const ox = u.x, oy = u.y, e = dashTo(b, u, pl.t, 30, -4); b.slide(u, e.x, e.y);
@@ -453,7 +453,7 @@
     id: 'rescue', name: '레스큐', role: 'guardian', color: '#f87171', title: '사이버네틱 구조요원',
     concept: '"제가 왔습니다 안심하세요."',
     stats: { hp: 1140, mp: 300, aspd: 0.85, spd: 7.8, atk: 28, ap: 64, def: 34, res: 38, ten: 0.15, pen: 0.05, ls: 0, range: 20 },
-    basic: mageBasic, ai: { backline: true, kite: 8, threat: 0.9 },
+    basic: mageBasic, ai: { backline: true, kite: 8, threat: 0.9, style: { peel: true, stick: 'backline', ult: 'save' } },
     tac: { act: ['basic'], fight: ['support'], pos: ['cover', 'none'], ult: ['clutch', 'normal'] },
     look: { hair: '#fecaca', skin: '#fde5cf', body: '#b91c1c', acc: '#ffffff', hairStyle: '3,-1,H;5,-1,H;7,-1,H;8,0,H;9,2,H;9,3,H', feat: '4,3,A;7,3,A;4,-1,W;5,-1,R;6,-1,W;5,7,W;6,7,W', weapon: '11,4,X;11,5,X;12,5,R;11,6,X;11,7,K' },
     passive: { name: '긴급구조', desc: '체력이 50% 미만인 아군이 있으면 이동속도가 25% 상승합니다.',
@@ -475,7 +475,7 @@
     id: 'zombie', name: '사이오닉 좀비', role: 'guardian', color: '#a3e635', title: '사이버네틱 실험체',
     concept: '"끼기긱....끼익...."',
     stats: { hp: 1100, mp: 140, aspd: 0.75, spd: 7.2, atk: 52, ap: 0, def: 36, res: 30, ten: 0.20, pen: 0.06, ls: 0.25, range: 6.5 },
-    basic: meleeBasic, ai: { front: true, threat: 1.5 },
+    basic: meleeBasic, ai: { front: true, threat: 1.5, style: { engage: true, ult: 'open' } },
     tac: { act: ['rush', 'basic'], fight: ['solo'], pos: ['front'] },
     look: {
       hair: '#a78bfa', skin: '#d6cfc0', body: '#8b5a3c', acc: '#8b5cf6', res: 2,
@@ -547,7 +547,7 @@
     id: 'alcaba', name: '알카바', role: 'guardian', color: '#60a5fa', title: '전류동력 경찰로봇',
     concept: '"조사에 불응 시 즉시 체포합니다."',
     stats: { hp: 1200, mp: 240, aspd: 0.9, spd: 7.8, atk: 46, ap: 58, def: 38, res: 34, ten: 0.20, pen: 0.08, ls: 0, range: 10 },
-    basic: { type: 'magic', atk: 0.6, ap: 0.5, proj: 'melee' }, ai: { front: true, threat: 1.3 },
+    basic: { type: 'magic', atk: 0.6, ap: 0.5, proj: 'melee' }, ai: { front: true, threat: 1.3, style: { ult: 'open' } },
     tac: { act: ['basic'], fight: ['support', 'coop'], pos: ['front', 'none'] },
     look: { hair: '#1e3a8a', skin: '#cbd5e1', body: '#1e40af', acc: '#facc15', hairStyle: '3,-1,B;4,-2,B;5,-2,Y;6,-2,B;7,-2,B;8,-1,B', feat: '4,3,Y;7,3,Y;1,6,X;10,6,X;5,7,Y;6,7,Y', weapon: '11,3,Y;11,4,K;11,5,K;12,5,Y;12,6,K;12,7,Y;11,7,K' },
     passive: { name: '배터리 충전', desc: '전기(마법) 공격을 받으면 3초간 이동속도가 30% 상승합니다.',
@@ -575,7 +575,7 @@
     id: 'ananta', name: '아난타', role: 'guardian', color: '#06b6d4', title: '심해의 괴수',
     concept: '"심해의 깊은 공포를 느껴라."',
     stats: { hp: 1140, mp: 260, aspd: 0.8, spd: 7.4, atk: 36, ap: 56, def: 40, res: 38, ten: 0.20, pen: 0.06, ls: 0, range: 7 },
-    basic: { type: 'magic', atk: 0.6, ap: 0.5, proj: 'melee' }, ai: { front: true, threat: 1.4 },
+    basic: { type: 'magic', atk: 0.6, ap: 0.5, proj: 'melee' }, ai: { front: true, threat: 1.4, style: { peel: true, stick: 'backline', ult: 'open' } },
     tac: { act: ['basic'], fight: ['support', 'coop'], pos: ['front'] },
         look: { res: 2,
       pal: { D: '#06141a', B: '#a07a45', b: '#6b4f2a', Y: '#d4a85a', S: '#2f5d5a', s: '#4b8a82', a: '#3a6b66', G: '#34d399', A: '#f59e0b', o: '#fb923c',
@@ -621,7 +621,7 @@
     passive: { name: '수분흡수', desc: '스킬이 적중하면 일정량의 체력을 회복합니다(0.6초마다 최대 1회).',
       onDealt(b, u, t, res, o) { if (o.skill && (u.mem.hT || 0) <= b.t) { u.mem.hT = b.t + b.sec(0.6); b.heal(u, u, 22 + 0.2 * b.eff(u, 'ap'), '수분흡수'); } } },
     skills: [
-      { id: 'an_s1', name: '파도', cost: 40, cd: 8, range: 16, sfx: 'aoe', desc: '전방에 물을 내보내 맞은 적들을 넉백시키고 피해를 줍니다.', plan: foeIn(16),
+      { id: 'an_s1', tags: ['control', 'peel'], name: '파도', cost: 40, cd: 8, range: 16, sfx: 'aoe', desc: '전방에 물을 내보내 맞은 적들을 넉백시키고 피해를 줍니다.', plan: foeIn(16),
         cast(b, u, pl) { cone(b, u, pl.t, 17, 0.65, '#06b6d4'); b.inCone(b.foes(u), u, pl.t.x, pl.t.y, 17, 0.65).forEach(e => { hit(b, u, e, 'magic', b.raw(u, 38, 0, 0.7), '파도', { splash: true }); b.knock(u, e, 10); }); } },
       { id: 'an_s2', name: '방어륜', cost: 45, cd: 10, range: 24, sfx: 'shield', desc: '자신과 주변 아군에게 5초간 보호막을 제공합니다.',
         plan: (b, u, en) => (en.some(e => b.dist(u, e) <= 26) && !u.st.some(s => s.key === 'shield_방어륜' && s.shield > 0) ? {} : null),
@@ -640,7 +640,7 @@
     id: 'giant', name: '자이언트', role: 'guardian', color: '#d97706', title: '묵직한 거인',
     concept: '"누구지? 나의 잠을 방해한 놈이."',
     stats: { hp: 1220, mp: 150, aspd: 0.7, spd: 6.8, atk: 44, ap: 0, def: 38, res: 32, ten: 0.25, pen: 0.06, ls: 0, range: 7.5 },
-    basic: meleeBasic, ai: { front: true, threat: 1.8 },
+    basic: meleeBasic, ai: { front: true, threat: 1.8, style: { peel: true, stick: 'backline', ult: 'open' } },
     tac: { act: ['basic'], fight: ['coop'], pos: ['front'] },
         look: { res: 2,
       pal: { D: '#0f1210', K: '#23282a', M: '#4a5250', N: '#6b7570', T: '#9aa49b', G: '#4d6b3a', O: '#ffb02e', C: '#9a5a2c', c: '#d98a4a', z: '#8a8f98' },
@@ -703,7 +703,7 @@
     id: 'etech', name: '에테크', role: 'guardian', color: '#22c55e', title: '도시 자경단 사이보그',
     concept: '"진압해!!!"',
     stats: { hp: 1100, mp: 190, aspd: 0.95, spd: 8.4, atk: 60, ap: 0, def: 38, res: 30, ten: 0.15, pen: 0.06, ls: 0, range: 6 },
-    basic: meleeBasic, ai: { front: true, threat: 1.3 },
+    basic: meleeBasic, ai: { front: true, threat: 1.3, style: { engage: true, ult: 'open' } },
     tac: { act: ['rush', 'basic'], fight: ['coop', 'support'], pos: ['front'] },
     look: { hair: '#1c1917', skin: '#e5c9a8', body: '#166534', acc: '#4ade80', hairStyle: '3,-1,H;5,-1,H;7,-1,H;8,0,H', feat: '3,3,X;4,3,X;5,3,X;6,3,X;7,3,X;8,3,X;1,6,X;10,6,X', weapon: '11,6,X;12,6,A;12,7,A;11,7,X;11,8,X' },
     passive: { name: '기초방어능력', desc: '적에게 스킬 피해를 주면 잠시 보호막이 생성됩니다. (쿨타임 6초)',
@@ -731,7 +731,7 @@
     id: 'dt', name: '디티', role: 'guardian', color: '#14b8a6', title: '외계 자이언트 골렘',
     concept: '"신기하고 작군...파괴해야겠어"',
     stats: { hp: 1180, mp: 220, aspd: 0.7, spd: 6.9, atk: 52, ap: 40, def: 44, res: 38, ten: 0.25, pen: 0.06, ls: 0, range: 7.5 },
-    basic: meleeBasic, ai: { front: true, threat: 1.8 },
+    basic: meleeBasic, ai: { front: true, threat: 1.8, style: { engage: true, ult: 'open' } },
     tac: { act: ['basic'], fight: ['coop'], pos: ['front'] },
     look: { res: 2, pal: { m: '#2a2260', h: '#4d4199', n: '#14102f', l: '#9488e8', v: '#7c3aed', w: '#f3efff', e: '#fff7ed', o: '#fb923c', k: '#05040f' },
       rows: [
@@ -815,7 +815,7 @@
     id: 'kum', name: '쿰', role: 'guardian', color: '#fbbf24', title: '고대석상',
     concept: '"여긴 들어갈 수 없다."',
     stats: { hp: 1100, mp: 220, aspd: 0.8, spd: 7.0, atk: 50, ap: 44, def: 42, res: 40, ten: 0.20, pen: 0.06, ls: 0, range: 7 },
-    basic: meleeBasic, ai: { front: true, threat: 1.6 },
+    basic: meleeBasic, ai: { front: true, threat: 1.6, style: { peel: true, stick: 'backline', ult: 'save' } },
     tac: { act: ['basic'], fight: ['support', 'coop'], pos: ['front'] },
     look: { res: 2, pal: { s: '#b98f5c', l: '#e6d2a4', S: '#76593b', D: '#4a3724', k: '#241a12', g: '#f0c24f', e: '#9be4ff', E: '#38bdf8', t: '#a07c4f', T: '#d8c08e' },
       rows: [
@@ -855,10 +855,11 @@
         '...lSSSSSSSTSSSSSS....lSSSSSSSS.'],
       weapon: '' },
     passive: { name: '사명감', desc: '자신의 오벨리스크 주변(12 이내)에서 방어력과 저항력이 35% 상승합니다.',
+      seek(b, u) { const o = liveObs(b, u)[0]; if (!o) return null; const d = Math.hypot(u.x - o.x, u.y - o.y); if (d <= 10) return null; const k = (d - 8) / d; return { x: u.x + (o.x - u.x) * k, y: u.y + (o.y - u.y) * k, w: 0.5 }; },
       stat(b, u, k, v) { return (k === 'def' || k === 'res') && liveObs(b, u).some(z => Math.hypot(u.x - z.x, u.y - z.y) <= 12) ? v * 1.35 : v; },
       tick(b, u) { u.gauge = { label: '오벨리스크', val: liveObs(b, u).length, max: 1, color: '#fbbf24' }; } },
     skills: [
-      { id: 'ku_s1', name: '오벨리스크 소환', cost: 30, cd: 9, range: 26, sfx: 'aoe',
+      { id: 'ku_s1', tags: ['zone'], name: '오벨리스크 소환', cost: 30, cd: 9, range: 26, sfx: 'aoe',
         desc: '오벨리스크 1개를 떨어뜨려 피해를 줍니다. 오벨리스크는 체력을 가진 구조물로(14초 유지), 적의 직선·부채꼴 공격과 원거리 기본 공격을 막아 뒤에 있는 아군을 지켜 줍니다. 적에게도 공격 대상이 되며, 필드에는 1개만 존재하고 새로 소환하면 기존 것은 사라집니다.', plan: foeIn(26),
         cast(b, u, pl) {
           const t = pl.t, d = b.dir(u, t), land = Math.max(6, Math.min(16, b.dist(u, t) - 3)), p = b.clampPos(u.x + d.x * land, u.y + d.y * land);
@@ -899,7 +900,7 @@
     id: 'gaia', name: '가이아', role: 'guardian', color: '#84cc16', title: '땅의 정령',
     concept: '"신성한 대지의 힘으로..."',
     stats: { hp: 1100, mp: 240, aspd: 0.75, spd: 7.2, atk: 44, ap: 52, def: 40, res: 40, ten: 0.20, pen: 0.06, ls: 0, range: 7 },
-    basic: { type: 'phys', atk: 0.8, ap: 0.3, proj: 'melee' }, ai: { front: true, threat: 1.5 },
+    basic: { type: 'phys', atk: 0.8, ap: 0.3, proj: 'melee' }, ai: { front: true, threat: 1.5, style: { engage: true, ult: 'open' } },
     tac: { act: ['basic'], fight: ['coop'], pos: ['front', 'none'] },
     look: { res: 2, pal: { r: '#8a8178', R: '#4a433e', l: '#bdb5aa', k: '#1c1917', o: '#f97316', y: '#fde047', m: '#4d7c0f', g: '#a3e635', G: '#365314', s: '#b0937b', S: '#7c5f4a', b: '#6b5f55', B: '#a49888', K: '#2a2421', H: '#3b3430', w: '#92400e', W: '#5a3416' },
       rows: [
@@ -949,7 +950,7 @@
           b.inCircle(b.foes(u), c.x, c.y, 9).forEach(e => { hit(b, u, e, 'phys', b.raw(u, 35, 0.75, 0.3), '지진파', { splash: true }); b.cc(u, e, 'stun', 1.0); });
           shardsNear(b, u, c.x, c.y, 14).forEach(s => burst(b, u, s, 6, b.raw(u, 28, 0.3, 0.55), '바위 폭발'));
         } },
-      { id: 'ga_s2', name: '땅고르기', cost: 35, cd: 7, range: 10, sfx: 'aoe', desc: '시전 즉시 주변에 피해를 줍니다. 바위 조각이 있으면 사방으로 퍼져 주변에 추가 피해를 줍니다.', plan: anyIn(10),
+      { id: 'ga_s2', tags: ['peel'], name: '땅고르기', cost: 35, cd: 7, range: 10, sfx: 'aoe', desc: '시전 즉시 주변에 피해를 줍니다. 바위 조각이 있으면 사방으로 퍼져 주변에 추가 피해를 줍니다.', plan: anyIn(10),
         cast(b, u) {
           ring(b, u.x, u.y, 10, '#84cc16'); b.inCircle(b.foes(u), u.x, u.y, 10).forEach(e => hit(b, u, e, 'phys', b.raw(u, 28, 0.6, 0.2), '땅고르기', { splash: true }));
           shardsNear(b, u, u.x, u.y, 18).forEach(s => burst(b, u, s, 7, b.raw(u, 22, 0.2, 0.5), '바위 파편'));

@@ -486,7 +486,9 @@ header.top, header.app-header, #topbar, .topbar{
     const st = k => a.strat.find(x => x.key === k), chips = (l, c) => l.length ? l.map(x => `<span class="ob-chip ${c}">${x.icon} ${x.name}</span>`).join('') : '<span class="ob-chip">뚜렷하지 않음</span>';
     const prosHtml = a.pros.length ? a.pros.map(r => `<li><em class="ob-gr" data-g="${r.grade}">${r.grade}</em><div><b>${r.p.nick}</b><span>${r.role} · ${r.style}${r.engage ? ' · ' + r.engage : ''}</span></div></li>`).join('') : '<li class="ob-none">선수 정보가 없습니다.</li>';
     const recHtml = a.rec.map((r, i) => `<article class="ob-rec ${i === 0 ? 'top' : ''}"><header><div>${i === 0 ? '<span class="ob-badge">추천</span>' : ''}<b>${r.name}</b></div><button class="btn small ${i === 0 ? 'primary' : 'ghost'}" data-ui="scoutApply" data-p="${r.id}">적용</button></header><p>${r.desc}</p><ul>${(r.why.length ? r.why : ['특별히 유리한 점은 없지만 무난하게 운영할 수 있습니다']).map(w => `<li>${w}</li>`).join('')}</ul></article>`).join('');
-    modal(`<header class="ob-head">${teamLogo(a.name, 56)}<div><h3>${a.name}</h3><div class="ob-meta"><span>${a.tag}</span>${a.lv ? `<span>난이도 ${a.lv.name}</span>` : ''}${a.rank ? `<span>리그 ${a.rank}위</span>` : ''}</div></div></header>
+    const AN = CONFIG.scout.analyst, anImg = `${AN.dir}${AN.prefix}${1 + Math.floor(Math.random() * AN.count)}.${AN.ext}`, anLine = AN.lines[Math.floor(Math.random() * AN.lines.length)];
+    const anHtml = `<aside class="ob-an"><p class="ob-an-say">${anLine}</p><img src="${anImg}" alt="전력분석관" onerror="this.remove()"></aside>`;
+    modal(`<div class="ob-wrap">${anHtml}<div class="ob-main"><header class="ob-head">${teamLogo(a.name, 56)}<div><h3>${a.name}</h3><div class="ob-meta"><span>${a.tag}</span>${a.lv ? `<span>난이도 ${a.lv.name}</span>` : ''}${a.rank ? `<span>리그 ${a.rank}위</span>` : ''}</div></div></header>
       <div class="ob-sum">
         <div><small>전력 차이</small><b class="${cls}">${gp == null ? '-' : (gp > 0 ? '+' : '') + gp}</b><em>${gapTxt}</em></div>
         <div><small>예상 기조</small><b>${st('stance') ? st('stance').name : '-'}</b><em>보스 ${st('boss') ? st('boss').name : '-'}</em></div>
@@ -498,7 +500,7 @@ header.top, header.app-header, #topbar, .topbar{
       <section class="ob-sec"><h4>선수단</h4><ul class="ob-pros">${prosHtml}</ul><div class="ob-skill"><span>강점</span>${chips(a.skill.strong, 'good')}</div><div class="ob-skill"><span>약점</span>${chips(a.skill.weak, 'bad')}</div></section>
       <section class="ob-sec"><h4>밴 추천</h4><div class="ob-ban">${a.bans.map(id => mini(FD(id))).join('')}<p>${a.sample >= 3 ? `최근 ${a.sample}경기에서 자주 고른 파이터 기준` : '주력 파이터 기준입니다. 경기 기록이 쌓이면 더 정확해집니다.'}</p></div></section>
       <section class="ob-sec"><h4>추천 전술</h4>${recHtml}</section>
-      <div class="modal-actions"><button class="btn" data-act="closeModal">닫기</button></div>`, 'tm-box ob-box');
+      <div class="modal-actions"><button class="btn" data-act="closeModal">닫기</button></div></div></div>`, 'tm-box ob-box');
   }
   function showTeam(id) {
     const g = G(), t = League.team(g, id); if (!t || !t.name) return;

@@ -150,7 +150,7 @@ const Game = {
     const g = this.G, M = this.match, notes = [];
     M.finished = true;                       // 끝난 경기는 다시 시작/재처리되지 않도록 표시
     const when = League.when(g);             // 경기 날짜(상태가 바뀌기 전에 기록)
-    Stats.record(g, { ids: [M.m.a, M.m.b], picks: M.picks, bans: M.bans, winner: res.winner, tac: res.tac, ord: res.rec && res.rec.orders });      // 데이터 센터 집계
+    Stats.record(g, { ids: [M.m.a, M.m.b], picks: M.picks, bans: M.bans, winner: res.winner, tac: res.tac, ord: res.rec && res.rec.orders, int: res.rec && res.rec.intents });      // 데이터 센터 집계
     MyData.record(g, M, res);
     const opp0 = this.opponent(), myRank0 = League.rankOf(g, 'player'), oppRank0 = opp0 ? opp0.rank : 0;      // 순위 반영 전(경기 직전) 기준
     let won, draw = false, tag;

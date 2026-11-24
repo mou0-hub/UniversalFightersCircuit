@@ -31,7 +31,7 @@ const Battle = (() => {
         pods: MC.pods.map(p => ({ ...p, readyAt: 0 })), obstacles: MC.obstacles.slice()
       };
       this.score = [0, 0]; this.capTime = [0, 0]; this.cores = []; this.coreSeq = 0; this.waveN = 0; this.nextWave = 0; this.suddenWinner = null; this.teamBuff = [null, null, null]; this.sudden = false; this.suddenAt = 0; this.suddenLoser = null; this.bossKills = [0, 0];
-      this.rec = { kills: [], pts: [], boss: [], first: null, flips: [], lead: 0, suddenAt: 0, killVia: null, cores: [], orders: [] };   // 경기 후 분석용 기록(추가만, 전투에 영향 없음)
+      this.rec = { kills: [], pts: [], boss: [], first: null, flips: [], lead: 0, suddenAt: 0, killVia: null, cores: [], orders: [], intents: {} };   // 경기 후 분석용 기록(추가만, 전투에 영향 없음)
       this.strat = [0, 1].map(i => this.readStrat(teams[i].strategy)); this.cur = [null, null]; this.teamDir = ['auto', 'auto'];
       this.ord = [null, null]; this.cmdAt = [0, 0]; this.aiAt = [0, 0]; this.autoCmd = [0, 1].map(i => teams[i].cmd || (opts && opts.cmd && opts.cmd[i]) || null); this.cp = [0, 1].map(() => ({ v: CONFIG.orders.cpStart, prog: 0 }));
       this.aiInit();
@@ -92,6 +92,16 @@ const Battle = (() => {
       const DG = SK.dg, jn = clamp(nz('judge') + (Math.min(0, mN) * 0.4 + Math.min(0, fN) * 0.2) * pen, -1, 1), cn = nz('clutch'), on = nz('obj'), tmn = nz('team'), pn = nz('posn');
       u.dg = { j: jn, reach: DG.reach * clamp(1 + DG.reachJ * jn + DG.reachO * on, 0.5, 1.6), team: tmn, posn: pn, bias: 0, biasAt: 0 };
       u.sn = { j: jn, c: cn, o: on, t: tmn, p: pn, r: nz('react'), u: nz('ult'), a: nz('aim'), f: nz('fight') };
+      const GR = CONFIG.mind.grade;
+      u.g = clamp((GR.gr[brainKey] != null ? GR.gr[brainKey] : 0.67) + GR.jMix * jn, 0, 1);
+      u.obey = 1 - (1 - GR.obeyC) * Math.pow(1 - u.g, 2); u.callT = 0; u.callOk = true;
+      const SQ = CONFIG.brain.skillAI, qv = n => clamp(SQ.gW * u.g + (1 - SQ.gW) * (0.5 + 0.5 * n), 0, 1);
+      u.sq = { pick: qv(nz('aim')), combo: qv(nz('judge')), ult: qv(nz('ult')), esc: qv(nz('posn')) };
+      for (const c of CONFIG.tactics.categories) {
+        if (!u.tac[c.id]) continue;
+        if (Math.random() > u.obey) { u.tac[c.id] = null; continue; }
+        u.tac[c.id + 'S'] = clamp(u.tac[c.id + 'S'] * (GR.lv[0] + (GR.lv[1] - GR.lv[0]) * u.g), 0, 1);
+      }
       u.dgCore = null; u.dgUntil = 0; u.dgCd = 0;
       const obj = psk.obj != null ? psk.obj : SK.center;
       if (obj >= SK.objHi) u.brain.ensureBoss = true; else if (obj <= SK.objLo) u.brain.ensureBoss = false;
@@ -459,6 +469,25 @@ const Battle = (() => {
     worth(u, sk, slot, pl, enemies, allies) {
       if (u.rdy[sk.id] === undefined) u.rdy[sk.id] = this.t;
       const waited = this.t - u.rdy[sk.id], kind = sk.sfx || 'nuke', hpR = u.hp / u.maxHp;
+      const U = this.useOf(sk) || {}, SQ = CONFIG.brain.skillAI, Q = u.sq || { pick: 0.5, combo: 0.5, ult: 0.5, esc: 0.5 };
+      if (U.mode === 'escape') {
+        const rr = Math.min(U.rMax || 99, (U.r || 10) * (SQ.escLo + SQ.escHi * Q.esc));
+        return enemies.some(e => e.team < 2 && !e.struct && dist(u, e) <= rr);
+      }
+      const tg0 = pl && pl.t && !pl.ally && pl.t.alive && pl.t.team !== u.team ? pl.t : null;
+      if (tg0 && hpR >= SQ.emergencyHp) {
+        const m = this.useReady(u, sk, tg0, pl), need = U.need || 1, qh = slot === 'ult' ? Q.ult : Q.combo;
+        if (m < need) {
+          const base = U.hold != null ? U.hold : (sk.stack ? SQ.stackHold : 0), cap = Math.min(base, (sk.cd || 99) * SQ.cdCap);
+          let soon = true;
+          if (sk.stack) soon = (1 - m) * sk.stack.min / Math.max(0.05, this.eff(u, 'aspd') * TPS) <= cap;
+          else if (U.exec != null) soon = tg0.hp <= tg0.maxHp * (U.exec + SQ.execNear);
+          if (soon && cap > 0 && waited < ticks(cap * qh)) return false;
+        } else if ((U.burst != null ? U.burst : !!(sk.stack || U.exec != null)) && qh >= SQ.burstQ) return true;
+      }
+      const iv = this.intentVerdict(u, sk, slot, pl, enemies, allies);
+      if (iv === true) return true;
+      if (iv === false) { const hm = CONFIG.mind.intent.holdMul[u.mind.it.v]; if (!hm || waited < ticks(u.brain.skillPatience * hm)) return false; }
       if (waited >= (slot === 'ult' ? ticks(u.brain.ultWait) : sk.move ? ticks(u.brain.skillPatience * 1.5) : ticks(u.brain.skillPatience)) || hpR < 0.35) return true;
       const tg = (pl && pl.t) || u.target || (enemies.length ? nearestOf(u, enemies) : null);
       const near = enemies.filter(e => dist(u, e) <= 24);
@@ -472,9 +501,111 @@ const Battle = (() => {
       if (sk.move) { if (!tg) return false; return dist(u, tg) > u.role.range + 2 || lowT || near.length >= 2 || hpR < 0.5; }
       return (engaged || allyFight) && (lowT || crowd || mpRich || allyFight);
     }
+    useOf(sk) { return sk.use || (CONFIG.skillUse && CONFIG.skillUse[sk.id]) || null; }
+    skillTags(k) {
+      if (k.tags) return k.tags;
+      const U = this.useOf(k) || {}, src = (typeof k.cast === 'function' ? k.cast.toString() : '') + ' ' + (k.desc || ''), has = r => r.test(src), T = [];
+      const cc = has(/\.cc\(|\.knock\(|기절|속박|침묵|공포|빙결|둔화|넉백|끌어당|경직/), heal = has(/\.heal\(/), ally = has(/friends\(|allies|아군/);
+      if (U.mode === 'escape') T.push('escape');
+      else if (k.move || k.sfx === 'dash') {
+        if (has(/멀어지|후퇴|도망|회피|이탈|피신|탈출|뒤로|반대 방향|away|flee|retreat|-\s*d\.x|-\s*d\.y/)) { T.push('escape'); if (has(/적에게|지정한 적|돌진|돌격|향해/)) T.push('gapclose'); } else T.push('gapclose');
+      }
+      if (k.sfx === 'shield') T.push(ally ? 'peel' : 'escape', ...(ally ? [] : ['amp']));
+      else if (k.sfx === 'buff') T.push('amp');
+      else if (k.sfx === 'debuff' && !cc) T.push('amp');
+      if (cc) { T.push('control'); if (has(/ring\(b, u\.x, u\.y|inCircle\([^)]*u\.x, u\.y|주변/)) T.push('peel'); }
+      if (/b\.zone\(|장판|지대/.test(src)) T.push('zone');
+      if (heal && (k.sfx === 'buff' || k.sfx === 'shield' || has(/회복|치유/))) T.push('heal');
+      if (has(/healMul|'burn'|"burn"|치유 감소|화상/)) T.push('antiheal');
+      if (U.exec != null || U.low >= 2 || has(/처형|낮을수록/)) T.push('finisher');
+      return (k.tags = [...new Set(T)]);
+    }
+    logIntent(u) {
+      const s = u.mind && u.mind.it;
+      if (!s || u.team > 1 || u.struct || s.at === u.itLog) return;
+      u.itLog = s.at;
+      const R = this.rec.intents, fid = u.f && u.f.id; if (!fid) return;
+      const row = ((R[u.team] = R[u.team] || {})[fid] = R[u.team][fid] || {});
+      row[s.v] = (row[s.v] || 0) + 1;
+    }
+    tacWants(u, tags) {
+      const T = u.tac || {}, X = CONFIG.mind.intent, m = X.tacMin != null ? X.tacMin : 0.5;
+      if (T.act === 'rush' && (T.actS || 0) >= m && tags.some(k => k === 'gapclose' || k === 'control' || k === 'amp' || k === 'finisher')) return true;
+      if (T.mission === 'hunt' && (T.missionS || 0) >= m && tags.some(k => k === 'gapclose' || k === 'control' || k === 'finisher')) return true;
+      if ((T.fight === 'support' || T.entry === 'support') && (T.fightS || 0) >= m && tags.some(k => k === 'peel' || k === 'heal')) return true;
+      return false;
+    }
+    intentVerdict(u, sk, slot, pl, enemies, allies) {
+      const X = CONFIG.mind.intent, s = u.mind && u.mind.it;
+      if (!s || this.t - s.at > ticks(X.fresh)) return null;
+      const P = X.pref[s.v], tags = this.skillTags(sk);
+      if (!P || !tags.length) return null;
+      const go = tags.filter(k => P.go.includes(k)), hold = tags.some(k => P.hold.includes(k));
+      if (go.length) return this.intentFit(u, s, go, pl, enemies, allies) ? true : (hold && !this.tacWants(u, tags) ? false : null);
+      return hold && !this.tacWants(u, tags) ? false : null;
+    }
+    intentFit(u, s, tags, pl, enemies, allies) {
+      const X = CONFIG.mind.intent, tg = pl && pl.t && pl.t.alive ? pl.t : null, al = s.ally && s.ally.alive ? s.ally : null;
+      const foes = enemies.filter(e => e.team < 2 && !e.struct && dist(u, e) <= X.nearR), onAlly = !!(pl && pl.ally), tgFoe = tg && !onAlly ? tg : null;
+      const ccd = e => e.st.some(x => x.cc || x.stun || x.root);
+      return tags.some(k => {
+        if (k === 'escape') return s.v === 'survive' && foes.length > 0;
+        if (k === 'peel') {
+          if (s.v === 'survive') return foes.length > 0 && (!onAlly || tg === u);
+          return !!al && (onAlly ? !!tg && (tg === al || dist(tg, al) <= X.peelFit) : dist(u, al) <= X.peelFit + 6);
+        }
+        if (k === 'control') {
+          if (!tgFoe || ccd(tgFoe)) return false;
+          if (s.v === 'survive') return dist(tgFoe, u) <= (tgFoe.role.range || 6) + 4;
+          if (s.v === 'peel') return !!al && (tgFoe === al.hitBy || dist(tgFoe, al) <= X.peelFit);
+          return true;
+        }
+        if (k === 'gapclose') return !!tgFoe && dist(u, tgFoe) > u.role.range + 2;
+        if (k === 'heal') return allies.some(a => a.alive && a.hp < a.maxHp * X.healHp);
+        if (k === 'finisher') return !!tgFoe && tgFoe.hp <= tgFoe.maxHp * X.finHp;
+        return foes.length > 0;
+      });
+    }
+    stackOf(sk, u, t) {
+      const S = sk.stack; if (!S) return 1;
+      const v = S.fn ? S.fn(t, this) : S.self ? S.self(u) : 0;
+      return clamp(v / S.min, 0, 1);
+    }
+    useReady(u, sk, t, pl) {
+      const U = this.useOf(sk) || {}; let m = this.stackOf(sk, u, t);
+      if (U.exec != null) m = Math.min(m, t.hp <= t.maxHp * U.exec ? 1 : 0);
+      if (U.ready) m = Math.min(m, U.ready(this, u, t, pl));
+      return m;
+    }
+    skillPick(u, en, r, min) {
+      const c = [];
+      for (const e of en) { const d = dist(u, e); if (d <= r && d >= min) c.push(e); }
+      if (!c.length) return null;
+      const sk = this.curSk, U = (sk && this.useOf(sk)) || {}, H = CONFIG.brain.skillAI, q = u.sq ? u.sq.pick : 0.5;
+      const T = this.tp && this.tp[u.team], fc = T && T.focus, fe = fc && fc.e && fc.e.alive ? fc.e : null;
+      let best = null, bs = -1e9;
+      for (const e of c) {
+        const hpR = e.hp / e.maxHp;
+        let s = -dist(u, e) / H.distDiv;
+        if (e === u.target) s += H.target * (H.targetFloor + (1 - H.targetFloor) * q);
+        if (e === fe) s += H.focus * q;
+        s += H.finish * (1 - hpR) * q;
+        if (U.want && U.want(this, u, e)) s += H.want * q;
+        if (U.low) s += U.low * (1 - hpR) * q;
+        if (U.exec != null && hpR <= U.exec) s += H.exec * q;
+        if (sk && sk.stack) s += H.stack * q * this.stackOf(sk, u, e);
+        if (U.back && e.role && e.role.backline) s += H.back * q;
+        if (U.cc && e.st.some(x => x.cc || x.stun || x.root)) s -= H.ccPen * q;
+        if (e.st.some(x => x.invuln)) s -= H.immune;
+        if (s > bs) { bs = s; best = e; }
+      }
+      return best ? { t: best } : null;
+    }
     trySkill(u, sk, slot, enemies, allies, strict, gate) {
       if (!this.canCast(u, sk, slot)) return false;
+      this.curSk = sk;
       const pl = sk.plan(this, u, enemies, allies, strict);
+      this.curSk = null;
       if (!pl) return false;
       if (gate && !this.worth(u, sk, slot, pl, enemies, allies)) return false;
       delete u.rdy[sk.id];
@@ -587,7 +718,16 @@ const Battle = (() => {
     retreatGap(threats) { const X = CONFIG.mind.retreat; return Math.max(X.gapMin, ...threats.map(e => (e.role.range || 6) + X.gapAdd)); }
     /* ---------- 두뇌 (AI 지능 단계 C~S) ----------
        추격 제한 / 회복·보스 우선 / 즉시 후퇴 / 수적 열세 시 대기 — 파라미터는 CONFIG.brain.levels */
-    power(u) { return (u.atk + u.ap + 20) * Math.max(1, u.hp) / 1000; }
+    power(u) {
+      const P = CONFIG.mind.grade.pw, dm = u.atk + u.ap, F = u.f, rg = (u.role && u.role.range) || 6;
+      const off = u.atk * (1 - P.aspd + P.aspd * (u.aspd ? u.aspd * TPS : 1)) + u.ap + 20;
+      const tough = 1 + (dm > 0 ? (u.atk * (u.def || 0) + u.ap * (u.res || 0)) / (dm * 100) : 0) * P.tough;
+      let m = 1 + P.range * Math.max(0, Math.min(30, rg) - 6);
+      if (u.ultCd <= 0) m *= 1 + P.ult;
+      const sk = F && (F.forms ? F.forms[u.form] : F.skills);
+      if (sk && u.cds && sk.some(k => (k.sfx === 'shield' || k.sup) && !(u.cds[k.id] > 0) && u.mp >= (k.cost || 0))) m *= 1 + P.sup;
+      return off * Math.max(1, u.hp) * tough * m / 1000 / P.norm;
+    }
     assess(u, enemies, allies) {
       const D = u.dg, DG = CONFIG.brain.stat.dg, fr = 32 + (D ? DG.foeJ * Math.max(0, D.j) : 0), mr = 28 + (D ? DG.mateR * D.team : 0);
       const foes = enemies.filter(e => e.team < 2 && !e.struct && !this.hidden(e) && dist(u, e) <= fr);
@@ -684,7 +824,7 @@ const Battle = (() => {
       if ((T.act === 'rush' && T.actS >= 0.5) || T.pos === 'front' || (T.fight === 'solo' && T.fightS >= 0.6)) return null;
       const fr = others.filter(a => a.role.front);
       if (!fr.length) return null;
-      const gap = this.roleGap(u);      // 역할 이동: 정도가 높을수록 전열 뒤 간격을 넓게
+      const gap = this.roleGap(u) + (this.tp[u.team].asn ? CONFIG.mind.fstate.exposeGap : 0);      // 역할 이동: 정도가 높을수록 전열 뒤 간격을 넓게
       return Math.max(...fr.map(a => this.ahead(a))) - gap;
     }
     posPoint(u, allies) {
@@ -700,6 +840,12 @@ const Battle = (() => {
         return { x: clamp(pt.x, 8, A.w - 8), y: clamp(pt.y, 8, A.h - 8) };
       }
       return null;
+    }
+    seekStep(u, t) {
+      const p = u.f.passive; if (!p || !p.seek) return false;
+      const r = p.seek(this, u, t); if (!r || !(Math.random() < r.w)) return false;
+      const d = dist(u, r); if (d > 1) this.step(u, r.x, r.y, d, false);
+      return true;
     }
     drift(u, allies) { const p = this.posPoint(u, allies); if (p && dist(u, p) > 3) this.step(u, p.x, p.y, dist(u, p), false); }
     helpTarget(u, enemies, allies, aggro) {
@@ -735,7 +881,7 @@ const Battle = (() => {
       if (kd > 0) { const real = enemies.filter(e => !e.struct); if (real.length) { const th = nearestOf(u, real); if (dist(u, th) < kd) { this.kite(u, th); return; } } }
       let want = R.range * 0.9;
       if (T.act === 'rush') want = Math.max(3, R.range * (0.9 - 0.45 * T.actS));
-      if (d <= want) { this.drift(u, allies); return; }
+      if (d <= want) { if (!this.seekStep(u, t)) this.drift(u, allies); return; }
       const lim = this.holdLimit(u, allies);
       if (lim != null && this.ahead(u) >= lim && u.forceGo <= this.t) { this.drift(u, allies); return; }
       const fl = this.flankPoint(u, t, want);
@@ -1199,8 +1345,8 @@ const Battle = (() => {
         if (stage) targets.push({ type: 'stage', x: pit.x, y: pit.y, v: stage * W.boss, cap: 3 });
       } else if (incoming && SB !== 'yield') targets.push({ type: 'stage', x: pit.x, y: pit.y, v: 2 * W.boss * (SB === 'contest' ? 1.2 : 1), cap: 3 });
       if (enemyUnits.length) {
-        const prey = enemyUnits.map(e => ({ e, s: (1 - e.hp / e.maxHp) + (enemyUnits.some(o => o !== e && dist(o, e) < 25) ? 0 : 0.4) + (e.role.backline ? KA.backPrey : 0) + carried(e) * KA.carryPrey * (dn === 'kill' ? 3 : 1) })).sort((p, q) => q.s - p.s)[0].e;
-        const v = Math.max(0, W.kill - 0.6) * 2.2 + (prey.hp < prey.maxHp * 0.35 ? 0.45 : 0) + (this.sudden ? 0.6 : 0) + (Math.abs(lead) >= 2 ? -0.2 : 0) + carried(prey) * KA.huntV;
+        const prey = enemyUnits.map(e => ({ e, s: (1 - e.hp / e.maxHp) + (enemyUnits.some(o => o !== e && dist(o, e) < 25) ? 0 : 0.4) + (e.role.backline ? KA.backPrey : 0) + carried(e) * KA.carryPrey * (dn === 'kill' ? 3 : 1) + (e.depProg > 0 ? CONFIG.mind.grade.hunt.interruptV : 0) })).sort((p, q) => q.s - p.s)[0].e;
+        const v = Math.max(0, W.kill - 0.6) * 2.2 + (prey.hp < prey.maxHp * 0.35 ? 0.45 : 0) + (this.sudden ? 0.6 : 0) + (Math.abs(lead) >= 2 ? -0.2 : 0) + carried(prey) * KA.huntV + (prey.depProg > 0 ? CONFIG.mind.grade.hunt.interruptV : 0);
         if (v > 0.05 || free.some(u => this.mission(u, cur) === 'hunt')) targets.push({ type: 'hunt', e: prey, x: prey.x, y: prey.y, v: Math.max(v, 0.2), cap: dn === 'kill' ? 3 : W.kill > 1.2 ? 2 : 1 });
       }
       if (free.length && us.length > 1) targets.push({ type: 'join', x: us.reduce((q, a) => q + a.x, 0) / us.length, y: us.reduce((q, a) => q + a.y, 0) / us.length, v: KA.join, cap: 3 });
@@ -1233,10 +1379,11 @@ const Battle = (() => {
         else if (tg.type === 'deposit') sc = depSc(u, tg, dd);
         else if (tg.type === 'join') sc = dd < KA.joinMin ? -1e3 : tg.v * clamp(dd / KA.joinRef, 0.4, 1.2);
         else if (tg.type === 'ambush' && ms !== 'ambush') sc = -1e3;
+        else if (tg.type === 'hunt') { const h = this.huntEV(u, tg.e); sc = tg.v * h.gain - h.loss - dd / 150; if (h.p < CONFIG.mind.grade.hunt.vetoP) sc -= Dg.vetoPen; }
         else sc = tg.v - dd / 150;
         if (sc <= -1e3) return sc;
         if ((tg.type === 'boss' || tg.type === 'stage') && this.coreSlots(u)) sc -= this.coreValue(u) * KA.bossCarryPen;      // 코어 든 선수는 보스보다 제출 우선
-        if (tg.fp > 0) {
+        if (tg.fp > 0 && tg.type !== 'hunt') {
           let mp = this.power(u); for (const m of tg.mates) if (m.a !== u) mp += m.p;
           const odds = tg.fp / mp, over = clamp(odds - Dg.safe, 0, Dg.cap), kr = S.retreat === 'brave' ? Dg.brave : S.retreat === 'careful' ? Dg.careful : 1;
           sc -= (over * Dg.pen + (odds >= Dg.veto ? Dg.vetoPen : 0)) * kr * (1 + this.coreValue(u) * Dg.carryMul);
@@ -1466,7 +1613,7 @@ const Battle = (() => {
       this.tickOrders(); this.teamPlan(0); this.teamPlan(1);
       const order = this.units.filter(u => u.alive);
       for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
-      for (const u of order) if (u.alive) this.act(u);
+      for (const u of order) if (u.alive) { this.act(u); this.logIntent(u); }
       this.separate();
       for (const u of order) {                                                               // 제자리에서 비비는(막힌) 유닛은 방향을 바꿔 우회
         if (!u.alive || u.team > 1) continue;

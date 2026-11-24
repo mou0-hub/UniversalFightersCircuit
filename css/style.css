@@ -2717,7 +2717,7 @@ small {
 }
 
 .ob-box {
-  width: min(680px, 100%);
+  width: min(1500px, 96vw);
 }
 .ob-head {
   display: flex;
@@ -3929,4 +3929,106 @@ small {
   .mc-bubble { right: auto; bottom: 100%; left: 0; width: max-content; max-width: min(220px, 70vw); margin-bottom: 8px; padding: 8px 12px; font-size: 13px; }
   .mc-min { top: 4px; right: 2px; width: 24px; height: 24px; font-size: 14px; }
   .mc-pip { width: 54px; height: 54px; }
+}
+
+/* 전력분석관 (다음 상대 분석 팝업): 이미지 비율(768:1376)대로 왼쪽 패널을 가득 채움 */
+.ob-box,
+#modal .modal-box.ob-box {
+  display: flex;
+  width: min(1200px, 96vw);
+  max-width: none;
+  height: min(900px, calc(100vh - 40px));
+  height: min(900px, calc(100dvh - 40px));
+  max-height: none;
+  padding: 0;
+  overflow: hidden;
+}
+.ob-wrap {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+.ob-main {
+  flex: 1;
+  box-sizing: border-box;
+  min-width: 0;
+  height: 100%;
+  padding: 26px 26px 0;
+  overflow-y: auto;
+}
+.ob-main .modal-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin: 20px -26px 0;
+  padding: 14px 26px;
+  background: rgba(10, 14, 28, .88);
+  backdrop-filter: blur(10px);
+}
+.ob-an {
+  position: relative;
+  flex: none;
+  height: 100%;
+  aspect-ratio: 768 / 1376;
+  overflow: hidden;
+  border-right: 1px solid var(--line);
+}
+.ob-an img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+}
+.ob-an-say {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  left: 16px;
+  z-index: 1;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, .25);
+  border-radius: 12px;
+  background: rgba(10, 14, 28, .62);
+  backdrop-filter: blur(10px);
+  font-size: 13px;
+  line-height: 1.55;
+  word-break: keep-all;
+  color: #fff;
+}
+
+@media (max-width: 720px) {
+  .ob-box,
+  #modal .modal-box.ob-box {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: calc(100dvh - 20px);
+    overflow-y: auto;
+  }
+  .ob-wrap {
+    display: block;
+    height: auto;
+  }
+  .ob-main {
+    height: auto;
+    padding: 18px 14px 0;
+    overflow: visible;
+  }
+  .ob-main .modal-actions {
+    margin: 16px -14px 0;
+    padding: 12px 14px;
+  }
+  .ob-an {
+    width: 100%;
+    height: 240px;
+    aspect-ratio: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
 }

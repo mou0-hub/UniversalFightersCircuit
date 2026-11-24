@@ -9,7 +9,7 @@ const Mascot = (() => {
   let el, pose, img, bubble, pip, hideTimer = 0, chatTimer = 0, animTimer = 0, blushTimer = 0;
   let curNo = null, lastLog = -1, lastPhase = '', recent = [];
   let faceN = 0, faceT = 0, chestN = 0, chestT = 0, drag = null, moved = false, pending = null;
-  let rsz = null, defW = 264;
+  let rsz = null, defW = 264, rsLast = 0;
   let curG = null, seen = {}, lastRank = 0, lastStreak = 0, queue = [], busyUntil = 0, vSince = 0, wasHidden = true;
   const PRI = { champ: 10, runnerUp: 8, out: 8, qualify: 7, miss: 5, rankTop: 4, playoffLine: 4, streak: 4, streakBreak: 3, end: 2, win: 1, lose: 1, tie: 1 };
 
@@ -209,6 +209,7 @@ const Mascot = (() => {
   function resetW() { el.style.width = ''; el.style.removeProperty('--mc-fs'); el.classList.remove('mc-sz'); try { localStorage.removeItem(SIZE); } catch (e) { /* 무시 */ } clampPos(); }
   function rsDown(e) {
     if ((e.button || 0) > 0) return; e.preventDefault(); e.stopPropagation();
+    const now = Date.now(); if (now - rsLast < 450) { rsLast = 0; resetW(); return; } rsLast = now;
     const r = el.getBoundingClientRect();
     if (el.style.transform !== 'none') { el.style.transform = 'none'; el.style.left = r.left + 'px'; el.style.top = r.top + 'px'; }   // 왼쪽 위를 고정한 채 늘어나도록
     rsz = { x: e.clientX, y: e.clientY, w: r.width, ratio: r.height / r.width };
@@ -243,11 +244,12 @@ const Mascot = (() => {
     rst.textContent = `#mascot .mc-rs { position: absolute; right: 6px; bottom: 6px; z-index: 3; display: grid; width: 28px; height: 28px; padding: 0; place-items: center; border: 1px solid rgba(255,255,255,.28); border-radius: 50%; background: rgba(10,14,32,.55); color: #fff; box-shadow: 0 4px 14px rgba(0,0,0,.35); opacity: .7; backdrop-filter: blur(8px); cursor: nwse-resize; touch-action: none; transition: opacity .15s ease, background .15s ease, transform .15s ease; }
 #mascot .mc-rs:hover, #mascot.rs-on .mc-rs { background: rgba(255,126,179,.45); opacity: 1; transform: scale(1.1); }
 #mascot.rs-on, #mascot.rs-on * { cursor: nwse-resize !important; }
-#mascot.mc-sz .mc-bubble { font-size: var(--mc-fs); }`;
+#mascot.mc-sz .mc-bubble { font-size: var(--mc-fs); }
+#mascot.drag .mc-fig { animation: mc-open .5s var(--ease), mc-breathe 3.6s ease-in-out .5s infinite; animation-play-state: paused; }`;
     document.head.appendChild(rst);
     defW = parseFloat(getComputedStyle(el).width) || 264;
     const rs = el.querySelector('.mc-rs');
-    rs.addEventListener('pointerdown', rsDown); rs.addEventListener('dblclick', e => { e.stopPropagation(); resetW(); });
+    rs.addEventListener('pointerdown', rsDown);
     try { const sw = Number(localStorage.getItem(SIZE)); if (sw > 0) setW(sw); } catch (e) { /* 무시 */ }
     if (C().heartCursor !== false) {
       const st = document.createElement('style');

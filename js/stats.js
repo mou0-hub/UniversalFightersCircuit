@@ -1,7 +1,7 @@
 /* stats.js — 데이터 센터: 경기 기록 집계(파이터 승률/상성/팀 선호도/리그 밴픽률) + 조회 */
 
 const Stats = (() => {
-  const blank = () => ({ n: 0, f: {}, vs: {}, team: {}, lg: {}, tac: {}, slot: {}, ord: {} });
+  const blank = () => ({ n: 0, f: {}, vs: {}, team: {}, lg: {}, tac: {}, slot: {}, ord: {}, int: {} });
   const get = G => (G.stats = G.stats || blank());
   const roster = () => CONFIG.fighterOrder.filter(id => CONFIG.fighters[id] && !CONFIG.fighters[id].boss);
   const inc = (o, k) => { o[k] = (o[k] || 0) + 1; };
@@ -29,6 +29,15 @@ const Stats = (() => {
         ['all', 'ph:' + (o.t < max * 0.25 ? 'early' : o.t < max * 0.65 ? 'mid' : 'late'), 'ld:' + (o.lead <= -2 ? 'behind' : o.lead >= 2 ? 'ahead' : 'even'), o.boss ? 'boss:on' : 'boss:off'].concat(o.sudden ? ['sd'] : [])
           .forEach(tg => { const c = (row[tg] = row[tg] || [0, 0]); c[0]++; if (win) c[1]++; });
       });
+    }
+    if (r.int) for (let i = 0; i < 2; i++) {
+      const row = r.int[i]; if (!row) continue;
+      const root = S.int = S.int || {}, win = r.winner === i;
+      for (const fid in row) {
+        const F = root[fid] = root[fid] || { g: 0, w: 0, n: {} }, c = row[fid];
+        F.g++; if (win) F.w++;
+        for (const v in c) F.n[v] = (F.n[v] || 0) + c[v];
+      }
     }
     for (const a of r.picks[0]) for (const b of r.picks[1]) {
       const x = (S.vs[a] = S.vs[a] || {})[b] = S.vs[a][b] || [0, 0], y = (S.vs[b] = S.vs[b] || {})[a] = S.vs[b][a] || [0, 0];
@@ -69,5 +78,14 @@ const Stats = (() => {
     }).sort((a, b) => b.g - a.g);
   }
   const tactics = G => ({ team: get(G).tac || {}, slot: get(G).slot || {} });
-  return { orders, tactics, blank, get, record, fighters, topWin, botWin, topBy, matchups, leagueRates, teamRates, roster };
+  /* 파이터별 의도 선택 비율: share[의도]=그 의도 선택 횟수/전체, g=경기수, wr=승률 */
+  function intents(G) {
+    const S = get(G).int || {};
+    return Object.keys(S).filter(id => CONFIG.fighters[id]).map(id => {
+      const F = S[id], tot = Object.values(F.n).reduce((a, b) => a + b, 0) || 1, share = {};
+      Object.keys(F.n).forEach(v => { share[v] = F.n[v] / tot; });
+      return { id, g: F.g, w: F.w, wr: F.g ? F.w / F.g : 0, share, n: F.n };
+    }).sort((a, b) => b.g - a.g);
+  }
+  return { orders, tactics, intents, blank, get, record, fighters, topWin, botWin, topBy, matchups, leagueRates, teamRates, roster };
 })();

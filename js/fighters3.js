@@ -10,7 +10,7 @@
   const FD = CONFIG.fighters;
 
   /* ---------- 도우미 ---------- */
-  const foeIn = (r, min) => (b, u, en) => { const t = b.nearest(u, en.filter(e => { const d = b.dist(u, e); return d <= r && d >= (min || 0); })); return t ? { t } : null; };
+  const foeIn = (r, min) => (b, u, en) => b.skillPick(u, en, r, min || 0);
   const anyIn = r => (b, u, en) => (en.some(e => b.dist(u, e) <= r) ? {} : null);
   const hit = (b, u, e, type, raw, via, extra) => b.deal(u, e, { type, raw, via, skill: true, pierce: u.st.some(s => s.pierce), ...(extra || {}) });
   const cone = (b, u, t, range, half, color) => { const d = b.dir(u, t); b.emit({ type: 'cone', x: u.x, y: u.y, dir: Math.atan2(d.y, d.x), range, half, color }); };
@@ -28,7 +28,7 @@
     id: 'crush', name: '크러쉬', role: 'assassin', color: '#ef4444', title: '영혼을 수확하는 뼈톱 악마',
     concept: '"모가지를 따주마...큭큭"',
     stats: { hp: 860, mp: 240, aspd: 0.95, spd: 8.7, atk: 56, ap: 0, def: 29, res: 23, ten: 0.05, pen: 0.12, ls: 0.23, range: 6 },
-    basic: meleeBasic, ai: { threat: 0.95 },
+    basic: meleeBasic, ai: { threat: 0.95, style: { ult: 'finish' } },
     tac: { act: ['rush', 'basic'], fight: ['solo', 'coop'], aim: ['weak', 'back'] },
     look: { pal: { b: '#e7e5e4', B: '#a8a29e', r: '#dc2626', h: '#7f1d1d', k: '#111827', e: '#fde047', s: '#cbd5e1', S: '#64748b' },
       rows: [
@@ -81,7 +81,7 @@
     id: 'viser', name: '바이저', role: 'assassin', color: '#84cc16', title: '낫을 휘두르는 가시 괴생명체',
     concept: '"키야야아악!!!"',
     stats: { hp: 790, mp: 220, aspd: 1.0, spd: 9.0, atk: 50, ap: 0, def: 24, res: 20, ten: 0, pen: 0.12, ls: 0.21, range: 7 },
-    basic: meleeBasic, ai: { threat: 0.9 },
+    basic: meleeBasic, ai: { threat: 0.9, style: { ult: 'open' } },
     tac: { act: ['rush', 'basic'], fight: ['solo'], aim: ['weak', 'carry'] },
     look: { pal: { g: '#65a30d', G: '#365314', l: '#bef264', y: '#fde047', k: '#0a0f08', w: '#e2e8f0', s: '#94a3b8', t: '#d9f99d' },
       rows: [
@@ -134,7 +134,7 @@
     id: 'darkknight', name: '다크나이트', role: 'assassin', color: '#818cf8', title: '어둠에 잠식된 칼날',
     concept: '"인과를 끊어내겠어..."',
     stats: { hp: 920, mp: 250, aspd: 0.95, spd: 8.6, atk: 60, ap: 0, def: 32, res: 26, ten: 0.08, pen: 0.12, ls: 0.18, range: 6 },
-    basic: meleeBasic, ai: { threat: 1.0 },
+    basic: meleeBasic, ai: { threat: 1.0, style: { ult: 'finish' } },
     tac: { act: ['rush', 'basic'], fight: ['solo', 'coop'], aim: ['back', 'carry'] },
     look: { pal: { a: '#1e1b4b', A: '#312e81', p: '#6366f1', P: '#a5b4fc', k: '#05030d', e: '#f43f5e', s: '#4f46e5', S: '#c7d2fe' },
       rows: [
@@ -205,7 +205,7 @@
     id: 'shadow', name: '셰도', role: 'assassin', color: '#94a3b8', title: '그림자 단도의 청년',
     concept: '"더이상 약했던 내가 아니야."',
     stats: { hp: 760, mp: 260, aspd: 1.0, spd: 9.6, atk: 56, ap: 0, def: 22, res: 20, ten: 0, pen: 0.16, ls: 0.15, range: 6 },
-    basic: meleeBasic, ai: { threat: 0.8 },
+    basic: meleeBasic, ai: { threat: 0.8, style: { ult: 'open' } },
     tac: { act: ['rush', 'basic'], fight: ['solo'], aim: ['back', 'weak'] },
     look: { pal: { h: '#1f2937', H: '#374151', s: '#cbd5e1', k: '#030712', e: '#38bdf8', c: '#64748b', d: '#e2e8f0', D: '#94a3b8' },
       rows: [
@@ -247,7 +247,7 @@
       { id: 'sh_s1', name: '어둠칼날', cost: 35, cd: 7, range: 26, move: true, sfx: 'dash', desc: '지정한 적에게 돌진해 피해를 줍니다. 은신 상태에서 시전해 적중하면 4초 안에 한 번 더 사용할 수 있습니다.', plan: foeIn(26),
         cast(b, u, pl) { const st = isStealth(u); blade(b, u, pl.t, 1); return st ? { recast: 4 } : {}; },
         recast: { move: true, plan: foeIn(26), cast(b, u, pl) { blade(b, u, pl.t, 0.9); } } },
-      { id: 'sh_s2', name: '셰도재머', cost: 50, cd: 13, range: 24, sfx: 'aoe', desc: '6초간 어둠 영역을 만듭니다. 영역 안에서 셰도는 계속 은신하며, 공격하거나 공격받으면 잠깐 보였다가 다시 은신합니다.', plan: anyIn(24),
+      { id: 'sh_s2', tags: ['zone', 'escape'], name: '셰도재머', cost: 50, cd: 13, range: 24, sfx: 'aoe', desc: '6초간 어둠 영역을 만듭니다. 영역 안에서 셰도는 계속 은신하며, 공격하거나 공격받으면 잠깐 보였다가 다시 은신합니다.', plan: anyIn(24),
         cast(b, u) {
           ring(b, u.x, u.y, 9, '#475569'); u.mem.jamBack = 0; goStealth(b, u, 'sh_zone', 0.6, true);
           b.zone({ x: u.x, y: u.y, r: 9, dur: 6, owner: u, kind: 'fog', color: '#475569', tag: 'jam', every: 0.25,
@@ -266,7 +266,7 @@
     id: 'redhood', name: '레드후드', role: 'assassin', color: '#e11d48', title: '총검을 쓰는 암살 용병',
     concept: '"실전은 연습처럼, 연습도 연습처럼"',
     stats: { hp: 800, mp: 250, aspd: 1.0, spd: 9.2, atk: 55, ap: 0, def: 24, res: 21, ten: 0, pen: 0.14, ls: 0.21, range: 6 },
-    basic: meleeBasic, ai: { threat: 0.9 },
+    basic: meleeBasic, ai: { threat: 0.9, style: { ult: 'finish' } },
     tac: { act: ['rush', 'basic'], fight: ['solo', 'coop'], aim: ['back', 'weak'] },
     look: { pal: { r: '#b91c1c', R: '#7f1d1d', s: '#e5c9a8', k: '#111827', e: '#fde047', g: '#374151', G: '#1f2937', m: '#cbd5e1', M: '#64748b', y: '#f59e0b', w: '#e5e7eb' },
       rows: [
@@ -309,7 +309,7 @@
         recast: { plan: foeIn(18),
           cast(b, u, pl) { const t = pl.t; cone(b, u, t, 18, 0.5, '#fbbf24'); b.inCone(b.foes(u), u, t.x, t.y, 18, 0.5).forEach(e => hit(b, u, e, 'phys', b.raw(u, 34, 1.08), '총격', { splash: true })); } } }
     ],
-    ult: { id: 'rh_ult', name: '의뢰완료', cd: 34, range: 26, move: true, sfx: 'dash', desc: '적을 지정해 순식간에 등 뒤로 이동합니다. 6초 안의 다음 기본 공격에 치명 피해가 더해집니다.',
+    ult: { id: 'rh_ult', tags: ['gapclose'], name: '의뢰완료', cd: 34, range: 26, move: true, sfx: 'dash', desc: '적을 지정해 순식간에 등 뒤로 이동합니다. 6초 안의 다음 기본 공격에 치명 피해가 더해집니다.',
       plan: (b, u, en) => { const t = b.lowest(en.filter(e => b.dist(u, e) <= 26)); return t ? { t } : null; },
       cast(b, u, pl) {
         const t = pl.t; b.blink(u, t.x - (t.facing || 1) * 3.5, t.y); ring(b, t.x, t.y, 6, '#e11d48'); u.target = t; u.cd = Math.max(u.cd, 1);
@@ -324,7 +324,7 @@
     id: 'reaper', name: '사신', role: 'assassin', color: '#a21caf', title: '마법의 낫을 쓰는 지옥의 사신',
     concept: '"다음 희생자는 누구인가?"',
     stats: { hp: 780, mp: 300, aspd: 0.9, spd: 8.6, atk: 30, ap: 70, def: 22, res: 28, ten: 0, pen: 0.12, ls: 0.2, range: 6 },
-    basic: { type: 'magic', atk: 0.4, ap: 0.6, proj: 'melee' }, ai: { threat: 0.9 },
+    basic: { type: 'magic', atk: 0.4, ap: 0.6, proj: 'melee' }, ai: { threat: 0.9, style: { ult: 'finish' } },
     tac: { act: ['rush', 'basic'], fight: ['solo', 'coop'], aim: ['carry', 'back'] },
     look: { pal: { h: '#2d1b3d', H: '#4c1d95', r: '#dc2626', f: '#fb923c', k: '#0b0220', e: '#f43f5e', b: '#e7e5e4', s: '#78350f', m: '#cbd5e1', M: '#64748b' },
       rows: [
@@ -403,7 +403,7 @@
     id: 'press', name: '프레스', role: 'hunter', color: '#fde047', title: '빛의 포를 쓰는 천계전사',
     concept: '"신성한 빛! 어둠 척결!"',
     stats: { hp: 710, mp: 300, aspd: 0.95, spd: 8.2, atk: 54, ap: 40, def: 16, res: 17, ten: 0.05, pen: 0.10, ls: 0, range: 22, crit: 0.10, critDmg: 1.5 },
-    basic: { type: 'phys', atk: 0.8, ap: 0.4, proj: 'bolt' }, ai: { backline: true, kite: 12, threat: 0.9 },
+    basic: { type: 'phys', atk: 0.8, ap: 0.4, proj: 'bolt' }, ai: { backline: true, kite: 12, threat: 0.9, style: { ult: 'open' } },
     tac: { act: ['basic', 'retreat'], fight: ['coop'], pos: ['none', 'cover'], aim: ['carry', 'near'] },
   look: { res: 2, pal: { w: '#f8fafc', W: '#cbd5e1', v: '#94a3b8', l: '#fef9c3', y: '#fde047', Y: '#f59e0b', G: '#b45309', g: '#fbbf24', h: '#fde68a', H: '#eab308', s: '#f2c9a0', S: '#c98f5f', a: '#fde1c4', c: '#67e8f9', C: '#0891b2', k: '#475569', b: '#92400e', K: '#1e293b' },
   rows: [
@@ -475,7 +475,7 @@
     id: 'jade', name: '제이드', role: 'hunter', color: '#22d3ee', title: '사이버네틱 진압대',
     concept: '"제이드 진압기동 출격대기."',
     stats: { hp: 690, mp: 200, aspd: 1.15, spd: 7.8, atk: 52, ap: 0, def: 14, res: 18, ten: 0.05, pen: 0.12, ls: 0, range: 22, crit: 0.15, critDmg: 1.5 },
-    basic: rangedBasic, ai: { backline: true, kite: 12, threat: 0.95 },
+    basic: rangedBasic, ai: { backline: true, kite: 12, threat: 0.95, style: { ult: 'open' } },
     tac: { act: ['basic', 'retreat'], fight: ['coop'], pos: ['none', 'cover'], aim: ['carry'] },
     look: { res: 2,
       pal: { D: '#2b303b', M: '#59616e', T: '#9aa4b2', Q: '#ffd0c4', O: '#ff9a3c', C: '#22d3ee', G: '#34d399', N: '#4ade80', S: '#d9a47c', s: '#b07f5c' },
@@ -529,7 +529,7 @@
           useAmmo(b, u, 12); const e = lineEnd(b, u, pl.t, 38); beamU(b, u, e.x, e.y, 3.5, '#67e8f9');
           b.inLine(b.foes(u), u.x, u.y, e.x, e.y, 3.5).forEach(x => hit(b, u, x, 'phys', b.raw(u, 70, 1.7), '천공탄환', { path: true, rollCrit: true }));
         } },
-      { id: 'jd_s2', name: '생체복구', cost: 30, cd: 10, range: 28, sfx: 'buff', desc: '3초 동안 이동속도가 30% 증가하고 체력을 지속 회복합니다.',
+      { id: 'jd_s2', tags: ['escape', 'heal'], name: '생체복구', cost: 30, cd: 10, range: 28, sfx: 'buff', desc: '3초 동안 이동속도가 30% 증가하고 체력을 지속 회복합니다.',
         plan: (b, u, en) => (en.some(e => b.dist(u, e) <= 28) && (u.hp < u.maxHp * 0.9 || en.some(e => b.dist(u, e) <= 10)) ? {} : null),
         cast(b, u) { b.buff(u, 'biorecover', 3, { name: '생체복구', mul: { spd: 1.3 }, f: { regen: 0.08 } }); ring(b, u.x, u.y, 5, '#34d399'); } }
     ],
@@ -547,7 +547,7 @@
     id: 'dark', name: '다크', role: 'hunter', color: '#ef4444', title: '어둠의 리볼버 싸이코 범죄자',
     concept: '"결국 모든 진실을 밝혀질거야."',
     stats: { hp: 700, mp: 180, aspd: 0.8, spd: 8.0, atk: 62, ap: 0, def: 17, res: 16, ten: 0, pen: 0.10, ls: 0, range: 24, crit: 0.30, critDmg: 1.5 },
-    basic: rangedBasic, ai: { backline: true, kite: 13, threat: 1.0 },
+    basic: rangedBasic, ai: { backline: true, kite: 13, threat: 1.0, style: { ult: 'save' } },
     tac: { act: ['basic', 'retreat'], fight: ['solo'], pos: ['cover', 'none'], aim: ['weak', 'carry'] },
         look: { res: 2,
       pal: { D: '#07060d', j: '#2a2230', J: '#3d3346', L: '#5a4c66', m: '#6b5a4a', w: '#e7e5e4', k: '#0b0b12', r: '#ef4444', R: '#7f1d1d', h: '#1a1822', H: '#3b3b55',
@@ -625,7 +625,7 @@
     id: 'biomachine', name: '바이오머신', role: 'hunter', color: '#f97316', title: '비밀기업 전투개체',
     concept: '"살상모드 가동."',
     stats: { hp: 850, mp: 200, aspd: 1.0, spd: 8.0, atk: 56, ap: 20, def: 20, res: 21, ten: 0.10, pen: 0.08, ls: 0.15, range: 13, crit: 0.05, critDmg: 1.5 },
-    basic: rangedBasic, ai: { kite: 5, threat: 1.1 },
+    basic: rangedBasic, ai: { kite: 5, threat: 1.1, style: { ult: 'open' } },
     tac: { act: ['basic', 'rush'], fight: ['coop'], pos: ['front', 'none'] },
     look: { pal: { o: '#ea580c', O: '#9a3412', g: '#64748b', G: '#334155', r: '#ef4444', k: '#0f172a', y: '#facc15', w: '#e2e8f0' },
       rows: [
@@ -657,7 +657,7 @@
         u.gauge = { label: m.charged ? '강화 준비' : '화력', val: m.fp || 0, max: 100, color: m.charged ? '#fde047' : '#f97316' }; u.glow = m.charged ? '#f97316' : null;
       } },
     skills: [
-      { id: 'bm_s1', name: '스매쉬샷', cost: 30, cd: 6, range: 12, sfx: 'nuke', desc: '샷건을 두 발 발사해 전방 범위에 피해를 줍니다. 강화: 범위 상승 및 적 넉백.', plan: foeIn(13),
+      { id: 'bm_s1', tags: ['control', 'peel'], name: '스매쉬샷', cost: 30, cd: 6, range: 12, sfx: 'nuke', desc: '샷건을 두 발 발사해 전방 범위에 피해를 줍니다. 강화: 범위 상승 및 적 넉백.', plan: foeIn(13),
         cast(b, u, pl) {
           const en = !!u.mem.charged, R = en ? 17 : 12, half = en ? 0.85 : 0.55; if (en) { u.mem.charged = false; u.mem.fp = 0; u.mem.just = true; }
           cone(b, u, pl.t, R, half, en ? '#fde047' : '#f97316');
@@ -694,7 +694,7 @@
     id: 'frost', name: '프로스트', role: 'hunter', color: '#67e8f9', title: '얼음 결정의 사수',
     concept: '"더이상 우리를 괴롭히지 마!!"',
     stats: { hp: 700, mp: 260, aspd: 1.0, spd: 7.8, atk: 47, ap: 20, def: 12, res: 11, ten: 0, pen: 0.08, ls: 0, range: 14, crit: 0.05, critDmg: 1.5 },
-    basic: rangedBasic, ai: { backline: true, kite: 12, threat: 1.0 },
+    basic: rangedBasic, ai: { backline: true, kite: 12, threat: 1.0, style: { ult: 'open' } },
     tac: { act: ['basic', 'retreat'], fight: ['coop'], pos: ['cover'], aim: ['near', 'weak'] },
     look: {
   res: 2,
@@ -780,7 +780,7 @@
     id: 'shining', name: '샤이닝', role: 'hunter', color: '#fde047', title: '빛을 다루는 천계의 고위천사',
     concept: '"감히 누가 이 위대한 힘에 대적하는가?"',
     stats: { hp: 700, mp: 300, aspd: 1.0, spd: 8.0, atk: 40, ap: 56, def: 14, res: 22, ten: 0, pen: 0.08, ls: 0, range: 13, crit: 0.05, critDmg: 1.5 },
-    basic: { type: 'magic', atk: 0.3, ap: 0.7, proj: 'bolt' }, ai: { backline: true, kite: 11, threat: 1.0 },
+    basic: { type: 'magic', atk: 0.3, ap: 0.7, proj: 'bolt' }, ai: { backline: true, kite: 11, threat: 1.0, style: { ult: 'open' } },
     tac: { act: ['basic', 'retreat'], fight: ['coop'], pos: ['cover'], aim: ['carry', 'near'] },
     look: { pal: { g: '#fcd34d', G: '#f59e0b', w: '#f8fafc', W: '#cbd5e1', s: '#fde4d0', y: '#fef08a', e: '#38bdf8' },
       rows: [
@@ -839,7 +839,7 @@
     id: 'steamman', name: '스팀맨', role: 'hunter', color: '#fb923c', title: '기계팔의 방랑전사',
     concept: '"도시의 정의는 나야."',
     stats: { hp: 820, mp: 220, aspd: 0.95, spd: 8.0, atk: 51, ap: 0, def: 28, res: 22, ten: 0.05, pen: 0.10, ls: 0.08, range: 18, crit: 0.05, critDmg: 1.5 },
-    basic: rangedBasic, ai: { backline: true, kite: 10, threat: 1.05 }, form0: 'gun',
+    basic: rangedBasic, ai: { backline: true, kite: 10, threat: 1.05, style: {} }, form0: 'gun',
     tac: { act: ['basic', 'rush'], fight: ['coop', 'solo'], pos: ['none'], aim: ['carry', 'near'] },
     look: { res: 2,
       pal: { D: '#1a120a', h: '#5b3f24', Y: '#d4a04a', y: '#8a5a1a', H: '#3a2a1a', s: '#e0b48a', S: '#b98c63', g: '#67e8f9', x: '#94a3b8', X: '#475569',
@@ -979,7 +979,7 @@
     id: 'itrain', name: '이트레인', role: 'hunter', color: '#22d3ee', title: '외계 전투구체',
     concept: '"공허가 부른다..."',
     stats: { hp: 740, mp: 280, aspd: 1.0, spd: 7.5, atk: 48, ap: 40, def: 20, res: 14, ten: 0, pen: 0.08, ls: 0, range: 15, crit: 0.05, critDmg: 1.5 },
-    basic: { type: 'magic', atk: 0.5, ap: 0.5, proj: 'bolt' }, ai: { backline: true, kite: 11, threat: 1.0 },
+    basic: { type: 'magic', atk: 0.5, ap: 0.5, proj: 'bolt' }, ai: { backline: true, kite: 11, threat: 1.0, style: { ult: 'open' } },
     tac: { act: ['basic', 'retreat'], fight: ['support', 'coop'], pos: ['cover'], aim: ['near', 'carry'] },
     look: { pal: { m: '#475569', M: '#1e293b', p: '#7c3aed', P: '#a78bfa', e: '#22d3ee', E: '#ecfeff', g: '#4ade80' },
       rows: [
@@ -1038,8 +1038,8 @@
   FD.grainger = {
     id: 'grainger', name: '그레인져', role: 'hunter', color: '#a855f7', title: '어둠에 잠식된 궁수',
     concept: '"모든것을 끝내고 돌아갈게..."',
-    stats: { hp: 730, mp: 230, aspd: 1.05, spd: 8.2, atk: 60, ap: 0, def: 15, res: 15, ten: 0, pen: 0.15, ls: 0.06, range: 19, crit: 0.12, critDmg: 1.6 },
-    basic: rangedBasic, ai: { backline: true, kite: 12, threat: 1.05 },
+    stats: { hp: 730, mp: 230, aspd: 1.05, spd: 8.2, atk: 60, ap: 0, def: 15, res: 15, ten: 0, pen: 0.15, ls: 0.06, range: 24, crit: 0.12, critDmg: 1.6 },
+    basic: rangedBasic, ai: { backline: true, kite: 14, threat: 1.05, style: { ult: 'finish' } },
     tac: { act: ['basic', 'retreat'], fight: ['coop', 'solo'], pos: ['cover'], aim: ['carry', 'weak'] },
     look: { pal: { h: '#1f1b2e', H: '#3b2a5a', s: '#cbd5e1', e: '#a855f7', b: '#4c1d95', B: '#7c3aed', t: '#e9d5ff', k: '#0a0612', c: '#2e1065', C: '#4c1d95' },
       rows: [
@@ -1084,13 +1084,13 @@
         u.gauge = { label: m.emp ? '흑.영 준비' : '화살', val: m.ar, max: AR_MAX, color: m.emp ? '#e9d5ff' : '#a855f7' }; u.glow = m.emp ? '#a855f7' : null;
       } },
     skills: [
-      { id: 'gr_s1', name: '흑.영', cost: 40, cd: 8, range: 17, sfx: 'buff', desc: '다음 기본 공격을 강화합니다. 강화된 기본 공격은 화살을 3개 소모하며 사거리가 늘고, 적들을 관통하고, 방어효과(보호막·피해감소)를 무시하며 추가 피해를 줍니다. 화살이 3개 이상 필요합니다.',
-        avail: (b, u) => arN(u) >= EMP_COST, plan: foeIn(18),
+      { id: 'gr_s1', name: '흑.영', cost: 40, cd: 8, range: 22, sfx: 'buff', desc: '다음 기본 공격을 강화합니다. 강화된 기본 공격은 화살을 3개 소모하며 사거리가 늘고, 적들을 관통하고, 방어효과(보호막·피해감소)를 무시하며 추가 피해를 줍니다. 화살이 3개 이상 필요합니다.',
+        avail: (b, u) => arN(u) >= EMP_COST, plan: foeIn(23),
         cast(b, u) { u.mem.emp = true; u.role.range = u.f.stats.range + 6; ring(b, u.x, u.y, 5, '#a855f7'); b.buff(u, 'gr_emp', 8, { name: '흑.영', f: { pierce: true } }); } },
-      { id: 'gr_s2', name: '어둠발산', cost: 35, cd: 9, range: 16, sfx: 'aoe', desc: '자신 주변으로 어둠의 화살 10발을 생성해 사방으로 발사합니다. 화살은 소모하지 않습니다.', plan: foeIn(18),
+      { id: 'gr_s2', name: '어둠발산', cost: 35, cd: 9, range: 22, sfx: 'aoe', desc: '자신 주변으로 어둠의 화살 10발을 생성해 사방으로 발사합니다. 화살은 소모하지 않습니다.', plan: foeIn(24),
         cast(b, u) {
           ring(b, u.x, u.y, 4, '#a855f7');
-          for (let i = 0; i < 10; i++) { const a = i * Math.PI / 5 + 0.2, e = b.clampPos(u.x + Math.cos(a) * 19, u.y + Math.sin(a) * 19); slash(b, u.x, u.y, e.x, e.y, 1.8, '#a855f7'); b.inLine(b.foes(u), u.x, u.y, e.x, e.y, 2.0).forEach(x => hit(b, u, x, 'phys', b.raw(u, 10, 0.4), '어둠발산', { path: true })); }
+          for (let i = 0; i < 10; i++) { const a = i * Math.PI / 5 + 0.2, e = b.clampPos(u.x + Math.cos(a) * 25, u.y + Math.sin(a) * 25); slash(b, u.x, u.y, e.x, e.y, 1.8, '#a855f7'); b.inLine(b.foes(u), u.x, u.y, e.x, e.y, 2.0).forEach(x => hit(b, u, x, 'phys', b.raw(u, 10, 0.4), '어둠발산', { path: true })); }
         } }
     ],
     ult: { id: 'gr_ult', name: '암흑찢기', cd: 36, range: 24, sfx: 'nuke', desc: '화살을 순간적으로 5개 모두 충전한 뒤 연속으로 빠르게 난사합니다. 모든 화살이 치명타로 적용됩니다.',
@@ -1119,7 +1119,7 @@
     id: 'angel', name: '엔젤', role: 'mage', color: '#fde68a', title: '천계의 여신',
     concept: '\"길을 잃은 자여, 빛 아래로 오라\"',
     stats: { hp: 680, mp: 340, aspd: 0.85, spd: 8.0, atk: 28, ap: 72, def: 10, res: 8, ten: 0.05, pen: 0.05, ls: 0, range: 22 },
-    basic: { type: 'magic', atk: 0.3, ap: 0.7, proj: 'bolt' }, ai: { backline: true, kite: 12, threat: 0.7 },
+    basic: { type: 'magic', atk: 0.3, ap: 0.7, proj: 'bolt' }, ai: { backline: true, kite: 12, threat: 0.7, style: { peel: true, stick: 'carry', ult: 'save' } },
     tac: { act: ['basic', 'retreat'], fight: ['support', 'coop'], pos: ['cover', 'none'], aim: ['carry', 'near'] },
     look: { res: 2, pal: { w: '#f8fafc', W: '#cbd5e1', v: '#94a3b8', l: '#fef9c3', y: '#fde047', Y: '#f59e0b', h: '#fde68a', H: '#eab308', s: '#fde5cf', S: '#f1c4a0', e: '#3b82f6', k: '#92400e', p: '#fda4af', m: '#e11d48', d: '#fff7ed', D: '#e2d6c4', c: '#38bdf8', C: '#0284c7', g: '#fbbf24', G: '#b45309' },
   rows: [
@@ -1162,7 +1162,7 @@
   weapon: '' },
     passive: { name: '은총', desc: '엔젤 근처(18)의 아군이 받는 회복량과 보호막 수치가 15% 증가합니다.', healAura: { r: 18, mul: 1.15 } },
     skills: [
-      { id: 'an_s1', name: '치유의바람', cost: 40, cd: 8, range: 16, sfx: 'buff', desc: '주변으로 빛을 펼쳐 범위 안의 아군(자신 포함)을 회복시킵니다.',
+      { id: 'an_s1', tags: ['heal'], name: '치유의바람', cost: 40, cd: 8, range: 16, sfx: 'buff', desc: '주변으로 빛을 펼쳐 범위 안의 아군(자신 포함)을 회복시킵니다.',
         plan: (b, u, en, al) => (al.some(a => b.dist(u, a) <= 16 && a.hp < a.maxHp * 0.85) ? {} : null),
         cast(b, u) { ring(b, u.x, u.y, 16, '#fde68a'); b.inCircle(b.friends(u), u.x, u.y, 16).forEach(a => b.heal(u, a, b.raw(u, 45, 0, 0.75), '치유의바람')); } },
       { id: 'an_s2', name: '구원자', cost: 45, cd: 10, range: 28, move: true, sfx: 'shield', desc: '아군 쪽으로 이동해 자신과 주변 아군에게 보호막을 부여합니다.',
@@ -1190,7 +1190,7 @@
     id: 'oba', name: '오바', role: 'warrior', color: '#f97316', title: '무적무패의 프로레슬러',
     concept: '\"내 앞에서 무릎 꿇어라!\"',
     stats: { hp: 1000, mp: 220, aspd: 0.9, spd: 7.8, atk: 65, ap: 0, def: 34, res: 24, ten: 0.12, pen: 0.05, ls: 0.36, range: 6 },
-    basic: meleeBasic, ai: { front: true, threat: 1.0 },
+    basic: meleeBasic, ai: { front: true, threat: 1.0, style: { engage: true, ult: 'finish' } },
     tac: { act: ['rush', 'basic'], fight: ['solo', 'coop'], aim: ['near', 'weak'] },
     look: { res: 2, pal: { h: '#111827', s: '#6b4423', a: '#8a5a33', S: '#3f2614', e: '#f8fafc', k: '#0b0f19', o: '#f97316', O: '#fde047', g: '#fbbf24', G: '#b45309', t: '#ea580c', T: '#9a3412', r: '#dc2626', b: '#1f2937', B: '#4b5563', m: '#7f1d1d' },
   rows: [
@@ -1240,7 +1240,7 @@
         return k === 'spd' ? v * (1 + bonus * 0.4) : v * (1 + bonus);
       } },
     skills: [
-      { id: 'ob_s1', name: '라이징어퍼컷', cost: 35, cd: 8, range: 16, move: true, sfx: 'dash', desc: '달려가면서 어퍼컷을 날려 적중한 적에게 피해를 주고 공중으로 띄웁니다(에어본).', plan: foeIn(16),
+      { id: 'ob_s1', tags: ['gapclose', 'control'], name: '라이징어퍼컷', cost: 35, cd: 8, range: 16, move: true, sfx: 'dash', desc: '달려가면서 어퍼컷을 날려 적중한 적에게 피해를 주고 공중으로 띄웁니다(에어본).', plan: foeIn(16),
         cast(b, u, pl) {
           const ox = u.x, oy = u.y, e = dashTo(b, u, pl.t, 16, -2); b.slide(u, e.x, e.y); slash(b, ox, oy, u.x, u.y, 4, '#f97316');
           b.inLine(b.foes(u), ox, oy, u.x, u.y, 3.5).forEach(x => { hit(b, u, x, 'phys', b.raw(u, 38, 1.2), '라이징어퍼컷', { path: true }); air(b, u, x, 1.0); });
@@ -1266,7 +1266,7 @@
     id: 'stardust', name: '스타더스트', role: 'assassin', color: '#a78bfa', title: '별의 기운으로 적을 녹이는 어둠의 형체',
     concept: '\"별은 빛나기 위해 죽는다\"',
     stats: { hp: 800, mp: 260, aspd: 1.0, spd: 9.2, atk: 30, ap: 64, def: 24, res: 24, ten: 0, pen: 0.12, ls: 0.28, range: 6 },
-    basic: { type: 'magic', atk: 0.5, ap: 0.6, proj: 'melee' }, ai: { threat: 0.95 },
+    basic: { type: 'magic', atk: 0.5, ap: 0.6, proj: 'melee' }, ai: { threat: 0.95, style: { ult: 'finish' } },
     tac: { act: ['rush', 'basic'], fight: ['solo', 'coop'], aim: ['weak', 'back'] },
     look: { res: 2, pal: { n: '#120b3a', N: '#2a1f6e', u: '#3f2f9c', U: '#5b46c9', v: '#7c3aed', p: '#c084fc', m: '#f0abfc', w: '#ffffff', y: '#fde047', c: '#67e8f9', C: '#0891b2', V: '#4c1d95' },
   rows: [
@@ -1360,7 +1360,7 @@
     id: 'renegade', name: '레니게이드', role: 'mage', color: '#a78bfa', title: '마법의 칼을 벼리는 타락천사',
     concept: '\"신이 버린 게 아니다, 내가 버린 것이다\"',
     stats: { hp: 840, mp: 300, aspd: 0.92, spd: 8.2, atk: 24, ap: 66, def: 26, res: 24, ten: 0.06, pen: 0.10, ls: 0.10, range: 6.5 },
-    basic: { type: 'magic', atk: 0.3, ap: 0.7, proj: 'melee' }, ai: { threat: 1.0 },
+    basic: { type: 'magic', atk: 0.3, ap: 0.7, proj: 'melee' }, ai: { threat: 1.0, style: { ult: 'open' } },
     tac: { act: ['rush', 'basic'], fight: ['solo', 'coop'], aim: ['weak', 'near'] },
     look: { res: 2, pal: { n: '#0c0814', N: '#241a3c', V: '#4c1d95', v: '#a78bfa', h: '#f4d36a', H: '#fff3b0', s: '#f6d9bd', S: '#d9a87c', w: '#f8fafc', W: '#cbd5e1', y: '#fbbf24', Y: '#fff7c2', p: '#8b5cf6', k: '#0b0818', r: '#ef4444', m: '#9a3412' },
       rows: [
@@ -1487,7 +1487,7 @@
     id: 'carcer', name: '카르세르', role: 'guardian', color: '#94a3b8', title: '우주감옥의 흉악범',
     concept: '\"고통이야말로 내가 살아있다는 증거지\"',
     stats: { hp: 1160, mp: 220, aspd: 0.75, spd: 7.2, atk: 54, ap: 34, def: 40, res: 36, ten: 0.22, pen: 0.06, ls: 0, range: 7 },
-    basic: meleeBasic, ai: { front: true, threat: 1.3 },
+    basic: meleeBasic, ai: { front: true, threat: 1.3, style: { peel: true, stick: 'backline', ult: 'save' } },
     tac: { act: ['basic'], fight: ['coop'], pos: ['front'] },
     look: { res: 2, pal: { s: '#c7a58c', S: '#8f6e5a', w: '#e5e7eb', W: '#9ca3af', n: '#1f2a44', y: '#fbbf24', m: '#94a3b8', M: '#475569', X: '#334155', k: '#0b1020', e: '#f8fafc', R: '#b91c1c' },
       rows: [
@@ -1562,7 +1562,7 @@
           });
         } }
     ],
-    ult: { id: 'cs_ult', name: '끝없는굶주림', cd: 44, range: 24, sfx: 'buff', desc: '7초 동안 최대 체력의 약 52%에 달하는 체력을 지속적으로 회복합니다.',
+    ult: { id: 'cs_ult', tags: ['escape', 'heal'], name: '끝없는굶주림', cd: 44, range: 24, sfx: 'buff', desc: '7초 동안 최대 체력의 약 52%에 달하는 체력을 지속적으로 회복합니다.',
       plan: (b, u, en) => (u.hp < u.maxHp * 0.65 && en.some(e => b.dist(u, e) <= 24) ? {} : null),
       cast(b, u) {
         b.buff(u, 'cs_hunger', 7, { name: '끝없는 굶주림', f: { regen: 0.075, onEnd(bb, uu) { uu.glow = null; } } });
@@ -1575,7 +1575,7 @@
     id: 'peg', name: '펙', role: 'hunter', color: '#f472b6', title: '펩맨의 자칭 사이드킥',
     concept: '\"펩맨 님! 제가 도와드릴게요!\"',
     stats: { hp: 760, mp: 280, aspd: 1.0, spd: 8.4, atk: 46, ap: 38, def: 16, res: 16, ten: 0, pen: 0.08, ls: 0, range: 20, crit: 0.08, critDmg: 1.5 },
-    basic: rangedBasic, ai: { backline: true, kite: 11, threat: 0.9 },
+    basic: rangedBasic, ai: { backline: true, kite: 11, threat: 0.9, style: { peel: true, stick: 'carry', ult: 'save' } },
     tac: { act: ['basic', 'retreat'], fight: ['coop', 'support'], pos: ['cover'], aim: ['carry', 'near'] },
     look: { res: 2, pal: { h: '#2a1a14', H: '#5b3a2e', s: '#f6d9bd', S: '#e0b896', M: '#dc2626', N: '#7f1d1d', e: '#f8fafc', m: '#e11d48', b: '#0f766e', B: '#14b8a6', w: '#f8fafc', W: '#99f6e4', p: '#f472b6', g: '#64748b', X: '#cbd5e1', y: '#fde047', k: '#111827' },
       rows: [
@@ -1615,6 +1615,7 @@
         '...........kkkk..kkkk...........'],
       weapon: '' },
     passive: { name: '팬심', desc: '근처(22)의 가장 가까운 아군을 자동으로 지정합니다. 지정된 아군과 같은 목표를 공격하면 주는 피해가 15% 증가합니다. 아군이 멀어지거나(30) 쓰러지면 해제되며 8초 뒤 다시 지정합니다.',
+      seek(b, u) { const f = u.mem.fan; if (!f || !f.alive) return null; const d = b.dist(u, f); if (d <= 16) return null; const k = (d - 14) / d; return { x: u.x + (f.x - u.x) * k, y: u.y + (f.y - u.y) * k, w: 0.5 }; },
       init(b, u) { u.mem.fan = null; u.mem.fanCd = 0; },
       dmgMul(b, u, t) { const f = u.mem.fan; return f && f.alive && f.target === t ? 1.15 : 1; },
       tick(b, u) {

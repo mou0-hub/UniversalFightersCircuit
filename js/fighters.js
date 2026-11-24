@@ -7,7 +7,7 @@
   const sq = x => x * x;
 
   /* ---------- 계획(plan) 도우미 ---------- */
-  const foeIn = (r, min) => (b, u, en) => { const t = b.nearest(u, en.filter(e => { const d = b.dist(u, e); return d <= r && d >= (min || 0); })); return t ? { t } : null; };
+  const foeIn = (r, min) => (b, u, en) => b.skillPick(u, en, r, min || 0);
   const anyIn = r => (b, u, en) => (en.some(e => b.dist(u, e) <= r) ? {} : null);
   const clusterPick = (b, u, en, range, r) => {          // 범위 안에서 주변에 적이 가장 많은 적
     let best = null, bn = 0;
@@ -29,7 +29,7 @@
     id: 'deathkaiser', name: '데스카이저', role: 'warrior', color: '#8b5cf6', title: '어둠안개의 흡혈 버서커',
     concept: '"지옥의 압도적인 힘에 무릎을 꿇어라"',
     stats: { hp: 900, mp: 220, aspd: 0.85, spd: 8.2, atk: 52, ap: 0, def: 36, res: 28, ten: 0.10, pen: 0.10, ls: 0.08, range: 6 },
-    basic: { type: 'phys', atk: 1, ap: 0, proj: 'melee' }, ai: { front: true, threat: 1.2 },
+    basic: { type: 'phys', atk: 1, ap: 0, proj: 'melee' }, ai: { front: true, threat: 1.2, style: { ult: 'open' } },
     tac: { act: ['rush', 'basic'], fight: ['solo', 'coop'], pos: ['front'] },
         look: { res: 2,
       pal: { D: '#0e0716', K: '#1b1030', M: '#2e1a4f', N: '#4a2a7a', T: '#8b5cf6', e: '#ff3b6b', h: '#d6c8ee', S: '#cbbfe0', Y: '#ffd166',
@@ -72,6 +72,7 @@
         '...DDDDDDDDDDDDDDDDDD...........'],
       weapon: '' },
     passive: { name: '마검', desc: '자신이 만든 어둠안개 위에 서 있으면 안개를 흡수해 체력을 회복합니다. 흡수한 안개는 더 빨리 사라집니다.',
+      seek(b, u) { if (u.hp >= u.maxHp * 0.95) return null; let m = null, md = 1e9; for (const z of b.zones) if (z.kind === 'fog' && z.owner === u && z.until > b.t) { const d = Math.hypot(u.x - z.x, u.y - z.y); if (d < md) { md = d; m = z; } } return m && md > m.r * 0.5 && md <= 16 ? { x: m.x, y: m.y, w: 0.6 } : null; },
       tick(b, u) {
         if (b.t % 10) return;
         for (const z of b.zones) if (z.kind === 'fog' && z.owner === u && Math.hypot(u.x - z.x, u.y - z.y) <= z.r) {
@@ -87,7 +88,7 @@
           b.inCone(b.foes(u), u, t.x, t.y, 13, 1.05).forEach(e => { hit(b, u, e, 'phys', b.raw(u, 30, 0.95), '흉살풍', { splash: true }); b.cc(u, e, 'slow', 1.8, { amt: 0.35 }); });
           const c = b.clampPos(u.x + d.x * 8, u.y + d.y * 8); b.zone({ x: c.x, y: c.y, r: 8, dur: 5, owner: u, kind: 'fog', color: '#7c3aed' });
         } },
-      { id: 'dk_s2', name: '다크다이브', cost: 50, cd: 11, range: 40, move: true, sfx: 'dash', desc: '적절한 위치로 순간이동한 뒤 주변에 피해를 주고 어둠안개를 생성합니다.',
+      { id: 'dk_s2', tags: ['gapclose', 'zone'], name: '다크다이브', cost: 50, cd: 11, range: 40, move: true, sfx: 'dash', desc: '적절한 위치로 순간이동한 뒤 주변에 피해를 주고 어둠안개를 생성합니다.',
         plan: (b, u, en) => { const p = clusterPick(b, u, en, 40, 9); return p && b.dist(u, p.t) > 10 ? p : null; },
         cast(b, u, pl) {
           const t = pl.t, away = u.team === 0 ? -1 : 1; b.blink(u, t.x + away * 3.5, t.y);
@@ -117,7 +118,7 @@
     id: 'alien', name: '에일리언', role: 'warrior', color: '#a3e635', title: '우주 진화체',
     concept: '"인간의 유전자는 참으로 비효율적이군."',
     stats: { hp: 780, mp: 260, aspd: 0.9, spd: 7.6, atk: 48, ap: 48, def: 26, res: 26, ten: 0, pen: 0.08, ls: 0, range: 26 },
-    basic: { type: 'magic', atk: 0.5, ap: 0.55, proj: 'bolt' }, ai: { backline: true, kite: 14, threat: 0.95 },
+    basic: { type: 'magic', atk: 0.5, ap: 0.55, proj: 'bolt' }, ai: { backline: true, kite: 14, threat: 0.95, style: { ult: 'open' } },
     tac: { act: ['basic', 'retreat'], fight: ['coop'], pos: ['none', 'cover'] },
     form0: 'normal',
   look: {
@@ -221,7 +222,7 @@ looks: {
       } },
     forms: {
       normal: [
-        { id: 'al_n1', name: '궤도폭격', cost: 45, cd: 9, range: 22, sfx: 'aoe', desc: '자신 주변에 위성을 생성해 7초간 회전시킵니다. 위성에 부딪힌 적이 피해를 입습니다.',
+        { id: 'al_n1', tags: ['zone', 'peel'], name: '궤도폭격', cost: 45, cd: 9, range: 22, sfx: 'aoe', desc: '자신 주변에 위성을 생성해 7초간 회전시킵니다. 위성에 부딪힌 적이 피해를 입습니다.',
           plan: anyIn(22),
           cast(b, u) {
             b.zone({ x: u.x, y: u.y, r: 9, dur: 7, owner: u, follow: true, kind: 'orbit', color: '#a3e635', every: 0.05, ang: 0, sats: [], hitAt: {},
@@ -274,7 +275,7 @@ looks: {
     id: 'crow', name: '크로우', role: 'warrior', color: '#6d28d9', title: '낫을 든 어둠의 추적자',
     concept: '"어둠에 찢겨저 죽어라"',
     stats: { hp: 980, mp: 230, aspd: 1.05, spd: 9.4, atk: 66, ap: 36, def: 28, res: 24, ten: 0.10, pen: 0.12, ls: 0.07, range: 6 },
-    basic: { type: 'phys', atk: 1, ap: 0, proj: 'melee' }, ai: { front: true, threat: 0.9 },
+    basic: { type: 'phys', atk: 1, ap: 0, proj: 'melee' }, ai: { front: true, threat: 0.9, style: { ult: 'open' } },
     tac: { act: ['rush'], fight: ['solo'], aim: ['back', 'weak'] },
         look: { res: 2,
       pal: { A: '#3f3f52', a: '#6b6b85', k: '#05040a', r: '#ef4444', R: '#7f1d1d', c: '#1f1b2e', C: '#2e2842', D: '#26222f', S: '#4b4552', g: '#9ca3af', x: '#cbd5e1',
@@ -351,7 +352,7 @@ looks: {
     id: 'swordsaint', name: '검성', role: 'warrior', color: '#e2e8f0', title: '일본도의 달인',
     concept: '"나의 영혼을 담아..."',
     stats: { hp: 900, mp: 180, aspd: 1.25, spd: 8.0, atk: 54, ap: 0, def: 32, res: 24, ten: 0.10, pen: 0.08, ls: 0, range: 6.5 },
-    basic: { type: 'phys', atk: 1, ap: 0, proj: 'melee' }, ai: { front: true, threat: 1.1 },
+    basic: { type: 'phys', atk: 1, ap: 0, proj: 'melee' }, ai: { front: true, threat: 1.1, style: { ult: 'open' } },
     tac: { act: ['basic', 'rush'], fight: ['solo'], pos: ['front'] },
     look: {
   pal: { K: '#151a2b', G: '#46536b', B: '#2a3142', A: '#b3262e', L: '#161b27', R: '#ff3b3b', S: '#f1d9c0' },
@@ -401,7 +402,7 @@ looks: {
     id: 'sarcoza', name: '사르코자', role: 'warrior', color: '#4ade80', title: '독기의 뱀전사',
     concept: '"독기...중독...살육!!"',
     stats: { hp: 1020, mp: 240, aspd: 0.95, spd: 8.2, atk: 58, ap: 50, def: 30, res: 30, ten: 0.10, pen: 0.08, ls: 0, range: 6.5 },
-    basic: { type: 'phys', atk: 1, ap: 0, proj: 'melee' }, ai: { front: true, threat: 1.0 },
+    basic: { type: 'phys', atk: 1, ap: 0, proj: 'melee' }, ai: { front: true, threat: 1.0, style: { ult: 'open' } },
     tac: { act: ['basic', 'rush'], fight: ['coop', 'solo'], pos: ['front'] },
     look: { res: 2,
       pal: { D: '#0b2e1a', G: '#15803d', g: '#4ade80', l: '#86efac', a: '#1f4d36', P: '#6d28d9', y: '#facc15', k: '#052e16', K: '#052e16',
@@ -470,7 +471,7 @@ looks: {
     id: 'warrior', name: '워리어', role: 'warrior', color: '#f59e0b', title: '정직한 대검 전사',
     concept: '"정의로움은 가장 큰 가치이지."',
     stats: { hp: 940, mp: 160, aspd: 0.8, spd: 7.6, atk: 61, ap: 0, def: 40, res: 30, ten: 0.15, pen: 0.10, ls: 0, range: 7 },
-    basic: { type: 'phys', atk: 1, ap: 0, proj: 'melee' }, ai: { front: true, threat: 1.4 },
+    basic: { type: 'phys', atk: 1, ap: 0, proj: 'melee' }, ai: { front: true, threat: 1.4, style: { ult: 'finish' } },
     tac: { act: ['basic', 'rush'], fight: ['coop'], pos: ['front'] },
     look: {
   res: 2,
@@ -552,7 +553,7 @@ looks: {
     id: 'dash', name: '대쉬', role: 'warrior', color: '#38bdf8', title: '방패 건틀릿의 질주 전사',
     concept: '"날 잡아봐"',
     stats: { hp: 1000, mp: 200, aspd: 0.95, spd: 9.6, atk: 58, ap: 0, def: 40, res: 28, ten: 0.15, pen: 0.06, ls: 0, range: 6 },
-    basic: { type: 'phys', atk: 1, ap: 0, proj: 'melee' }, ai: { front: true, threat: 1.3 },
+    basic: { type: 'phys', atk: 1, ap: 0, proj: 'melee' }, ai: { front: true, threat: 1.3, style: { engage: true, ult: 'open' } },
     tac: { act: ['rush'], fight: ['support', 'coop'], pos: ['front'] },
     look: { res: 2,
       pal: { h: '#3b2a1a', S: '#f5d0b0', G: '#1e293b', g: '#38bdf8', j: '#9a5b2b', J: '#5a3416', c: '#d6a77a', m: '#ef4444', p: '#1e293b', b: '#0f172a', q: '#1f2a44',
@@ -630,7 +631,7 @@ looks: {
     id: 'wind', name: '윈드', role: 'warrior', color: '#5eead4', title: '바람도끼의 질풍 전사',
     concept: '"바람이 우리를 올바른길로 데려다줄거야."',
     stats: { hp: 980, mp: 200, aspd: 1.0, spd: 9.4, atk: 66, ap: 24, def: 28, res: 24, ten: 0.10, pen: 0.10, ls: 0, range: 6.5 },
-    basic: { type: 'phys', atk: 1, ap: 0, proj: 'melee' }, ai: { front: true, threat: 0.95 },
+    basic: { type: 'phys', atk: 1, ap: 0, proj: 'melee' }, ai: { front: true, threat: 0.95, style: { ult: 'finish' } },
     tac: { act: ['rush'], fight: ['solo'], aim: ['weak'] },
       look: {
       hair: '#e6fbff', skin: '#fde5cf', body: '#0f766e', acc: '#5eead4', res: 2,
@@ -702,7 +703,7 @@ looks: {
     id: 'thunderbolt', name: '써볼트', role: 'warrior', color: '#facc15', title: '전격창의 번개 전사',
     concept: '"뇌신의 분노를 받아라!"',
     stats: { hp: 820, mp: 230, aspd: 0.9, spd: 8.0, atk: 40, ap: 55, def: 28, res: 28, ten: 0.10, pen: 0.10, ls: 0, range: 9 },
-    basic: { type: 'magic', atk: 0.6, ap: 0.5, proj: 'melee' }, ai: { front: true, kite: 0, threat: 1.0 },
+    basic: { type: 'magic', atk: 0.6, ap: 0.5, proj: 'melee' }, ai: { front: true, kite: 0, threat: 1.0, style: { ult: 'open' } },
     tac: { act: ['basic'], fight: ['coop'], pos: ['none', 'front'] },
   look: {
   hair: '#e0f2fe', skin: '#38bdf8', body: '#1d4ed8', acc: '#fde047', res: 2,
@@ -786,7 +787,7 @@ looks: {
     id: 'magnum', name: '매그넘', role: 'warrior', color: '#fb923c', title: '인조인간 로봇병기',
     concept: '"제트엔진출력."',
     stats: { hp: 1060, mp: 200, aspd: 0.85, spd: 7.6, atk: 62, ap: 0, def: 38, res: 30, ten: 0.15, pen: 0.08, ls: 0, range: 6 },
-    basic: { type: 'phys', atk: 1, ap: 0, proj: 'melee' }, ai: { front: true, threat: 1.3 },
+    basic: { type: 'phys', atk: 1, ap: 0, proj: 'melee' }, ai: { front: true, threat: 1.3, style: { engage: true, ult: 'open' } },
     tac: { act: ['rush', 'basic'], fight: ['coop'], pos: ['front'] },
     look: {
   hair: '#475569', skin: '#94a3b8', body: '#334155', acc: '#fb923c', res: 2,
@@ -850,7 +851,7 @@ looks: {
           u.bm.push({ until: b.t + b.sec(5), once: true, fn(bb, uu, t) { ring(bb, t.x, t.y, 5, '#fb923c'); hit(bb, uu, t, 'phys', bb.raw(uu, 40, 0.8), '제트펀치'); bb.cc(uu, t, 'stagger', 0.7); uu.st = uu.st.filter(s => s.key !== 'jetpunch'); } });
         } }
     ],
-    ult: { id: 'mg_ult', name: '제트 오버', cd: 36, range: 200, move: true, sfx: 'dash', desc: '지정한 적에게 거리와 상관없이 날아가 피해를 주고 기절시킵니다.',
+    ult: { id: 'mg_ult', tags: ['gapclose', 'control'], name: '제트 오버', cd: 36, range: 200, move: true, sfx: 'dash', desc: '지정한 적에게 거리와 상관없이 날아가 피해를 주고 기절시킵니다.',
       plan: (b, u, en) => { const t = b.lowest(en); return t ? { t } : null; },
       cast(b, u, pl) {
         const t = pl.t, away = u.team === 0 ? -1 : 1; b.blink(u, t.x + away * 4, t.y); ring(b, t.x, t.y, 8, '#fb923c');
@@ -863,7 +864,7 @@ looks: {
     id: 'aria', name: '아리아', role: 'warrior', color: '#f472b6', title: '기동기체 사이보그 전사',
     concept: '"더이상 조종당하고 있지는 않겠어."',
     stats: { hp: 920, mp: 240, aspd: 0.9, spd: 7.8, atk: 54, ap: 40, def: 32, res: 32, ten: 0.10, pen: 0.08, ls: 0, range: 6 },
-    basic: { type: 'phys', atk: 1, ap: 0, proj: 'melee' }, ai: { front: true, threat: 1.1 },
+    basic: { type: 'phys', atk: 1, ap: 0, proj: 'melee' }, ai: { front: true, threat: 1.1, style: {} },
     tac: { act: ['basic'], fight: ['coop', 'support'], pos: ['none', 'front'] },
     form0: 'ground',
     look: {
@@ -977,7 +978,7 @@ looks: {
       } },
     forms: {
       ground: [
-        { id: 'ar_g1', name: '아리아-처형', cost: 40, cd: 8, range: 9, sfx: 'nuke', desc: '[지상] 아리아를 꺼내 적을 공격해 피해를 주고 기절시킵니다.',
+        { id: 'ar_g1', tags: ['control'], name: '아리아-처형', cost: 40, cd: 8, range: 9, sfx: 'nuke', desc: '[지상] 아리아를 꺼내 적을 공격해 피해를 주고 기절시킵니다.',
           plan: foeIn(9),
           cast(b, u, pl) { const t = pl.t; ring(b, t.x, t.y, 6, '#f472b6'); hit(b, u, t, 'phys', b.raw(u, 50, 0.95), '아리아-처형'); b.cc(u, t, 'stun', 1.0); } },
         { id: 'ar_g2', name: '아리아-결집', cost: 40, cd: 9, range: 11, sfx: 'aoe', desc: '[지상] 아리아를 꺼내 땅을 찍어 주변에 피해를 주고 자신 쪽으로 살짝 끌어당깁니다.',
@@ -1011,7 +1012,7 @@ looks: {
     id: 'fabman', name: '팹멘', role: 'warrior', color: '#ef4444', title: '맨손의 격투가 히어로',
     concept: '"영웅 등장이요!"',
     stats: { hp: 1060, mp: 180, aspd: 1.0, spd: 8.2, atk: 64, ap: 0, def: 38, res: 30, ten: 0.15, pen: 0.08, ls: 0, range: 6 },
-    basic: { type: 'phys', atk: 1, ap: 0, proj: 'melee' }, ai: { front: true, threat: 1.2 },
+    basic: { type: 'phys', atk: 1, ap: 0, proj: 'melee' }, ai: { front: true, threat: 1.2, style: { peel: true, stick: 'carry', ult: 'save' } },
     tac: { act: ['rush', 'basic'], fight: ['support', 'coop'], pos: ['front'] },
     look: {
   hair: '#1e2a4a', skin: '#e6b89c', body: '#1e2a4a', acc: '#b91c1c', res: 2,
@@ -1095,7 +1096,7 @@ looks: {
     id: 'kain', name: '카인', role: 'mage', color: '#7dd3fc', title: '얼음 마법사',
     concept: '"마지막남은 내 가족..내가 지켜야해..."',
     stats: { hp: 650, mp: 320, aspd: 0.85, spd: 7.4, atk: 25, ap: 52, def: 20, res: 28, ten: 0, pen: 0.12, ls: 0, range: 24 },
-    basic: { type: 'magic', atk: 0.6, ap: 0.45, proj: 'bolt' }, ai: { backline: true, kite: 14, threat: 0.85 },
+    basic: { type: 'magic', atk: 0.6, ap: 0.45, proj: 'bolt' }, ai: { backline: true, kite: 14, threat: 0.85, style: { ult: 'open' } },
     tac: { act: ['basic', 'retreat'], fight: ['coop'], pos: ['none', 'cover'], aim: ['carry', 'near'] },
     look: {
   res: 2,
@@ -1179,7 +1180,7 @@ looks: {
     id: 'hyer', name: '하이어', role: 'mage', color: '#fde68a', title: '버프의 고위 마법사',
     concept: '"무엇이 문제인가?"',
     stats: { hp: 700, mp: 340, aspd: 0.8, spd: 7.4, atk: 28, ap: 62, def: 22, res: 32, ten: 0.10, pen: 0.08, ls: 0, range: 22 },
-    basic: { type: 'magic', atk: 0.5, ap: 0.4, proj: 'bolt' }, ai: { backline: true, kite: 12, threat: 0.8 },
+    basic: { type: 'magic', atk: 0.5, ap: 0.4, proj: 'bolt' }, ai: { backline: true, kite: 12, threat: 0.8, style: { peel: true, stick: 'carry', ult: 'save' } },
     tac: { act: ['retreat', 'basic'], fight: ['support'], pos: ['cover'], ult: ['clutch', 'normal'] },
     look: { pal: { y: '#fde047', Y: '#f59e0b', w: '#fefce8', c: '#67e8f9', e: '#1e1b4b', o: '#fef3c7', q: '#a5f3fc' },
       rows: [
@@ -1205,7 +1206,7 @@ looks: {
     passive: { name: '불가침', desc: '받는 상태이상의 지속시간이 대폭(약 절반) 줄어듭니다.',
       stat(b, u, k, v) { return k === 'ten' ? 1 - (1 - v) * 0.5 : v; } },
     skills: [
-      { id: 'hy_s1', name: '코스믹에너지', cost: 40, cd: 5, range: 30, sfx: 'nuke', desc: '전방에 에너지를 쏴 적에게 피해를 줍니다. 아군이 맞으면 체력을 회복합니다.',
+      { id: 'hy_s1', name: '코스믹에너지', cost: 40, cd: 5, range: 30, sfx: 'nuke', sup: true, desc: '전방에 에너지를 쏴 적에게 피해를 줍니다. 아군이 맞으면 체력을 회복합니다.',
         plan: (b, u, en, al) => {
           const t = b.nearest(u, en.filter(e => b.dist(u, e) <= 30)); if (t) return { t };
           const a = b.lowest(al.filter(x => x !== u && x.hp < x.maxHp * 0.6 && b.dist(u, x) <= 30)); return a ? { t: a } : null;
