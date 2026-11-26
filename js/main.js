@@ -61,9 +61,18 @@ const Game = {
         return base;
       });
       const st = s.strategy = s.strategy || Draft.neutralStrategy();
+      if (st.stance && !st.engage) {      // 구버전 세이브: stance/retreat → engage+zone
+        const M = { slay: ['aggressive', 'press'], defend: ['careful', 'home'], collect: ['balanced', 'center'], boss: ['balanced', 'center'], balanced: ['balanced', 'center'] }, m = M[st.stance[0]] || M.balanced;
+        st.engage = [m[0], 4]; st.zone = [m[1], 4];
+        if (st.stance[0] === 'boss' && (!st.boss || st.boss[0] === 'smart')) st.boss = ['contest', 4];
+      }
+      if (st.stance) st.stance = ['balanced', 4];
+      if (st.retreat) st.retreat = ['careful', 4];
+      if (s.slotPreset && !Draft.strategyPresets[s.slotPreset]) s.slotPreset = null;
       CONFIG.tactics.team.forEach(c => { if (!st[c.id] || !c.options.some(o => o.id === st[c.id][0])) st[c.id] = [c.neutral, 4]; });
       Draft.normalizeStrategy(st); Draft.normalizeSlots(s.slotTactics);
       if (!Array.isArray(s.slotRole) || s.slotRole.length !== 3) s.slotRole = s.slotTactics.map(t => (CONFIG.tactics.categories.some(c => t[c.id][0] !== c.neutral) ? 'custom' : 'auto'));
+      s.slotRole = s.slotRole.map(r => (r === 'auto' || r === 'custom' || CONFIG.tactics.roles.some(x => x.id === r) ? r : 'custom'));
       s.teamName = String(s.teamName || '').replace(/[<>&"'`]/g, '') || s.baseTeam; s.difficulty = League.lgOf(s).diff; s.trophies = s.trophies || []; s.ext = s.ext || {}; s.stats = s.stats || Stats.blank(); s.news = s.news || []; s.rep = s.rep || { v: 50, peak: 50, last: 0 };
       Club.migrate(s);
       if (s.phase === 'seasonEnd') Scout.ensure(s);          // 시즌 종료 상태의 세이브에 스카웃 제안이 없으면 생성
@@ -123,7 +132,7 @@ const Game = {
     this.aiTimer = setTimeout(() => {
       const c = Draft.current(d); if (!c || c.team === this.match.pIdx || this.draft !== d) return;
       const tid = this.match.teams[c.team].id, tm = League.team(this.G, tid);
-      Draft.apply(d, Draft.aiChoose(d, c.team, tm, this.G.usage)); Sound.play('click');
+      Draft.apply(d, Draft.aiChoose(d, c.team, tm, this.G.usage, { G: this.G, opp: League.team(this.G, this.match.teams[1 - c.team].id) })); Sound.play('click');
       this.runAi();
     }, CONFIG.draft.aiDelayMs);
   },
@@ -152,6 +161,7 @@ const Game = {
     const when = League.when(g);             // 경기 날짜(상태가 바뀌기 전에 기록)
     Stats.record(g, { ids: [M.m.a, M.m.b], picks: M.picks, bans: M.bans, winner: res.winner, tac: res.tac, ord: res.rec && res.rec.orders, int: res.rec && res.rec.intents });      // 데이터 센터 집계
     MyData.record(g, M, res);
+    Report.record(g, M, res);
     const opp0 = this.opponent(), myRank0 = League.rankOf(g, 'player'), oppRank0 = opp0 ? opp0.rank : 0;      // 순위 반영 전(경기 직전) 기준
     let won, draw = false, tag;
     if (M.kind === 'league') {
@@ -270,13 +280,77 @@ const Game = {
     });
     return Math.min(100, done / (R + 3 * T) * 100);
   },
-  /* 건너뛰기 밴픽(내 팀): 픽은 현재 선발 3명의 선호 캐릭터로만(n번째 픽은 n번 선수 우선), 밴은 선발 선호 캐릭터를 피해서 */
-  skipPick(g, d, team) {
-    const c = Draft.current(d), favs = (Club.lineup(g) || []).filter(Boolean).map(p => p.favs || []), all = [...new Set(favs.flat())];
-    if (c.type === 'ban') return Draft.aiChoose(d, team, { fav: all }, g.usage);
-    const used = new Set(Draft.taken(d)), k = d.picks[team].length, ok = i => CONFIG.fighters[i] && !used.has(i);
-    const own = (favs[k] || []).filter(ok), pool = own.length ? own : all.filter(ok);
-    return pool.length ? pool[Math.floor(Math.random() * pool.length)] : Draft.aiChoose(d, team, { fav: all }, g.usage);
+  /* 건너뛰기 밴픽(내 팀): AI 와 같은 역할 균형 규칙 + 상대 조합 대응 + 내 경기 기록 반영.
+     픽: 선발 선호 캐릭터 가산(skipTune.fav) × 내 기록 승률 보정 × 상대 픽에 대한 누적 상성 × 역할 균형·카운터 규칙
+     밴: 내 선발 선호는 피하고, 상대 선호 캐릭터 + 내 조합에 상성이 좋은(강한) 파이터를 우선 금지
+     수치는 skipTune 표만 고치면 됩니다. 내 팀 자동 밴픽에만 적용됩니다. */
+  skipTune: { fav: 2, favAny: 1.4, minGames: 3, prior: 4, recent: 80, wrK: 1.8, wrMin: 0.5, wrMax: 1.15, vsMin: 2, vsK: 1.6, vsLo: 0.45, vsHi: 1.4, banK: 1.2, banLo: 0.7, banHi: 1.8, oppBack: 1.9, antiAssn: 1.25 },
+  skipRecord(g) {                                          // 내 최근 경기(G.report)에서 파이터별 [판수, 승수] — 빠른 진행은 0.5 비중
+    const T = this.skipTune, rows = ((g.report && g.report.rows) || []).slice(-T.recent), rec = {};
+    rows.forEach(r => { const wt = r.fast ? 0.5 : 1; (r.me || []).forEach(id => { const e = rec[id] = rec[id] || [0, 0]; e[0] += wt; e[1] += wt * r.w; }); });
+    return rec;
+  },
+  skipRate(rec, id) {                                      // 내 기록 승률 배수: 표본이 적으면 1, 승률이 낮으면 최대 ×wrMin 까지 감소
+    const T = this.skipTune, e = rec[id]; if (!e || e[0] < T.minGames) return 1;
+    const wr = (e[1] + T.prior / 2) / (e[0] + T.prior);
+    return Math.min(T.wrMax, Math.max(T.wrMin, Math.exp(T.wrK * (wr - 0.5) * 2)));
+  },
+  skipVs(g, id, refs) {                                    // id 가 refs 를 상대로 낸 누적 승률 평균(G.stats.vs, 표본 vsMin 이상 쌍만). 자료가 없으면 null
+    const T = this.skipTune, vs = (g.stats && g.stats.vs) || {}, v = [];
+    refs.forEach(b => {
+      const c = vs[id] && vs[id][b], r = vs[b] && vs[b][id];
+      if (c && c[0] >= T.vsMin) v.push((c[1] + 1) / (c[0] + 2));
+      else if (r && r[0] >= T.vsMin) v.push(1 - (r[1] + 1) / (r[0] + 2));
+    });
+    return v.length ? v.reduce((x, y) => x + y, 0) / v.length : null;
+  },
+  skipPick(g, d, team, oppId) {
+    const c = Draft.current(d), FD = id => CONFIG.fighters[id], used = new Set(Draft.taken(d)), T = this.skipTune;
+    const favs = (Club.lineup(g) || []).filter(Boolean).map(p => p.favs || []), all = new Set(favs.flat());
+    const avail = CONFIG.fighterOrder.filter(i => FD(i) && !FD(i).boss && !used.has(i));
+    const wpick = (list, w) => { let tot = w.reduce((a, b) => a + b, 0), r = Math.random() * tot; for (let i = 0; i < list.length; i++) { r -= w[i]; if (r < 0) return list[i]; } return list[list.length - 1]; };
+    if (!avail.length) return Draft.aiChoose(d, team, { fav: [...all] }, g.usage);
+    const rec = this.skipRecord(g), clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    if (c.type === 'ban') {
+      const oppFav = (oppId && League.team(g, oppId).fav) || [];
+      const refs = (d.picks[team].length ? d.picks[team] : [...all]).slice(0, 6);        // 내가 쓸 파이터(이미 뽑았으면 그것, 아니면 선호 캐릭터)
+      const w = avail.map(i => {
+        if (all.has(i)) return 0.05;
+        let m = (oppFav.includes(i) ? 4 : 1) + (g.usage && g.usage[i] ? g.usage[i] * 0.3 : 0);
+        const thr = refs.length ? this.skipVs(g, i, refs) : null;                         // 이 파이터가 내 조합을 상대로 누적 승률이 높으면 위협
+        if (thr != null) m *= clamp(Math.exp(T.banK * (thr - 0.5) * 2), T.banLo, T.banHi);
+        return m;
+      });
+      return wpick(avail, w);
+    }
+    const mine = d.picks[team].map(FD), k = d.picks[team].length, oppIds = d.picks[1 - team], opp = oppIds.map(FD);
+    const isBack = f => !!(f.ai && f.ai.backline), isFront = f => !!(f.ai && f.ai.front && !f.ai.backline), isTank = f => isFront(f) || f.role === 'guardian';
+    const oppBack = opp.filter(isBack).length, oppAssn = opp.filter(x => x.role === 'assassin').length, hasTank = mine.some(isTank), left = 3 - k;
+    const w = avail.map(i => {
+      const f = FD(i); let m = (favs[k] || []).includes(i) ? T.fav : all.has(i) ? T.favAny : 1;
+      m *= this.skipRate(rec, i);                                                          // 내 경기 승률이 낮은 파이터는 비중 감소
+      if (oppIds.length) { const vs = this.skipVs(g, i, oppIds); if (vs != null) m *= clamp(Math.exp(T.vsK * (vs - 0.5) * 2), T.vsLo, T.vsHi); }   // 상대 픽에 상성 불리하면 감소
+      if (f.role === 'mage' && mine.filter(x => x.role === 'mage').length >= 2) m *= 0.25;
+      if (f.role === 'mage' && k === 0) m *= 0.5;
+      if (f.role === 'guardian' && mine.filter(x => x.role === 'guardian').length >= 2) m *= 0.3;
+      if (!hasTank && left === 1 && !isTank(f)) m *= 0.35;                                  // 마지막 픽까지 전열이 없으면 전열 우선
+      if (oppBack >= 2 && f.role === 'assassin') m *= T.oppBack;                              // 상대 후열이 많으면 암살자
+      if (oppAssn >= 1 && isTank(f)) m *= T.antiAssn;                                         // 상대 암살자가 있으면 막아주는 전열
+      if (mine.filter(x => x.role === 'assassin').length >= 1 && f.role === 'assassin') m *= 0.5;
+      return m;
+    });
+    return wpick(avail, w);
+  },
+  /* 건너뛰기 전술/지휘(내 팀): 직접 설정한 전략·슬롯 역할이 있으면 그대로 쓰고, 기본값(중립)이면 AI 와 같은 깊이의 자동 전술을 사용.
+     자동 수준은 리그 난이도(easy/normal 리그는 hard)로, 지휘(cmd)도 같은 수준 */
+  autoPlan(g, fighters, oppFighters) {
+    const diff = League.lgOf(g).diff, lv = (diff === 'hard' || diff === 'master') ? diff : 'hard';
+    const ap = Draft.aiTeam(lv, fighters, oppFighters);
+    const stratCustom = CONFIG.tactics.team.some(c => { const s = g.strategy && g.strategy[c.id]; return s && s[0] !== c.neutral; });
+    if (!stratCustom) Report.adapt(g, ap.strategy);      // 패인 분석으로 자동 전술 보정 (직접 설정한 전술은 건드리지 않음)
+    const roles = g.slotRole || [], mine = Draft.slotsFor(g, fighters);
+    const tactics = fighters.map((_, i) => ((roles[i] && roles[i] !== 'auto') || g.slotPreset ? mine[i] : ap.tactics[i]));
+    return { lv, tactics, strategy: stratCustom ? Draft.normalizeStrategy(g.strategy) : ap.strategy };
   },
   autoMatch() {
     const g = this.G; let kind = g.phase, m, t = null, rule = null;
@@ -287,16 +361,23 @@ const Game = {
     const d = Draft.create(t ? League.fearlessOf(m) : null);
     while (!d.done) {
       const c = Draft.current(d), tid = M.teams[c.team].id;
-      if (!(tid === 'player' && Draft.apply(d, this.skipPick(g, d, c.team)))) Draft.apply(d, Draft.aiChoose(d, c.team, League.team(g, tid), g.usage));
+      if (!(!this.autoReal && tid === 'player' && Draft.apply(d, this.skipPick(g, d, c.team, M.teams[1 - c.team].id)))) Draft.apply(d, Draft.aiChoose(d, c.team, League.team(g, tid), g.usage, { G: g, opp: League.team(g, M.teams[1 - c.team].id) }));
     }
     M.picks = d.picks; M.bans = d.bans; this.match = M; this.draft = d;
     M.picks[M.pIdx].forEach(f => { g.usage[f] = (g.usage[f] || 0) + 1; });
     M.teams.forEach((tm, i) => {
       tm.fighters = d.picks[i]; tm.brains = League.brainsOf(g, tm.id); tm.moods = League.moodsOf(g, tm.id);
-      if (tm.id === 'player') { tm.tactics = Draft.slotsFor(g, tm.fighters); tm.strategy = Draft.normalizeStrategy(g.strategy); tm.moods = Feedback.attach(g, tm.moods); tm.cmd = Arena.skipCmd() ? 'normal' : null; }
+      if (tm.id === 'player') {      // 내 팀: 실제 전투 모드에서도 autoPlan (최소 hard 전술 + 내 설정 존중 + 패인 보정)
+        const pl = this.autoPlan(g, tm.fighters, d.picks[1 - i]); tm.tactics = pl.tactics; tm.strategy = pl.strategy; tm.moods = Feedback.attach(g, tm.moods);
+        if (this.autoReal) { tm.cmd = pl.lv; tm.autoFull = true; } else tm.cmd = Arena.skipCmd() ? pl.lv : null;
+      }
       else { const ai = Draft.aiTeam(League.team(g, tm.id).level || g.difficulty, tm.fighters, d.picks[1 - i]); tm.tactics = ai.tactics; tm.strategy = ai.strategy; tm.cmd = League.team(g, tm.id).level || g.difficulty; }
     });
-    this.finishMatch(Battle.simulate(M.teams, rule));
+    if (League.isFast()) {                                                                    // 건너뛰기: AI 경기와 같은 전력 기반 확률로 처리
+      const res = League.quickResult(g, M.m.a, M.m.b, d.picks), mo = M.teams[M.pIdx].moods || [];
+      res.units.forEach(u => { if (u.team === M.pIdx && mo[u.slot] && mo[u.slot].nick) u.nick = mo[u.slot].nick; });      // 선수별 기록(내 데이터)에 경기 수가 잡히도록
+      this.finishMatch(res);
+    } else this.finishMatch(Battle.simulate(M.teams, rule));
     this.match = null; this.draft = null;
   },
   async autoSeason() {
@@ -304,6 +385,7 @@ const Game = {
     if (!g || g.phase === 'seasonEnd' || this.battleOn || this.auto) return;
     if (!Club.ready(g)) { UI.toast('프로게이머 3명을 라인업(1·2·3번)에 배치해야 합니다.', 'warn'); UI.go('club'); return; }
     if (!confirm('남은 시즌 경기를 모두 자동 진행합니다. (밴픽·전술 자동) 계속할까요?')) return;
+    this.autoReal = confirm('실제 전투 모드로 진행할까요?\n\n[확인] 모든 경기(AI끼리 포함)를 실제 밴픽·전술·인게임 전투로 진행합니다. 오래 걸리지만 기록·통계가 정확합니다. 내 팀도 AI와 같은 로직을 씁니다.\n[취소] 빠른 진행 (AI 경기는 능력치 확률로 처리)');
     clearTimeout(this.aiTimer); this.draft = null; this.match = null;
     if (!document.getElementById('auto-css')) {
       const sty = document.createElement('style'); sty.id = 'auto-css';
@@ -316,7 +398,7 @@ const Game = {
     const ov = document.createElement('div'); ov.className = 'auto-ov';
     ov.innerHTML = '<div class="auto-box"><b>시즌 자동 진행 중…</b><div class="auto-bar"><i></i></div><span class="auto-txt"></span><button class="btn small">중단</button></div>';
     document.body.appendChild(ov);
-    League.setFast(true);
+    League.setFast(!this.autoReal);
     const bar = ov.querySelector('i'), txt = ov.querySelector('.auto-txt'), st = this.auto = { stop: false };
     ov.querySelector('button').onclick = () => { st.stop = true; };
     try {
@@ -326,8 +408,8 @@ const Game = {
         await new Promise(r => setTimeout(r, 0));
       }
     } catch (e) { console.error(e); UI.toast('자동 진행 중 오류: ' + e.message, 'warn'); }
-    League.setFast(false); ov.remove(); this.auto = null; this.match = null; this.draft = null; this.save(); UI.status(); UI.go('league');
-    if (g.phase === 'seasonEnd') UI.showSummary();
+    League.setFast(false); ov.remove(); this.auto = null; this.autoReal = false; this.match = null; this.draft = null; this.save(); UI.status(); UI.go('league');
+    if (g.phase === 'seasonEnd') { if (g.report && g.report.season === g.season && g.report.rows.length) UI.showReport(); else UI.showSummary(); }
   },
   nextSeason() {
     const g = this.G; g.season++; g.seasonLines = []; g.scout = null;
@@ -398,6 +480,7 @@ const Game = {
     dcFighter(el) { UI.dc({ tab: 'matchup', fid: el.dataset.id }); },
     dcLeague(el) { UI.dc({ lg: el.dataset.id, team: null }); },
     dcTeam(el) { UI.dc({ team: el.dataset.n }); },
+    dcReport(el) { UI.dc({ rsel: el.dataset.s }); },
     selTeam(el) {
       const lg = CONFIG.leagues.find(l => l.id === UI.selLeague()), name = lg && lg.teams[+el.dataset.i]; if (!name) return;
       const g = this.G;

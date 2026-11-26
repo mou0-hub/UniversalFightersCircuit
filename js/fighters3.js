@@ -133,7 +133,7 @@
   FD.darkknight = {
     id: 'darkknight', name: '다크나이트', role: 'assassin', color: '#818cf8', title: '어둠에 잠식된 칼날',
     concept: '"인과를 끊어내겠어..."',
-    stats: { hp: 920, mp: 250, aspd: 0.95, spd: 8.6, atk: 60, ap: 0, def: 32, res: 26, ten: 0.08, pen: 0.12, ls: 0.18, range: 6 },
+    stats: { hp: 880, mp: 250, aspd: 0.95, spd: 8.6, atk: 56, ap: 0, def: 29, res: 26, ten: 0.08, pen: 0.12, ls: 0.18, range: 6 },
     basic: meleeBasic, ai: { threat: 1.0, style: { ult: 'finish' } },
     tac: { act: ['rush', 'basic'], fight: ['solo', 'coop'], aim: ['back', 'carry'] },
     look: { pal: { a: '#1e1b4b', A: '#312e81', p: '#6366f1', P: '#a5b4fc', k: '#05030d', e: '#f43f5e', s: '#4f46e5', S: '#c7d2fe' },
@@ -624,7 +624,7 @@
   FD.biomachine = {
     id: 'biomachine', name: '바이오머신', role: 'hunter', color: '#f97316', title: '비밀기업 전투개체',
     concept: '"살상모드 가동."',
-    stats: { hp: 850, mp: 200, aspd: 1.0, spd: 8.0, atk: 56, ap: 20, def: 20, res: 21, ten: 0.10, pen: 0.08, ls: 0.15, range: 13, crit: 0.05, critDmg: 1.5 },
+    stats: { hp: 820, mp: 200, aspd: 1.0, spd: 8.0, atk: 56, ap: 20, def: 20, res: 21, ten: 0.10, pen: 0.08, ls: 0.1, range: 13, crit: 0.05, critDmg: 1.5 },
     basic: rangedBasic, ai: { kite: 5, threat: 1.1, style: { ult: 'open' } },
     tac: { act: ['basic', 'rush'], fight: ['coop'], pos: ['front', 'none'] },
     look: { pal: { o: '#ea580c', O: '#9a3412', g: '#64748b', G: '#334155', r: '#ef4444', k: '#0f172a', y: '#facc15', w: '#e2e8f0' },
@@ -693,7 +693,7 @@
   FD.frost = {
     id: 'frost', name: '프로스트', role: 'hunter', color: '#67e8f9', title: '얼음 결정의 사수',
     concept: '"더이상 우리를 괴롭히지 마!!"',
-    stats: { hp: 700, mp: 260, aspd: 1.0, spd: 7.8, atk: 47, ap: 20, def: 12, res: 11, ten: 0, pen: 0.08, ls: 0, range: 14, crit: 0.05, critDmg: 1.5 },
+    stats: { hp: 740, mp: 260, aspd: 1.0, spd: 7.8, atk: 50, ap: 20, def: 12, res: 11, ten: 0, pen: 0.08, ls: 0, range: 18, crit: 0.05, critDmg: 1.5 },
     basic: rangedBasic, ai: { backline: true, kite: 12, threat: 1.0, style: { ult: 'open' } },
     tac: { act: ['basic', 'retreat'], fight: ['coop'], pos: ['cover'], aim: ['near', 'weak'] },
     look: {
@@ -1189,7 +1189,7 @@
   FD.oba = {
     id: 'oba', name: '오바', role: 'warrior', color: '#f97316', title: '무적무패의 프로레슬러',
     concept: '\"내 앞에서 무릎 꿇어라!\"',
-    stats: { hp: 1000, mp: 220, aspd: 0.9, spd: 7.8, atk: 65, ap: 0, def: 34, res: 24, ten: 0.12, pen: 0.05, ls: 0.36, range: 6 },
+    stats: { hp: 1000, mp: 220, aspd: 0.9, spd: 7.8, atk: 63, ap: 0, def: 34, res: 24, ten: 0.12, pen: 0.05, ls: 0.28, range: 6 },
     basic: meleeBasic, ai: { front: true, threat: 1.0, style: { engage: true, ult: 'finish' } },
     tac: { act: ['rush', 'basic'], fight: ['solo', 'coop'], aim: ['near', 'weak'] },
     look: { res: 2, pal: { h: '#111827', s: '#6b4423', a: '#8a5a33', S: '#3f2614', e: '#f8fafc', k: '#0b0f19', o: '#f97316', O: '#fde047', g: '#fbbf24', G: '#b45309', t: '#ea580c', T: '#9a3412', r: '#dc2626', b: '#1f2937', B: '#4b5563', m: '#7f1d1d' },
@@ -1257,7 +1257,7 @@
         const t = pl.t; lock(b, u, 0.9); ring(b, t.x, t.y, 5, '#fde047'); air(b, u, t, 1.0);
         b.later(0.85, bb => {
           if (!u.alive || bb.stunned(u)) return; const tg = t.alive ? t : null; if (!tg) return;
-          ring(bb, tg.x, tg.y, 9, '#ef4444'); hit(bb, u, tg, 'phys', bb.raw(u, 170, 1.7), '폴프롬그레이스'); bb.cc(u, tg, 'stun', 1.0);
+          ring(bb, tg.x, tg.y, 9, '#ef4444'); hit(bb, u, tg, 'phys', bb.raw(u, 160, 1.6), '폴프롬그레이스'); bb.cc(u, tg, 'stun', 1.0);
         });
       } }
   };

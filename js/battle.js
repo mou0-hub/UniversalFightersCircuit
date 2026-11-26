@@ -135,6 +135,8 @@ const Battle = (() => {
         const lv = clamp(Math.round(v[1]) || 1, 1, CONFIG.tactics.maxLevel);
         o[c.id] = id; o[c.id + 'L'] = lv; o[c.id + 'S'] = lv / CONFIG.tactics.maxLevel;
       }
+      const AX = CONFIG.tactics.axes;
+      ['engage', 'zone'].forEach(id => { const v = raw && raw[id] && raw[id][0]; o[id] = AX[id] && AX[id][v] ? v : null; });
       return o;
     }
 
@@ -611,7 +613,13 @@ const Battle = (() => {
       delete u.rdy[sk.id];
       if (slot === 'ult') this.setUlt(u, 0); else { u.mp -= sk.cost; u.cds[sk.id] = ticks(sk.cd); this.ultGain(u, this.cfg.ultSkill); }
       /* 스킬샷 정확도: 대상을 노리는 공격 스킬은 일정 확률로 빗나가 자원만 소모됩니다 (궁극기 제외) */
-      if (slot !== 'ult' && pl.t && u.brain.whiff > 0 && CONFIG.brain.stat.whiffKinds.includes(sk.sfx || 'nuke') && Math.random() < u.brain.whiff) {
+      let wf = u.brain.whiff;                                       // 빗나갈 확률: 시전자 aim + 대상의 회피(위치선정·반응, 움직이는 중일 때만)
+      const wt = pl.t && !pl.ally && pl.t.alive && pl.t.team !== u.team && pl.t.team < 2 && pl.t.sn ? pl.t : null;
+      if (wt && !wt.st.some(x => x.stun || x.root || x.cc) && Math.hypot(wt.x - wt.px, wt.y - wt.py) > 0.05) {
+        const dq = clamp(0.5 + 0.2 * (wt.sn.p + wt.sn.r) + 0.3 * ((wt.g != null ? wt.g : 0.67) - 0.67), 0, 1);
+        wf += (u.brain.dodge != null ? u.brain.dodge : 0.08) * (dq - 0.5) * 2;
+      }
+      if (slot !== 'ult' && pl.t && wf > 0 && CONFIG.brain.stat.whiffKinds.includes(sk.sfx || 'nuke') && Math.random() < wf) {
         u.fxAtk = this.t; u.skN = (u.skN || 0) + 1; this.emit({ type: 'skill', slot, src: u, name: sk.name + ' (빗나감)', kind: sk.sfx || 'nuke', color: u.f.color }); return true;
       }
       const r = this.exec(u, sk, pl, slot);
@@ -1128,7 +1136,7 @@ const Battle = (() => {
     cmdLevel(team) {
       const lv = this.autoCmd[team]; if (!lv) return null;
       const t = this.teams && this.teams[team];
-      return t && t.id === 'player' && CONFIG.orders.playerLv ? CONFIG.orders.playerLv : lv;
+      return t && t.id === 'player' && !t.autoFull && CONFIG.orders.playerLv ? CONFIG.orders.playerLv : lv;      // autoFull: 자동진행 '실제 전투' 모드는 AI 와 같은 지휘 수준
     }
     aiCommand(team) {
       const lv = this.cmdLevel(team); if (!lv || this.over || this.t < this.aiAt[team]) return;
@@ -1285,12 +1293,13 @@ const Battle = (() => {
       const foes = this.units.filter(e => e.team !== team && e.alive && !this.hidden(e)), enemyUnits = foes.filter(e => e.team < 2);
       const cur = this.cur[team] = this.stratNow(team), W = cur.W, lead = cur.lead, dn = cur.dn;
       const SB = dn === 'bossWait' ? 'steal' : dn === 'boss' ? 'contest' : S.boss, BL = dn === 'boss' || dn === 'bossWait' ? 7 : S.bossL, FM = dn === 'convoy' ? 'group' : S.formation, FMS = dn === 'convoy' ? 1 : S.formationS;
+      const AXN = CONFIG.tactics.axes, AF = AXN.formation[FM] || {}, ZA = (AXN.zone[S.zone] || {}).ambush || 0;
       const cvy = dn === 'convoy' && us.length > 1 ? us.reduce((p, q) => (this.coreValue(q) > this.coreValue(p) ? q : p)) : null, cvyOn = !!cvy && this.coreValue(cvy) >= 2;
       const boss = this.sudden ? null : this.units.find(b => b.team === 2 && b.alive), pit = M.zones.find(z => z.hub) || M.zones[0];
       const incoming = !boss && !this.sudden && this.bossPlan.some(p => !p.spawned && p.atTick != null && p.atTick - this.t <= ticks(p.warn + 3));
       const free = [], escorts = [];
       for (const u of us) {
-        const thr = clamp(u.brain.retreatHp + (S.retreat === 'brave' ? -1 : S.retreat === 'careful' ? 1 : 0) * TP.retreatThrStep * S.retreatL, 0.06, 0.75);      // 뒤처져도 체력 낮은 채 더 싸우지 않음
+        const thr = clamp(u.brain.retreatHp + this.retreatSgn(S) * TP.retreatThrStep * S.retreatL, 0.06, 0.75);      // 뒤처져도 체력 낮은 채 더 싸우지 않음
         if (!this.sudden && u.hp < u.maxHp * thr) {
           const pods = M.pods.filter(p => p.readyAt <= this.t + this.sec(u.brain.waitPod ? 12 : 4) && Math.hypot(p.x - u.x, p.y - u.y) < TP.podReach * W.pod);
           if (pods.length) {
@@ -1316,7 +1325,7 @@ const Battle = (() => {
         const esc = a => this.coreValue(a) * TP.escortCarry + (a.atk + a.ap) / 100; u.goal = { type: 'escort', a: pool.reduce((p, q) => (esc(p) >= esc(q) ? p : q)) };
       }
       if (!free.length) return;
-      const K = CONFIG.battle.map.core, KA = K.ai, ccap = FM === 'group' ? 3 : FM === 'split' ? 1 : KA.cap, crowdK = FM === 'split' ? KA.crowdSplit : FM === 'group' ? 0 : KA.crowdMul;
+      const K = CONFIG.battle.map.core, KA = K.ai, ccap = AF.ccap != null ? AF.ccap : KA.cap, crowdK = AF.crowd != null ? AF.crowd : KA.crowdMul;
       const carried = e => (e.carry || []).reduce((q, c) => q + c.value, 0), tm = K.timing[cur.dep] || K.timing.normal, dL = S.depositL - 4;
       const need = clamp(Math.round(tm.base + tm.step * dL), 1, K.carryCap), low = tm.low ? clamp(Math.round(tm.low + tm.lowStep * dL), 1, K.carryCap) : K.carryCap + 1;
       const known = this.cores.filter(c => c.known[team] && c.lockUntil <= this.t), hd = this.homeDep(team), fd = this.foeDep(team);
@@ -1337,26 +1346,28 @@ const Battle = (() => {
       const Dg = K.danger, foesAll = enemyUnits.filter(e => !e.struct && !this.hidden(e));
       const gv = Math.max(0, W.post - 1) * KA.guardMul;
       if (gv > 0.05) targets.push({ type: 'guard', z: hd, x: hd.x, y: hd.y, v: gv, cap: 2, co: true });
-      if (free.some(u => this.mission(u, cur) === 'ambush')) targets.push({ type: 'ambush', z: fd, x: fd.x, y: fd.y, v: KA.ambushV, cap: 2, co: true });
+      const ambM = free.some(u => this.mission(u, cur) === 'ambush');
+      if (ambM || ZA > 0) targets.push({ type: 'ambush', z: fd, x: fd.x, y: fd.y, v: KA.ambushV * (ambM ? 1 : ZA * TP.zoneAmbush), cap: 2, co: true });
       if (boss) {
         const bv = this.bossValue(team, boss, us, enemyUnits, W, SB, BL, dn); let v = bv.v, cap = bv.cap, stage = bv.stage;
         v *= clamp(1 - 0.1 * us.reduce((q, a) => q + this.coreValue(a), 0), 0.3, 1) * (lead >= 2 ? 0.6 : lead <= -2 ? 1.2 : 1);
         targets.push({ type: 'boss', boss, x: boss.x, y: boss.y, v, cap });
         if (stage) targets.push({ type: 'stage', x: pit.x, y: pit.y, v: stage * W.boss, cap: 3 });
-      } else if (incoming && SB !== 'yield') targets.push({ type: 'stage', x: pit.x, y: pit.y, v: 2 * W.boss * (SB === 'contest' ? 1.2 : 1), cap: 3 });
+      } else if (incoming) targets.push({ type: 'stage', x: pit.x, y: pit.y, v: 2 * W.boss * (SB === 'yield' ? TP.yieldMul : 1), cap: SB === 'yield' ? TP.yieldCap : 3 });
       if (enemyUnits.length) {
         const prey = enemyUnits.map(e => ({ e, s: (1 - e.hp / e.maxHp) + (enemyUnits.some(o => o !== e && dist(o, e) < 25) ? 0 : 0.4) + (e.role.backline ? KA.backPrey : 0) + carried(e) * KA.carryPrey * (dn === 'kill' ? 3 : 1) + (e.depProg > 0 ? CONFIG.mind.grade.hunt.interruptV : 0) })).sort((p, q) => q.s - p.s)[0].e;
         const v = Math.max(0, W.kill - 0.6) * 2.2 + (prey.hp < prey.maxHp * 0.35 ? 0.45 : 0) + (this.sudden ? 0.6 : 0) + (Math.abs(lead) >= 2 ? -0.2 : 0) + carried(prey) * KA.huntV + (prey.depProg > 0 ? CONFIG.mind.grade.hunt.interruptV : 0);
-        if (v > 0.05 || free.some(u => this.mission(u, cur) === 'hunt')) targets.push({ type: 'hunt', e: prey, x: prey.x, y: prey.y, v: Math.max(v, 0.2), cap: dn === 'kill' ? 3 : W.kill > 1.2 ? 2 : 1 });
+        if (v > 0.05 || free.some(u => this.mission(u, cur) === 'hunt')) targets.push({ type: 'hunt', e: prey, x: prey.x, y: prey.y, v: Math.max(v, 0.2), cap: dn === 'kill' ? 3 : W.kill > TP.huntCapKill && enemyUnits.length - us.length < TP.outnumGap ? 2 : 1 });
       }
-      if (free.length && us.length > 1) targets.push({ type: 'join', x: us.reduce((q, a) => q + a.x, 0) / us.length, y: us.reduce((q, a) => q + a.y, 0) / us.length, v: KA.join, cap: 3 });
+      if (free.length && us.length > 1) targets.push({ type: 'join', x: us.reduce((q, a) => q + a.x, 0) / us.length, y: us.reduce((q, a) => q + a.y, 0) / us.length, v: KA.join * this.joinMul(team, us), cap: 3 });
+      if (free.length && us.length > 1) for (const et of this.escortTargets(team, us, foesAll)) targets.push(et);      // 코어 든 아군을 지켜줄 가치(위협·피격에 비례)
       const Sn = this.sit[team], msit = 1 - 0.3 * clamp(Math.abs(lead) / 4, 0, 1), duoP = dn === 'convoy' ? (this.tp[team].duo = null) : this.duoPair(team, S, free, TP);
       for (const tg of targets) {
-        if (tg.type === 'boss' || tg.type === 'stage' || tg.type === 'join') continue;
+        if (tg.type === 'boss' || tg.type === 'stage' || tg.type === 'join' || tg.type === 'escort') continue;
         tg.fp = foesAll.reduce((q, e) => { const d = Math.hypot(e.x - tg.x, e.y - tg.y); return q + (d <= Dg.foeR ? this.power(e) : d <= Dg.reachR ? this.power(e) * Dg.reachW : 0); }, 0);
         tg.mates = us.map(a => ({ a, p: Math.hypot(a.x - tg.x, a.y - tg.y) <= Dg.mateR ? this.power(a) : 0 }));
       }
-      const same = (g, tg) => !!g && g.type === tg.type && g.z === tg.z && g.c === tg.c && g.boss === tg.boss && g.pt === tg.pt;
+      const same = (g, tg) => !!g && g.type === tg.type && g.z === tg.z && g.c === tg.c && g.boss === tg.boss && g.pt === tg.pt && g.a === tg.a;
       const left = (this.cfg.maxTicks - this.t) / TPS, urg = this.sudden ? 1 : Math.max(left <= KA.urgentSec ? KA.urgentMul : lead <= -1 && left <= KA.trailSec ? KA.trailMul : 1, 1 + KA.needUrg * Math.max(0, Sn.need));
       const depSc = (u, tg, dd) => {
         const slots = this.coreSlots(u); if (!slots) return -1e3;
@@ -1365,6 +1376,7 @@ const Battle = (() => {
         const near = dd <= ((tg.z && tg.z.r) || 12) + 10;
         // 존에서 멀 때만 greed(더 모으기) 패널티 — 바로 옆이면 상식적으로 제출 후보
         if (u.tac.mission === 'collect' && slots < K.carryCap && !near) v *= 1 - KA.greed * u.tac.missionS;
+        v *= this.holdMul(u);                                                 // 오래 들고 있을수록 제출 욕구 상승
         if (near && slots > 0) v += 2.5 + val * 0.8;
         const ms = this.mission(u, cur);
         v *= urg * (cur.st === 'collect' ? KA.collectDep : 1) * (ms === 'hunt' || ms === 'ambush' ? KA.fighterDep : 1);
@@ -1372,20 +1384,21 @@ const Battle = (() => {
         if (tg.foes) v *= KA.depThreatMul;
         return v - dd / KA.distDiv - (tg.foes ? KA.depThreatCost : 0);
       };
-      if (!this.sudden && known.length < 2) { const sp = this.scoutPick(team, us); if (sp) targets.push({ type: 'scout', pt: sp, x: sp.x, y: sp.y, v: KA.scoutV * (known.length ? 0.6 : 1) * (1 + Math.max(0, Sn.need)), cap: 1 }); }      // 아는 코어가 적으면 구역 순회
+      if (!this.sudden && known.length < 4) { const sp = this.scoutPick(team, us); if (sp) targets.push({ type: 'scout', pt: sp, x: sp.x, y: sp.y, v: KA.scoutV * this.scoutGain(team, sp, known.length) * (1 + Math.max(0, Sn.need)), cap: known.length < 2 ? 1 : 2 }); }      // 아는 코어가 적으면 구역 순회
       const mat = free.map(u => targets.map(tg => {
         const dd = Math.hypot(u.x - tg.x, u.y - tg.y), g = u.goal, T = u.tac, ms = this.mission(u, cur), mS = this.forcedMission(u) ? 1 : T.missionS, mk = (0.5 + 0.5 * mS) * msit; let sc;
         if (tg.type === 'core') sc = this.coreSlots(u) + tg.c.slots > K.carryCap ? -1e3 : tg.v - dd / KA.distDiv;
         else if (tg.type === 'deposit') sc = depSc(u, tg, dd);
         else if (tg.type === 'join') sc = dd < KA.joinMin ? -1e3 : tg.v * clamp(dd / KA.joinRef, 0.4, 1.2);
-        else if (tg.type === 'ambush' && ms !== 'ambush') sc = -1e3;
+        else if (tg.type === 'escort') sc = this.escortScore(u, tg, dd);
+        else if (tg.type === 'ambush' && ms !== 'ambush' && !(ZA > 0)) sc = -1e3;
         else if (tg.type === 'hunt') { const h = this.huntEV(u, tg.e); sc = tg.v * h.gain - h.loss - dd / 150; if (h.p < CONFIG.mind.grade.hunt.vetoP) sc -= Dg.vetoPen; }
         else sc = tg.v - dd / 150;
         if (sc <= -1e3) return sc;
         if ((tg.type === 'boss' || tg.type === 'stage') && this.coreSlots(u)) sc -= this.coreValue(u) * KA.bossCarryPen;      // 코어 든 선수는 보스보다 제출 우선
         if (tg.fp > 0 && tg.type !== 'hunt') {
           let mp = this.power(u); for (const m of tg.mates) if (m.a !== u) mp += m.p;
-          const odds = tg.fp / mp, over = clamp(odds - Dg.safe, 0, Dg.cap), kr = S.retreat === 'brave' ? Dg.brave : S.retreat === 'careful' ? Dg.careful : 1;
+          const odds = tg.fp / mp, over = clamp(odds - Dg.safe, 0, Dg.cap), kr = this.riskK(S);
           sc -= (over * Dg.pen + (odds >= Dg.veto ? Dg.vetoPen : 0)) * kr * (1 + this.coreValue(u) * Dg.carryMul);
         }
         if (same(g, tg) && (tg.type !== 'hunt' || g.e === tg.e)) sc += 0.15;
@@ -1407,7 +1420,7 @@ const Battle = (() => {
           cnt.forEach((c, k) => {
             if (c > 1 && targets[k].co) tot -= crowdK * (c - 1);
             if (c > targets[k].cap) tot -= 0.8 * (c - targets[k].cap);
-            if (FM === 'group' && c > 1) tot += TP.groupBonus * (0.5 + FMS) * c * (c - 1) / 2;
+            if (AF.bond && c > 1) tot += AF.bond * (0.5 + FMS) * c * (c - 1) / 2;
           });
           if (duoP) { const pk = pick[duoP[0]]; if (targets[pk].co && pk === pick[duoP[1]]) { tot += TP.duoBonus * (1 + targets[pk].v); free.forEach((_, n) => { if (n !== duoP[0] && n !== duoP[1] && pick[n] === pk) tot -= TP.duoApart; }); } }
           if (tot > bscore) { bscore = tot; best = pick.slice(); } return;
@@ -1417,7 +1430,7 @@ const Battle = (() => {
       rec(0, 0);
       free.forEach((u, i) => {
         const tg = targets[best[i]], g = u.goal;
-        const ng = tg.type === 'core' ? { type: 'core', c: tg.c } : tg.type === 'boss' ? { type: 'boss', boss: tg.boss } : tg.type === 'hunt' ? { type: 'hunt', e: tg.e } : tg.pt ? { type: tg.type, pt: tg.pt } : tg.z ? { type: tg.type, z: tg.z } : { type: tg.type };
+        const ng = tg.type === 'core' ? { type: 'core', c: tg.c } : tg.type === 'boss' ? { type: 'boss', boss: tg.boss } : tg.type === 'hunt' ? { type: 'hunt', e: tg.e } : tg.type === 'escort' ? { type: 'escort', a: tg.a } : tg.pt ? { type: tg.type, pt: tg.pt } : tg.z ? { type: tg.type, z: tg.z } : { type: tg.type };
         ng.since = same(g, ng) && (ng.type === 'hunt' || g.e === ng.e) && g.since != null ? g.since : this.t;
         u.goal = ng;
       });

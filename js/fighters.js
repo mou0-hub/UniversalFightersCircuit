@@ -274,7 +274,7 @@ looks: {
   FD.crow = {
     id: 'crow', name: '크로우', role: 'warrior', color: '#6d28d9', title: '낫을 든 어둠의 추적자',
     concept: '"어둠에 찢겨저 죽어라"',
-    stats: { hp: 980, mp: 230, aspd: 1.05, spd: 9.4, atk: 66, ap: 36, def: 28, res: 24, ten: 0.10, pen: 0.12, ls: 0.07, range: 6 },
+    stats: { hp: 980, mp: 230, aspd: 1.05, spd: 9.4, atk: 63, ap: 34, def: 28, res: 24, ten: 0.10, pen: 0.12, ls: 0.05, range: 6 },
     basic: { type: 'phys', atk: 1, ap: 0, proj: 'melee' }, ai: { front: true, threat: 0.9, style: { ult: 'open' } },
     tac: { act: ['rush'], fight: ['solo'], aim: ['back', 'weak'] },
         look: { res: 2,
@@ -325,10 +325,10 @@ looks: {
       onSkill(b, u, sk) { if (b.has(u, 'hell')) { u.mem.n = 10; return; } u.mem.n = sk.id === 'cr_s1' ? (u.mem.refund || 0) : 0; u.mem.refund = 0; },
       tick(b, u) { if (b.has(u, 'hell')) u.mem.n = 10; u.gauge = { label: '어둠', val: u.mem.n, max: 10, color: '#a78bfa' }; } },
     skills: [
-      { id: 'cr_s1', stack: { self: u => u.mem.n, min: 4 }, name: '어둠파장', cost: 40, cd: 6, range: 32, sfx: 'nuke', desc: '어둠을 날려 직선상의 적에게 피해를 줍니다. 적중 시 소모한 중첩의 절반을 돌려받습니다.',
-        plan: foeIn(32),
+      { id: 'cr_s1', stack: { self: u => u.mem.n, min: 4 }, name: '어둠파장', cost: 40, cd: 6, range: 26, sfx: 'nuke', desc: '어둠을 날려 직선상의 적에게 피해를 줍니다. 적중 시 소모한 중첩의 절반을 돌려받습니다.',
+        plan: foeIn(26),
         cast(b, u, pl) {
-          const e = lineEnd(b, u, pl.t, 34); beam(b, u, e.x, e.y, 4, '#7c3aed');
+          const e = lineEnd(b, u, pl.t, 28); beam(b, u, e.x, e.y, 4, '#7c3aed');
           const hs = b.inLine(b.foes(u), u.x, u.y, e.x, e.y, 4);
           hs.forEach(x => hit(b, u, x, 'magic', b.raw(u, 38, 0.25, 0.75), '어둠파장', { path: true }));
           u.mem.refund = hs.length ? Math.floor(u.mem.n / 2) : 0;
@@ -1095,7 +1095,7 @@ looks: {
   FD.kain = {
     id: 'kain', name: '카인', role: 'mage', color: '#7dd3fc', title: '얼음 마법사',
     concept: '"마지막남은 내 가족..내가 지켜야해..."',
-    stats: { hp: 650, mp: 320, aspd: 0.85, spd: 7.4, atk: 25, ap: 52, def: 20, res: 28, ten: 0, pen: 0.12, ls: 0, range: 24 },
+    stats: { hp: 690, mp: 320, aspd: 0.85, spd: 7.4, atk: 25, ap: 56, def: 20, res: 28, ten: 0, pen: 0.12, ls: 0, range: 24 },
     basic: { type: 'magic', atk: 0.6, ap: 0.45, proj: 'bolt' }, ai: { backline: true, kite: 14, threat: 0.85, style: { ult: 'open' } },
     tac: { act: ['basic', 'retreat'], fight: ['coop'], pos: ['none', 'cover'], aim: ['carry', 'near'] },
     look: {

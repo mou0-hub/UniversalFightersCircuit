@@ -9,7 +9,7 @@ const Pros = (() => {
   const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
   const state = G => (G.pros = G.pros || { seq: 0, by: {} });
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-  const get = (G, id) => { const p = state(G).by[id]; if (p && (p.pot == null || !p.arc)) ensurePot(p); return p; };
+  const get = (G, id) => { const p = state(G).by[id]; if (p && p.god) pin(p); else if (p && (p.pot == null || !p.arc)) ensurePot(p); return p; };
   const fighterPool = role => CONFIG.fighterOrder.filter(f => CONFIG.fighters[f] && !CONFIG.fighters[f].boss && (!role || CONFIG.fighters[f].role === role));
   const round10 = n => Math.round(n / 10) * 10;
 
@@ -113,10 +113,18 @@ const Pros = (() => {
     if (R() < cfg.gemChance) gap = Math.round(gap * cfg.gemMul);
     return Math.min(cfg.cap, Math.max(ovr, ovr + gap));
   }
+  /* 전설의 원석: 낮은 등급의 어린 선수가 아주 드물게 S급 잠재력을 가짐 (해당 없으면 null) */
+  function legendPot(grade, age, R) {
+    const L = P().potential.legend;
+    if (!L || !L.grades.includes(grade) || age > L.maxAge || R() >= L.chance) return null;
+    return L.pot[0] + Math.floor(R() * (L.pot[1] - L.pot[0] + 1));
+  }
   function ensurePot(p) {
     ensureArc(p);
     if (p.pot != null && p.pot >= p.ovr) return p.pot;
-    p.pot = potFor(p.ovr, p.age || 24, seeded(hash(p.id + '|pot|' + p.ovr)), arcOf(p));
+    const lp = legendPot(p.grade, p.age || 24, seeded(hash(p.id + '|legend|' + p.ovr)));
+    if (lp != null) p.legend = true;
+    p.pot = lp != null ? Math.min(P().potential.cap, Math.max(p.ovr, lp)) : potFor(p.ovr, p.age || 24, seeded(hash(p.id + '|pot|' + p.ovr)), arcOf(p));
     return p.pot;
   }
   const premium = p => Math.min(P().potential.premiumMax, Math.max(0, (p.pot || p.ovr) - p.ovr) * P().potential.premium);
@@ -125,6 +133,7 @@ const Pros = (() => {
     return round10((gr.salary[0] + (gr.salary[1] - gr.salary[0]) * (0.75 * t + 0.125)) * (1 + premium(p)));
   }
   function develop(G, p, ctx = {}) {
+    if (p.god) { pin(p); return { id: p.id, nick: p.nick, age: p.age, from: p.ovr, to: p.ovr, d: 0, pot: p.pot, grade: p.grade, oldGrade: p.grade, promoted: false, note: '' }; }
     ensurePot(p); skills(p);
     const D = P().growth, share = ctx.share == null ? 0.5 : ctx.share, from = p.ovr, oldGrade = p.grade;
     const arc = arcOf(p), eff = p.age - arc.shift - (p.shx || 0);
@@ -144,6 +153,7 @@ const Pros = (() => {
       d *= share >= D.playHi ? D.playHiMul : share < D.playLo ? D.playLoMul : 1;
       if (ctx.rank && ctx.rank <= D.rankTop) d *= D.rankTopMul; else if (ctx.rank && ctx.rank >= D.rankLow) d *= D.rankLowMul;
       if (p.mental >= D.mentalHi) d *= D.mentalHiMul;
+      if (p.legend) d *= (P().potential.legend || {}).growMul || 1;                              // 전설의 원석 성장 가속
     } else if (share < D.playLo && eff >= 30) d -= 0.5;
     const fl = Math.floor(d); d = fl + (Math.random() < d - fl ? 1 : 0);
     let to = p.ovr + d; if (d > 0) to = Math.min(to, p.pot); to = clamp(to, 20, 99);
@@ -167,10 +177,10 @@ const Pros = (() => {
     const favs = shuffle(pool.slice()).slice(0, 2); const other = pick(fighterPool().filter(f => !favs.includes(f))); if (other) favs.push(other);
     const ovr = rnd(gr.ovr[0], gr.ovr[1]), t = (ovr - gr.ovr[0]) / Math.max(1, gr.ovr[1] - gr.ovr[0]);
     const troubleMaker = Math.random() < 0.14, slacker = Math.random() < 0.12;
-    const age = opts.age || rnd(17, 30), arc = pickArc(Math.random), pot = potFor(ovr, age, Math.random, arc);
+    const age = opts.age || rnd(17, 30), arc = pickArc(Math.random), lp = legendPot(grade, age, Math.random), pot = lp != null ? Math.min(P().potential.cap, Math.max(ovr, lp)) : potFor(ovr, age, Math.random, arc);
     const pro = {
       id, nick: nickname(G, nat), real: realName(nat), nation: nat,
-      age, grade, ovr, pot, arc: arc.id, shx: rnd(-2, 2), sn: 0,
+      age, grade, ovr, pot, legend: lp != null, arc: arc.id, shx: rnd(-2, 2), sn: 0,
       role, favs, style: pick(P().styles).id,
       mental: rnd(62, 95), form: rnd(48, 68), trouble: troubleMaker ? rnd(60, 92) : rnd(0, 34), slack: slacker ? rnd(60, 92) : rnd(0, 34),
       salary: round10((gr.salary[0] + (gr.salary[1] - gr.salary[0]) * (0.75 * t + 0.25 * Math.random())) * (1 + Math.min(P().potential.premiumMax, (pot - ovr) * P().potential.premium))), years: rnd(P().contract[0], P().contract[1]),
@@ -178,6 +188,15 @@ const Pros = (() => {
     };
     skills(pro); st.by[id] = pro; return pro;
   }
+  /* ---------- SSS(god) 선수: 시험·데이터 수집용. 계약 무제한 · 나이 고정 · 능력치 최대 · 캡 제외 · 만족도/폼 최상 ----------
+     p.god 가 true 면 Pros.get() 이 읽힐 때마다 아래 값으로 복원하므로, 어디서 건드려도 다음 접근에서 원상복구됩니다. */
+  function pin(p) {
+    p.god = true; p.ovr = 99; p.pot = 99; p.age = 22; p.years = 9999; p.salary = 0;
+    p.form = 100; p.mental = 100; p.trouble = 0; p.slack = 0; p.moodAdj = 100; p.dev = 0; p.refused = null; p.listed = false;
+    p.sk = p.sk || {}; P().skills.forEach(s => { p.sk[s.id] = 99; });
+    return p;
+  }
+  function genGod(G, opts = {}) { return pin(gen(G, 'S', opts)); }
   const remove = (G, id) => { delete state(G).by[id]; };
   const grade = (G, id) => { const p = get(G, id); return p ? p.grade : CONFIG.brain.default; };
 
@@ -220,5 +239,5 @@ const Pros = (() => {
   const money = n => Math.round(n).toLocaleString('ko-KR') + ' ' + CONFIG.club.currency;
   const nationName = n => ({ kr: '한국', jp: '일본', cn: '중국', sea: '동남아', na: '북미', eu: '유럽' }[n] || n);
 
-  return { arcOf, ensurePot, develop, marketSalary, startGrade, skills, typical, engage, rarity, state, get, gen, remove, grade, genTeam, mixBrains, mixGrade, purge, roleName, styleName, money, nationName, shuffle, rnd, pick };
+  return { genGod, arcOf, ensurePot, develop, marketSalary, startGrade, skills, typical, engage, rarity, state, get, gen, remove, grade, genTeam, mixBrains, mixGrade, purge, roleName, styleName, money, nationName, shuffle, rnd, pick };
 })();

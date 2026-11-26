@@ -1,78 +1,59 @@
-/* tactics.js — 팀 전략 · 1/2/3픽 슬롯 전술 · AI 팀 전술
-   - 개인 전술은 캐릭터가 아니라 라인업 픽 슬롯(0=1픽, 1=2픽, 2=3픽) 단위
-   - AI 난이도는 파이터 개별 전투 AI가 아니라 팀이 짜는 전술 깊이만 바꿈
-   - 로드 순서: draft.js 다음 (Draft 동명 함수 대체) */
+/* tactics.js — 팀 스타일 프리셋 · 슬롯 전술 · AI 팀 전술 (draft.js 다음에 로드) */
 (() => {
   const T = CONFIG.tactics, FD = id => CONFIG.fighters[id];
   const neutralTactic = () => { const o = {}; T.categories.forEach(c => { o[c.id] = [c.neutral, 4]; }); return o; };
-  const neutralStrategy = () => { const o = {}; T.team.forEach(c => { o[c.id] = [c.neutral, 4]; }); return o; };
+  const AXIS_NEUTRAL = { engage: 'balanced', zone: 'center', formation: 'auto', deposit: 'normal', boss: 'smart', ultT: 'normal' };
+  const neutralStrategy = () => {
+    const o = {};
+    T.team.forEach(c => { o[c.id] = [c.neutral, 4]; });
+    Object.entries(AXIS_NEUTRAL).forEach(([k, v]) => { if (!o[k]) o[k] = [v, 4]; });
+    return o;
+  };
   const set = (o, id, v, lv) => { o[id] = [v, lv == null ? 4 : lv]; return o; };
   const isBack = f => !!(f.ai && f.ai.backline);
   const isFront = f => !!(f.ai && f.ai.front && !f.ai.backline);
-  const isTank = f => !!f && (isFront(f) || f.role === 'guardian');
   const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
   const pick = a => a[Math.floor(Math.random() * a.length)];
 
-  function presetSlot(slot, fid) {
-    const t = neutralTactic();
-    const f = fid ? FD(fid) : null;
-    const s = slot | 0;
-    if (s === 0) {
-      set(t, 'mission', 'collect', 3); set(t, 'fight', 'coop', 3);
-      if (f && f.role === 'assassin') { set(t, 'mission', 'hunt', 3); set(t, 'aim', 'back', 3); }
-      else if (f && f.role === 'guardian') set(t, 'fight', 'support', 3);
-    } else if (s === 1) {
-      set(t, 'mission', 'collect', 3); set(t, 'fight', 'coop', 3);
-      if (f && f.role === 'assassin') { set(t, 'mission', 'hunt', 3); set(t, 'aim', 'weak', 3); }
-      else if (f && isBack(f)) { set(t, 'pos', 'cover', 2); set(t, 'aim', 'carry', 3); }
-    } else {
-      set(t, 'mission', 'escort', 3); set(t, 'fight', 'support', 3);
-      if (f && f.role === 'assassin') { set(t, 'mission', 'hunt', 3); set(t, 'aim', 'back', 3); }
-      else { set(t, 'aim', 'carry', 3); if (!f || !isFront(f)) set(t, 'pos', 'cover', 2); }
-    }
-    return t;
-  }
+  /* 개인 전술: 파이터 유형별 전투 스타일 (데이터만 고치면 반영) */
+  const KIND_STYLE = {
+    front:    { mission: 'free',    pos: 'front', entry: 'first',   act: 'basic',   fight: 'coop' },
+    guard:    { mission: 'escort',  pos: 'front', entry: 'none',    aim: 'carry',   fight: 'support' },
+    assassin: { mission: 'hunt',    entry: 'flank', aim: 'back',    act: 'rush',    fight: 'solo' },
+    mid:      { mission: 'collect', aim: 'weak',   fight: 'coop' },
+    back:     { mission: 'collect', pos: 'cover',  entry: 'support', aim: 'carry', act: 'retreat', fight: 'coop' }
+  };
+  const SLOT_KIND = ['front', 'mid', 'back'];
+  const kindOf = (fid, slot) => {
+    const f = fid && FD(fid);
+    if (!f) return SLOT_KIND[slot | 0] || 'mid';
+    if (f.role === 'assassin') return 'assassin';
+    if (f.role === 'guardian') return 'guard';
+    if (isBack(f)) return 'back';
+    return isFront(f) ? 'front' : 'mid';
+  };
 
-  function presetTactic(fid) {
-    const f = FD(fid);
-    if (!f) return neutralTactic();
-    if (f.role === 'assassin' || f.role === 'guardian' || isFront(f)) return presetSlot(0, fid);
-    if (isBack(f)) return presetSlot(2, fid);
-    return presetSlot(1, fid);
-  }
-
+  /* 팀 스타일 프리셋: set = 팀 축, mis = 유형별 주 활동 */
   const PRESETS = {
+    steady: {
+      name: '안정 운영', desc: '우리 진영에서 신중하게 버티며 코어를 가득 채워 제출합니다.',
+      set: { engage: ['careful', 4], zone: ['home', 4], formation: ['duo', 4], deposit: ['full', 4], boss: ['smart', 4], ultT: ['save', 4] },
+      mis: { front: 'escort', guard: 'escort', assassin: 'collect', mid: 'collect', back: 'collect' }
+    },
+    attack: {
+      name: '공격 교전', desc: '적진을 압박하며 먼저 교전을 열고, 코어는 틈틈이 바로 제출합니다.',
+      set: { engage: ['aggressive', 4], zone: ['press', 4], formation: ['split', 4], deposit: ['early', 4], boss: ['steal', 4], ultT: ['burst', 4] },
+      mis: { front: 'hunt', guard: 'free', assassin: 'hunt', mid: 'collect', back: 'collect' }
+    },
+    brawl: {
+      name: '한타 중심', desc: '중앙에 모여 큰 교전과 보스전에서 힘을 합쳐 싸웁니다.',
+      set: { engage: ['balanced', 4], zone: ['center', 4], formation: ['group', 4], deposit: ['normal', 4], boss: ['contest', 4], ultT: ['save', 4] },
+      mis: { front: 'boss', guard: 'boss', assassin: 'free', mid: 'collect', back: 'collect' }
+    },
     balanced: {
-      name: '균형', desc: '무난한 기본 운영입니다. 상황에 맞게 경기 중 지시로 바꿔 보세요.',
-      set: {}
-    },
-    scavenger: {
-      name: '분산 수집', desc: '셋이 흩어져 코어를 넓게 찾고, 가득 채워 한 번에 제출합니다.',
-      set: { formation: ['split', 5], stance: ['collect', 5], deposit: ['full', 4], retreat: ['careful', 3] },
-      tac: () => ({ mission: ['collect', 5] })
-    },
-    convoy: {
-      name: '뭉쳐 운반', desc: '셋이 붙어 다니며 전열이 코어 운반자를 호위하고, 나머지는 코어를 줍습니다.',
-      set: { formation: ['group', 5], deposit: ['normal', 4] },
-      tac: (i, f) => ({ mission: f ? (isTank(f) ? ['escort', 3] : ['collect', 3]) : (i === 0 ? ['escort', 3] : ['collect', 3]) })
-    },
-    raider: {
-      name: '약탈', desc: '코어를 든 적을 사냥해 빼앗고, 모이면 바로 제출합니다.',
-      set: { stance: ['slay', 5], formation: ['split', 4], deposit: ['early', 4], retreat: ['brave', 3] },
-      tac: (i, f) => ({ mission: f ? (f.role === 'assassin' || isFront(f) ? ['hunt', 4] : ['collect', 3]) : (i < 2 ? ['hunt', 4] : ['collect', 3]) })
-    },
-    sentinel: {
-      name: '제출 지점 수비', desc: '우리 쪽 제출 지점을 지키고 적 운반자를 매복하며, 나머지는 코어를 줍습니다.',
-      set: { stance: ['defend', 5], deposit: ['early', 4] },
-      tac: (i, f) => {
-        if (f) return { mission: f.role === 'assassin' ? ['ambush', 4] : isTank(f) ? ['free', 4] : ['collect', 3] };
-        return { mission: i === 0 ? ['ambush', 4] : i === 1 ? ['free', 4] : ['collect', 3] };
-      }
-    },
-    bosshunt: {
-      name: '보스 사냥', desc: '중앙 보스에 힘을 모아 코어 더미와 버프를 한 번에 가져갑니다.',
-      set: { stance: ['boss', 5], boss: ['contest', 5], formation: ['group', 4], ultT: ['save', 4], deposit: ['normal', 4] },
-      tac: i => ({ mission: i < 2 ? ['boss', 4] : ['collect', 3] })
+      name: '유연 밸런스', desc: '한쪽으로 치우치지 않고 상황에 맞춰 고르게 움직입니다.',
+      set: { engage: ['balanced', 4], zone: ['center', 4], formation: ['auto', 4], deposit: ['normal', 4], boss: ['smart', 4], ultT: ['normal', 4] },
+      mis: {}
     }
   };
 
@@ -82,86 +63,68 @@
     return s;
   }
 
-  function presetSlots(name, ids) {
-    const p = PRESETS[name];
-    return [0, 1, 2].map(i => {
-      const fid = ids && ids[i], t = presetSlot(i, fid);
-      if (p && p.tac) Object.entries(p.tac(i, fid ? FD(fid) : null)).forEach(([k, v]) => { t[k] = v.slice(); });
-      return t;
-    });
+  function slotFor(name, fid, slot) {
+    const kind = kindOf(fid, slot), t = neutralTactic(), p = PRESETS[name];
+    Object.entries(KIND_STYLE[kind]).forEach(([k, v]) => set(t, k, v, 3));
+    if (p && p.mis && p.mis[kind]) set(t, 'mission', p.mis[kind], 3);
+    return t;
+  }
+  const presetSlot = (slot, fid) => slotFor(null, fid, slot);
+  const presetTactic = fid => slotFor(null, fid, 1);
+  const presetSlots = (name, ids) => [0, 1, 2].map(i => slotFor(name, ids && ids[i], i));
+  const autoSlots = (name, ids) => ids.map((fid, i) => slotFor(name, fid, i));
+  const neutralSlots = () => [0, 1, 2].map(i => presetSlot(i));
+
+  /* AI 팀: 같은 축 사용. 상대 조합은 보지 않고 우리 조합으로 스타일 선택 */
+  function styleFor(ids) {
+    const k = ids.map((id, i) => kindOf(id, i)), n = x => k.filter(y => y === x).length;
+    if (n('assassin') >= 1) return 'attack';
+    if (n('front') + n('guard') >= 2) return 'brawl';
+    if (n('back') >= 2) return 'steady';
+    return 'balanced';
   }
 
   function aiTeam(level, ids, opp) {
-    let S = neutralStrategy();
-    let tac;
-    const of = (opp || []).map(FD);
-    const oppBack = of.filter(isBack).length;
-
+    const oppBack = (opp || []).map(FD).filter(f => f && isBack(f)).length;
+    let S, tac;
     if (level === 'easy') {
-      set(S, 'stance', 'collect', rnd(3, 5)); set(S, 'boss', 'yield');
-      set(S, 'retreat', 'brave', rnd(5, 7)); set(S, 'formation', pick(['auto', 'group', 'split']), rnd(2, 5));
-      set(S, 'deposit', 'early', rnd(2, 5));
-      tac = ids.map(() => {
-        const t = neutralTactic();
-        if (Math.random() < 0.7) set(t, 'mission', 'collect', rnd(1, 3));
-        return t;
-      });
-    } else if (level === 'hard') {
-      set(S, 'stance', 'balanced', 4); set(S, 'boss', 'steal', 3);
-      set(S, 'ultT', 'save', 3);
-      set(S, 'formation', 'duo', 4); set(S, 'deposit', 'normal', 4);
+      S = neutralStrategy();
+      set(S, 'engage', pick(['careful', 'balanced', 'balanced', 'aggressive']), rnd(2, 5));
+      set(S, 'zone', 'center'); set(S, 'formation', pick(['auto', 'group', 'split']), rnd(2, 5));
+      set(S, 'deposit', 'early', rnd(2, 5)); set(S, 'boss', 'yield');
       tac = ids.map((id, i) => {
-        const t = presetSlot(i, id), f = FD(id);
-        if (f.role === 'assassin') set(t, 'mission', 'hunt', 3);
-        else if (isTank(f)) set(t, 'mission', 'collect', 3);
-        return t;
-      });
-    } else if (level === 'master') {
-      set(S, 'stance', 'balanced', 5); set(S, 'boss', 'smart', 6);
-      set(S, 'retreat', 'careful', 3); set(S, 'ultT', 'save', 4);
-      set(S, 'formation', 'group', 5); set(S, 'deposit', 'normal', 5);
-      tac = ids.map((id, i) => {
-        const t = presetSlot(i, id), f = FD(id);
-        if (f.role === 'assassin') { set(t, 'mission', 'hunt', oppBack >= 2 ? 6 : 3); if (oppBack >= 2) set(t, 'aim', 'back', 5); }
-        else if (isTank(f)) set(t, 'mission', 'escort', 4);
-        else set(t, 'mission', 'collect', 4);
+        const t = slotFor(null, id, i);
+        if (Math.random() < 0.3) T.categories.forEach(c => { t[c.id] = [c.neutral, 4]; });
         return t;
       });
     } else {
-      S = presetStrategy('scavenger');
-      set(S, 'stance', 'collect', 4);
-      tac = ids.map((id, i) => { const t = presetSlot(i, id); if (t.mission[0] !== 'hunt') set(t, 'mission', 'collect', 4); return t; });
+      const name = level === 'normal' ? 'balanced' : styleFor(ids);
+      S = presetStrategy(name); tac = autoSlots(name, ids);
+      if (level === 'master') {
+        set(S, 'ultT', 'save', 4);
+        tac.forEach((t, i) => { if (kindOf(ids[i], i) === 'assassin' && oppBack >= 2) { set(t, 'mission', 'hunt', 4); set(t, 'aim', 'back', 4); } });
+      }
     }
     return { strategy: S, tactics: tac };
   }
 
-  /* 사전 전술 정리: 숨긴 팀 항목은 고정값, 정도는 모두 pre.level */
+  /* 정도는 모두 pre.level 로 고정 */
   function normalizeStrategy(S) {
-    const P = T.pre; P.team.forEach(k => { if (S[k]) S[k][1] = P.level; }); return S;
+    const P = T.pre, keys = new Set([...P.team, ...Object.keys(AXIS_NEUTRAL)]);
+    keys.forEach(k => { if (S[k]) S[k][1] = P.level; }); return S;
   }
   function normalizeSlots(arr) {
     const P = T.pre; arr.forEach(t => T.categories.forEach(c => { if (t[c.id]) t[c.id][1] = P.level; })); return arr;
   }
 
-  /* 슬롯 역할: 역할 프리셋 / 프리셋 전략을 반영한 자동 슬롯 / 최종 슬롯 */
   function roleTactic(id) {
     const r = T.roles.find(x => x.id === id), t = neutralTactic();
     if (r) Object.entries(r.set).forEach(([k, v]) => set(t, k, v)); return t;
-  }
-  function autoSlots(name, ids) {
-    const p = PRESETS[name];
-    return ids.map((fid, i) => {
-      const t = presetTactic(fid), f = FD(fid);
-      if (p && p.tac) Object.entries(p.tac(i, f || null)).forEach(([k, v]) => { t[k] = v.slice(); });
-      return t;
-    });
   }
   function slotsFor(G, ids) {
     const roles = G.slotRole || [], auto = autoSlots(G.slotPreset, ids);
     return normalizeSlots(ids.map((fid, i) => (roles[i] && roles[i] !== 'auto' && G.slotTactics && G.slotTactics[i] ? JSON.parse(JSON.stringify(G.slotTactics[i])) : auto[i])));
   }
-
-  function neutralSlots() { return [0, 1, 2].map(i => presetSlot(i)); }
 
   Object.assign(Draft, {
     neutralTactic, neutralStrategy, presetTactic, presetSlot, presetSlots, presetStrategy,

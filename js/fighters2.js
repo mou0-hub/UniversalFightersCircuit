@@ -229,7 +229,7 @@
   FD.aozu = {
     id: 'aozu', name: '아오즈', role: 'mage', color: '#34d399', title: '미친 과학자',
     concept: '"미쳤어! 이건 내 걸작이야!"',
-    stats: { hp: 960, mp: 260, aspd: 0.95, spd: 8.4, atk: 46, ap: 72, def: 34, res: 26, ten: 0.10, pen: 0.10, ls: 0, range: 6 },
+    stats: { hp: 900, mp: 260, aspd: 0.95, spd: 8.4, atk: 46, ap: 68, def: 30, res: 26, ten: 0.10, pen: 0.10, ls: 0, range: 6 },
     basic: { type: 'magic', atk: 0.6, ap: 0.5, proj: 'melee' }, ai: { front: true, threat: 1.0, style: { engage: true, ult: 'open' } },
     tac: { act: ['rush'], fight: ['solo'], pos: ['front'] },
         look: { res: 2,
@@ -452,7 +452,7 @@
   FD.rescue = {
     id: 'rescue', name: '레스큐', role: 'guardian', color: '#f87171', title: '사이버네틱 구조요원',
     concept: '"제가 왔습니다 안심하세요."',
-    stats: { hp: 1140, mp: 300, aspd: 0.85, spd: 7.8, atk: 28, ap: 64, def: 34, res: 38, ten: 0.15, pen: 0.05, ls: 0, range: 20 },
+    stats: { hp: 1080, mp: 300, aspd: 0.85, spd: 7.8, atk: 28, ap: 64, def: 34, res: 35, ten: 0.15, pen: 0.05, ls: 0, range: 20 },
     basic: mageBasic, ai: { backline: true, kite: 8, threat: 0.9, style: { peel: true, stick: 'backline', ult: 'save' } },
     tac: { act: ['basic'], fight: ['support'], pos: ['cover', 'none'], ult: ['clutch', 'normal'] },
     look: { hair: '#fecaca', skin: '#fde5cf', body: '#b91c1c', acc: '#ffffff', hairStyle: '3,-1,H;5,-1,H;7,-1,H;8,0,H;9,2,H;9,3,H', feat: '4,3,A;7,3,A;4,-1,W;5,-1,R;6,-1,W;5,7,W;6,7,W', weapon: '11,4,X;11,5,X;12,5,R;11,6,X;11,7,K' },
@@ -546,7 +546,7 @@
   FD.alcaba = {
     id: 'alcaba', name: '알카바', role: 'guardian', color: '#60a5fa', title: '전류동력 경찰로봇',
     concept: '"조사에 불응 시 즉시 체포합니다."',
-    stats: { hp: 1200, mp: 240, aspd: 0.9, spd: 7.8, atk: 46, ap: 58, def: 38, res: 34, ten: 0.20, pen: 0.08, ls: 0, range: 10 },
+    stats: { hp: 1170, mp: 240, aspd: 0.9, spd: 7.8, atk: 46, ap: 52, def: 38, res: 34, ten: 0.20, pen: 0.08, ls: 0, range: 10 },
     basic: { type: 'magic', atk: 0.6, ap: 0.5, proj: 'melee' }, ai: { front: true, threat: 1.3, style: { ult: 'open' } },
     tac: { act: ['basic'], fight: ['support', 'coop'], pos: ['front', 'none'] },
     look: { hair: '#1e3a8a', skin: '#cbd5e1', body: '#1e40af', acc: '#facc15', hairStyle: '3,-1,B;4,-2,B;5,-2,Y;6,-2,B;7,-2,B;8,-1,B', feat: '4,3,Y;7,3,Y;1,6,X;10,6,X;5,7,Y;6,7,Y', weapon: '11,3,Y;11,4,K;11,5,K;12,5,Y;12,6,K;12,7,Y;11,7,K' },
@@ -639,7 +639,7 @@
   FD.giant = {
     id: 'giant', name: '자이언트', role: 'guardian', color: '#d97706', title: '묵직한 거인',
     concept: '"누구지? 나의 잠을 방해한 놈이."',
-    stats: { hp: 1220, mp: 150, aspd: 0.7, spd: 6.8, atk: 44, ap: 0, def: 38, res: 32, ten: 0.25, pen: 0.06, ls: 0, range: 7.5 },
+    stats: { hp: 1220, mp: 150, aspd: 0.75, spd: 7.0, atk: 50, ap: 0, def: 38, res: 32, ten: 0.25, pen: 0.06, ls: 0, range: 7.5 },
     basic: meleeBasic, ai: { front: true, threat: 1.8, style: { peel: true, stick: 'backline', ult: 'open' } },
     tac: { act: ['basic'], fight: ['coop'], pos: ['front'] },
         look: { res: 2,
@@ -702,7 +702,7 @@
   FD.etech = {
     id: 'etech', name: '에테크', role: 'guardian', color: '#22c55e', title: '도시 자경단 사이보그',
     concept: '"진압해!!!"',
-    stats: { hp: 1100, mp: 190, aspd: 0.95, spd: 8.4, atk: 60, ap: 0, def: 38, res: 30, ten: 0.15, pen: 0.06, ls: 0, range: 6 },
+    stats: { hp: 1100, mp: 190, aspd: 0.95, spd: 8.4, atk: 56, ap: 0, def: 38, res: 30, ten: 0.15, pen: 0.06, ls: 0, range: 6 },
     basic: meleeBasic, ai: { front: true, threat: 1.3, style: { engage: true, ult: 'open' } },
     tac: { act: ['rush', 'basic'], fight: ['coop', 'support'], pos: ['front'] },
     look: { hair: '#1c1917', skin: '#e5c9a8', body: '#166534', acc: '#4ade80', hairStyle: '3,-1,H;5,-1,H;7,-1,H;8,0,H', feat: '3,3,X;4,3,X;5,3,X;6,3,X;7,3,X;8,3,X;1,6,X;10,6,X', weapon: '11,6,X;12,6,A;12,7,A;11,7,X;11,8,X' },

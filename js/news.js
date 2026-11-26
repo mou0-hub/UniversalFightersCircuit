@@ -552,7 +552,8 @@ const News = (() => {
 
   /* 내 팀 유닛 중 피해+치유가 가장 큰(bad면 가장 작은) 유닛 — res.units 기준 */
   const sideMvp = (res, M, bad) => {
-    const us = ((res && res.units) || []).filter(u => u.team === M.pIdx); if (!us.length) return null;
+    if (!res || res.fast) return null;                       // 건너뛰기(빠른 결과)는 유닛별 기록이 없음
+    const us = (res.units || []).filter(u => u.team === M.pIdx); if (!us.length) return null;
     return us.reduce((a, u) => ((bad ? u.dmg + u.healed < a.dmg + a.healed : u.dmg + u.healed > a.dmg + a.healed) ? u : a));
   };
 

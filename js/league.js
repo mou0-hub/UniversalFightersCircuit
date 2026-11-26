@@ -46,37 +46,63 @@ const League = (() => {
     const w = m.wins || [0, 0], my = m.b === me ? [w[1], w[0]] : w;
     return `BO${m.bo} ${my[0]}:${my[1]} · ${(m.games || []).length + 1}세트`;
   }
-  function autoDraft(tA, tB, fear) {                            // Draft.auto 와 같은 AI 밴픽이지만 밴 목록도 돌려줍니다
+  function autoDraft(G, tA, tB, fear) {                            // Draft.auto 와 같은 AI 밴픽이지만 밴 목록도 돌려줍니다
     const d = Draft.create(fear), tms = [tA, tB];
-    while (!d.done) { const c = Draft.current(d); Draft.apply(d, Draft.aiChoose(d, c.team, tms[c.team])); }
+    while (!d.done) { const c = Draft.current(d); Draft.apply(d, Draft.aiChoose(d, c.team, tms[c.team], null, { G, opp: tms[1 - c.team] })); }
     return d;
   }
   /* 빠른 모드(시즌 건너뛰기): AI 대 AI 경기는 전투 시뮬 대신 팀 전력 기반 확률로 즉시 결정 */
   let fastMode = false;
   const setFast = v => { fastMode = !!v; };
-  /* 팀 전력: 선발 3명의 능력치(ovr)에 폼·멘탈을 가미한 평균. 정상 경기와 같은 선수 데이터를 사용 */
-  function strength(G, id) {
-    const t = team(G, id), ids = id === 'player' ? ((G.club && G.club.lineup) || []).filter(Boolean) : (t.pros || []);
-    const ps = ids.map(x => Pros.get(G, x)).filter(Boolean);
-    if (ps.length) return ps.reduce((s, p) => s + p.ovr + ((p.form ?? 55) - 55) * 0.15 + ((p.mental ?? 70) - 70) * 0.08, 0) / ps.length;
-    const gr = (t.brains || []).map(g => CONFIG.pro.grades[g]).filter(Boolean);            // 선수 데이터가 없으면 등급 평균
-    return gr.length ? gr.reduce((s, g) => s + (g.ovr[0] + g.ovr[1]) / 2, 0) / gr.length : 60;
+  const isFast = () => fastMode;
+  /* 픽 조합 보정(아주 약하게): 전열 +1.5 · 마법사 2명 이상 -2 · 암살자 2명 이상 -1.5. 오버롤이 주된 기준이 되도록 합계를 작게 유지 */
+  const isTankF = f => !!f && ((f.ai && f.ai.front && !f.ai.backline) || f.role === 'guardian');
+  function compBonus(fighters) {
+    const fs = (fighters || []).map(id => CONFIG.fighters[id]).filter(Boolean);
+    if (!fs.length) return 0;
+    let b = 0;
+    if (fs.some(isTankF)) b += 1.5;
+    if (fs.filter(f => f.role === 'mage').length >= 2) b -= 2;
+    if (fs.filter(f => f.role === 'assassin').length >= 2) b -= 1.5;
+    return b;
   }
-  function quick(G, aId, bId) {
-    const diff = strength(G, aId) - strength(G, bId), pA = Math.min(0.95, Math.max(0.05, 1 / (1 + Math.pow(10, -diff / 25))));      // 능력치 10 차이 ≈ 승률 72%
+  /* 팀 전력: 선발 3명의 능력치(ovr)에 폼·멘탈을 가미한 평균 + 픽 조합 보정. 정상 경기와 같은 선수 데이터를 사용 */
+  function strength(G, id, fighters) {
+    const t = team(G, id), ids = id === 'player' ? ((G.club && G.club.lineup) || []).filter(Boolean) : (t.pros || []);
+    const mo = id === 'player' && G.club && typeof Club !== 'undefined' && Club.ready(G) ? Club.moods(G) : null;      // 내 팀: 실제 경기와 같은 시설 보정 폼/멘탈
+    const ps = ids.map((x, i) => { const p = Pros.get(G, x); return p ? { p, m: (mo && mo[i]) || p } : null; }).filter(Boolean);
+    let base;
+    if (ps.length) base = ps.reduce((s, { p, m }) => s + p.ovr + ((m.form ?? 55) - 55) * 0.15 + ((m.mental ?? 70) - 70) * 0.08, 0) / ps.length;
+    else {
+      const gr = (t.brains || []).map(g => CONFIG.pro.grades[g]).filter(Boolean);          // 선수 데이터가 없으면 등급 평균
+      base = gr.length ? gr.reduce((s, g) => s + (g.ovr[0] + g.ovr[1]) / 2, 0) / gr.length : 60;
+    }
+    return base + compBonus(fighters);
+  }
+  function quick(G, aId, bId, picks) {
+    const diff = strength(G, aId, picks && picks[0]) - strength(G, bId, picks && picks[1]), pA = Math.min(0.95, Math.max(0.05, 1 / (1 + Math.pow(10, -diff / 32))));      // 능력치 10 차이 ≈ 승률 67%
     const w = Math.random() < pA ? 0 : 1, r = Math.random(), hp = [0, 0], sc = [0, 0];
     hp[w] = 0.4 + 0.5 * r; hp[1 - w] = 0.1 + 0.3 * r; sc[w] = 12 + Math.floor(r * 8); sc[1 - w] = 4 + Math.floor(Math.random() * 8);
     return { winner: w, hp, score: sc, scoreText: sc[0] + ':' + sc[1], ticks: 3600 };
   }
+  /* 내 경기(finishMatch)도 받을 수 있게 전투 결과와 같은 모양으로 채운 빠른 결과. fast:true 이며 units 는 전투 기록 없이 0 값(rec 도 없음) */
+  function quickResult(G, aId, bId, picks) {
+    const r = quick(G, aId, bId, picks), FD = CONFIG.fighters, pk = picks || [[], []], mv = (pk[r.winner] || [])[0] || '';
+    r.picks = pk;
+    r.units = [0, 1].flatMap(tm => (pk[tm] || []).map((f, i) => ({ id: tm + '-' + i, team: tm, slot: i, nick: '', ch: FD[f], dmg: 0, taken: 0, healed: 0, kills: 0, deaths: 0, alive: true, skills: 0, ults: 0, deliv: 0, coresIn: 0, dpts: 0, fb: null })));
+    Object.assign(r, { mvpTeam: r.winner, mvpFighter: mv, mvpName: mv && FD[mv] ? FD[mv].name : '', target: 0, capTime: [0, 0], bossKills: [0, 0], sudden: false, suddenWinner: null, suddenLoser: null, timeout: true, fast: true });
+    return r;
+  }
   function simulate(G, aId, bId, rule, series) {
-    const d = autoDraft(team(G, aId), team(G, bId), series ? fearlessOf(series) : null), p = d.picks;
-    if (fastMode && aId !== 'player' && bId !== 'player') {
-      const res = quick(G, aId, bId); res.picks = p;
+    const d = autoDraft(G, team(G, aId), team(G, bId), series ? fearlessOf(series) : null), p = d.picks;
+    if (fastMode) {
+      const res = quick(G, aId, bId, p); res.picks = p;
       Stats.record(G, { ids: [aId, bId], picks: p, bans: d.bans, winner: res.winner });
       return res;
     }
     const res = Battle.simulate([input(G, aId, p[0], p[1]), input(G, bId, p[1], p[0])], rule);
     Stats.record(G, { ids: [aId, bId], picks: p, bans: d.bans, winner: res.winner });       // 데이터 센터 집계
+    Draft.learn(G, p, res.winner);                                                            // AI 밴픽 메타: 실제 전투 결과로 파이터별 승률 누적
     res.picks = p;
     return res;
   }
@@ -219,5 +245,5 @@ const League = (() => {
     return G.league.round < L().midRound ? '전반기' : '후반기';
   }
 
-  return { team, name, tag, brainsOf, moodsOf, lgOf, when, fmtDate, isoDate, stage, yearOf, CAL, newSeason, sorted, rankOf, playerMatch, completeRound, intlField, createTour, roundName, tourPlayerMatch, tourResolve, tourSimCurrent, tourAdvance, tourSimAll, tourStart, shuffle, fearlessOf, seriesLabel, setFast };
+  return { team, name, tag, brainsOf, moodsOf, lgOf, when, fmtDate, isoDate, stage, yearOf, CAL, newSeason, sorted, rankOf, playerMatch, completeRound, intlField, createTour, roundName, tourPlayerMatch, tourResolve, tourSimCurrent, tourAdvance, tourSimAll, tourStart, shuffle, fearlessOf, seriesLabel, setFast, isFast, quick, quickResult };
 })();

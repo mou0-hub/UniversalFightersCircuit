@@ -151,24 +151,30 @@ const Scout = (() => {
     });
   }
 
-  function recommend(f) {
-    const sc = {};
-    Object.entries(Draft.strategyPresets).forEach(([id, p]) => { sc[id] = { id, name: p.name, desc: p.desc, v: (C().base || {})[id] || 0, why: [] }; });
-    C().rules.forEach(r => { if (sc[r.p] && test(r.when, f)) { sc[r.p].v += r.w; if (r.w > 0) sc[r.p].why.push(r.why); } });
-    return Object.values(sc).sort((a, b) => b.v - a.v);
+  /* 우리 설정은 유지하고 한 항목만 미세 조정 제안 (최대 C().top, 축마다 1개) */
+  function recommend(f, cur) {
+    const out = [], used = new Set();
+    C().rules.map(r => ({ r, ok: test(r.when, f) })).filter(x => x.ok).sort((a, b) => b.r.w - a.r.w).forEach(({ r }) => {
+      const now = cur && cur[r.axis] ? cur[r.axis][0] : null;
+      if (out.length >= C().top || used.has(r.axis) || now === r.to) return;
+      used.add(r.axis);
+      const from = optName(r.axis, now), to = optName(r.axis, r.to);
+      out.push({ axis: r.axis, to: r.to, cat: to.cat, fromName: now ? from.name : '-', toName: to.name, why: r.why });
+    });
+    return out;
   }
 
   function analyze(G, id) {
     const t = League.team(G, id); if (!t || !t.name) return null;
     const lg = t.lg || G.leagueId, level = t.level || League.lgOf(G).diff;
     const ai = Draft.aiTeam(level, favOf(t), []), S = ai.strategy;
-    const strat = ['stance', 'boss', 'formation', 'deposit', 'retreat'].filter(k => S[k]).map(k => ({ ...optName(k, S[k][0]), id: S[k][0], key: k }));
+    const strat = ['engage', 'zone', 'formation', 'deposit', 'boss'].filter(k => S[k]).map(k => ({ ...optName(k, S[k][0]), id: S[k][0], key: k }));
     const sOpp = skillAvg(G, id), sMe = skillAvg(G, 'player');
     const pOpp = powerOf(G, id), pMe = powerOf(G, 'player');
     const gap = pOpp != null && pMe != null ? Math.round((pMe - pOpp) * 10) / 10 : null;
     const edge = k => (sOpp && sMe ? Math.round(sOpp[k] - sMe[k]) : null);
-    const f = { stance: S.stance && S.stance[0], boss: S.boss && S.boss[0], form: S.formation && S.formation[0], retreat: S.retreat && S.retreat[0], deposit: S.deposit && S.deposit[0], gap, teamEdge: edge('team'), judgeEdge: edge('judge'), reactEdge: edge('react'), level };
-    const rec = recommend(f).slice(0, C().top);
+    const f = { engage: S.engage && S.engage[0], zone: S.zone && S.zone[0], boss: S.boss && S.boss[0], form: S.formation && S.formation[0], deposit: S.deposit && S.deposit[0], gap, teamEdge: edge('team'), judgeEdge: edge('judge'), reactEdge: edge('react'), level };
+    const rec = recommend(f, G.strategy);
     const tr = Stats.teamRates(G, lg, t.name), picks = tr.picks.g >= C().minGames ? tr.picks.list.slice(0, 3) : [];
     const known = picks.map(x => x.id), bans = known.length >= 2 ? known.slice(0, 2) : favOf(t).slice(0, 2);
     const all = League.sorted(G), ri = all.findIndex(x => x.id === id);

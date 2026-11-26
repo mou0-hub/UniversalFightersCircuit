@@ -93,7 +93,7 @@ const Club = (() => {
   const capOfDiff = d => (C().cap || {})[d] || C().cap.normal;
   const KR = () => C().capRule;
   /* 캡 반영 연봉: 한 구단에서 오래 뛴 선수(p.tn 시즌)일수록 감면. sal 을 주면 그 연봉 기준으로 계산(재계약 예상용) */
-  const capSal = (p, sal) => { const T = KR().tenure || {}; return round10((sal == null ? p.salary : sal) * (1 - Math.min(T.max == null ? 0.4 : T.max, (p.tn || 0) * (T.perSeason == null ? 0.08 : T.perSeason)))); };
+  const capSal = (p, sal) => { if (p.god) return 0; const T = KR().tenure || {}; return round10((sal == null ? p.salary : sal) * (1 - Math.min(T.max == null ? 0.4 : T.max, (p.tn || 0) * (T.perSeason == null ? 0.08 : T.perSeason)))); };
   const capBase = G => capOfDiff(diffOf(G));
   function nextCap(G) {
     const ord = C().promotion.order, base = capBase(G);
@@ -137,13 +137,16 @@ const Club = (() => {
     (opts.pool || []).forEach(src => { const p = copy(src, null); G.club.pool.push(p.id); });
     const starters = [], limit = cap(G);
     let pay = carried.reduce((t, p) => t + p.salary, 0);
-    for (let i = 0; i < Math.max(0, C().startSize - carried.length); i++) {
+    /* 시험용 SSS 선수: CONFIG.club.godStart 명(승계된 god 포함)을 서로 다른 역할군으로 배정 */
+    const roles = Pros.shuffle(Object.keys(CONFIG.roles));
+    const gods = Array.from({ length: Math.max(0, (C().godStart || 0) - carried.filter(p => p.god).length) }, (_, i) => { const p = Pros.genGod(G, { lg: lgId, role: roles[i % roles.length] }); p.team = 'player'; return p; });
+    for (let i = 0; i < Math.max(0, C().startSize - carried.length - gods.length); i++) {
       let p = Pros.gen(G, Pros.startGrade(level), { lg: lgId });
       if (pay + p.salary > limit) { Pros.remove(G, p.id); p = Pros.gen(G, 'C', { lg: lgId }); }
       if (pay + p.salary > limit) { Pros.remove(G, p.id); continue; }
       p.team = 'player'; pay += p.salary; starters.push(p);
     }
-    const all = [...carried, ...starters].sort((a, b) => b.ovr - a.ovr);
+    const all = [...carried, ...gods, ...starters].sort((a, b) => b.ovr - a.ovr);
     G.club.roster = all.map(p => p.id);
     G.club.lineup = [0, 1, 2].map(i => (all[i] ? all[i].id : null));
     ensureRoster(G);
@@ -213,6 +216,7 @@ const Club = (() => {
     if (!p) return { form: 55, mental: 70, trouble: 0, slack: 0 };
     if (typeof News !== 'undefined' && News.ensureProMood) News.ensureProMood(p);
     const fv = Facility.eff(G, p);
+    if (p.god) return { form: 100, mental: 100, trouble: 0, slack: 0, nick: p.nick, sk: p.sk };
     return { form: fv.form, mental: fv.mental, trouble: fv.trouble, slack: p.slack ?? 0, nick: p.nick, sk: fv.sk };
   });
   /* 셀러리캡 대상 연봉 = 선발(라인업) 3명의 캡 반영 연봉 합. 실제 지급 연봉(벤치 포함 전원)은 wage */
@@ -265,6 +269,7 @@ const Club = (() => {
     return Math.min(1, (p.sg || 0) / tg);
   }
   function mood(G, p) {
+    if (p.god) return { score: 100, parts: { play: 0, team: 0, pay: 0, growth: 0, title: 0, trait: 0, adj: 0 }, why: '전반적인 분위기', share: 1 };
     const B = CONFIG.pro.morale, n = CONFIG.league.teamCount || 12, rank = League.rankOf(G, 'player') || Math.ceil(n / 2);
     const fv = Facility.eff(G, p), share = shareOf(G, p), young = p.age <= 22 || (p.pot - p.ovr) >= 8, vet = p.age >= 27, star = p.grade === 'A' || p.grade === 'S';
     const parts = {

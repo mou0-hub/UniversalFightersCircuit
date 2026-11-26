@@ -324,8 +324,11 @@ header.top, header.app-header, #topbar, .topbar{
       else if (k === 'cxSlide') cxGoSlide(+el.dataset.i, true);
       else if (k === 'strPresetAll') { const g = G(); g.strategy = Draft.normalizeStrategy(Draft.presetStrategy(el.dataset.p)); g.slotRole = ['auto', 'auto', 'auto']; g.slotPreset = el.dataset.p; Game.save(); refresh(); }
       else if (k === 'scout') showScout(el.dataset.id);
+      else if (k === 'report') showReport();
+      else if (k === 'reportRoom') { closeModal(); Object.assign(dcS, { tab: 'report', rsel: null }); go('data'); }
+      else if (k === 'summary') showSummary();
       else if (k === 'tourEnter') { const g = G(); (g.tourSeen = g.tourSeen || {})[tourKey(g, el.dataset.k)] = 1; Game.save(); refresh(); }
-      else if (k === 'scoutApply') { const g = G(); g.strategy = Draft.normalizeStrategy(Draft.presetStrategy(el.dataset.p)); g.slotRole = ['auto', 'auto', 'auto']; g.slotPreset = el.dataset.p; Game.save(); closeModal(); refresh(); toast('추천 전술을 적용했습니다'); }
+      else if (k === 'scoutApply') { const g = G(), ax = el.dataset.axis, c = CONFIG.tactics.team.find(x => x.id === ax); if (c && c.options.some(o => o.id === el.dataset.to)) { g.strategy[ax] = [el.dataset.to, CONFIG.tactics.pre.level]; Draft.normalizeStrategy(g.strategy); Game.save(); closeModal(); refresh(); toast('제안을 적용했습니다'); } }
       else if (k === 'tacTab') { tacTab = el.dataset.t === 'slot' ? 'slot' : 'team'; tacPage = 0; refresh(); }
       else if (k === 'tacPage') {
         let max;
@@ -485,14 +488,14 @@ header.top, header.app-header, #topbar, .topbar{
     const share = gp == null ? 50 : Math.max(8, Math.min(92, Math.round(a.power.me / (a.power.me + a.power.opp) * 100)));
     const st = k => a.strat.find(x => x.key === k), chips = (l, c) => l.length ? l.map(x => `<span class="ob-chip ${c}">${x.icon} ${x.name}</span>`).join('') : '<span class="ob-chip">뚜렷하지 않음</span>';
     const prosHtml = a.pros.length ? a.pros.map(r => `<li><em class="ob-gr" data-g="${r.grade}">${r.grade}</em><div><b>${r.p.nick}</b><span>${r.role} · ${r.style}${r.engage ? ' · ' + r.engage : ''}</span></div></li>`).join('') : '<li class="ob-none">선수 정보가 없습니다.</li>';
-    const recHtml = a.rec.map((r, i) => `<article class="ob-rec ${i === 0 ? 'top' : ''}"><header><div>${i === 0 ? '<span class="ob-badge">추천</span>' : ''}<b>${r.name}</b></div><button class="btn small ${i === 0 ? 'primary' : 'ghost'}" data-ui="scoutApply" data-p="${r.id}">적용</button></header><p>${r.desc}</p><ul>${(r.why.length ? r.why : ['특별히 유리한 점은 없지만 무난하게 운영할 수 있습니다']).map(w => `<li>${w}</li>`).join('')}</ul></article>`).join('');
+    const recHtml = a.rec.length ? a.rec.map((r, i) => `<article class="ob-rec ${i === 0 ? 'top' : ''}"><header><div>${i === 0 ? '<span class="ob-badge">제안</span>' : ''}<b>${r.cat}: ${r.fromName} → ${r.toName}</b></div><button class="btn small ${i === 0 ? 'primary' : 'ghost'}" data-ui="scoutApply" data-axis="${r.axis}" data-to="${r.to}">적용</button></header><p>${r.why}</p></article>`).join('') : '<p class="ob-none">지금 설정을 그대로 유지해도 좋습니다.</p>';
     const AN = CONFIG.scout.analyst, anImg = `${AN.dir}${AN.prefix}${1 + Math.floor(Math.random() * AN.count)}.${AN.ext}`, anLine = AN.lines[Math.floor(Math.random() * AN.lines.length)];
     const anHtml = `<aside class="ob-an"><p class="ob-an-say">${anLine}</p><img src="${anImg}" alt="전력분석관" onerror="this.remove()"></aside>`;
     modal(`<div class="ob-wrap">${anHtml}<div class="ob-main"><header class="ob-head">${teamLogo(a.name, 56)}<div><h3>${a.name}</h3><div class="ob-meta"><span>${a.tag}</span>${a.lv ? `<span>난이도 ${a.lv.name}</span>` : ''}${a.rank ? `<span>리그 ${a.rank}위</span>` : ''}</div></div></header>
       <div class="ob-sum">
         <div><small>전력 차이</small><b class="${cls}">${gp == null ? '-' : (gp > 0 ? '+' : '') + gp}</b><em>${gapTxt}</em></div>
-        <div><small>예상 기조</small><b>${st('stance') ? st('stance').name : '-'}</b><em>보스 ${st('boss') ? st('boss').name : '-'}</em></div>
-        <div><small>추천 전술</small><b>${a.rec[0].name}</b><em>${a.rec[0].why.length ? a.rec[0].why.length + '가지 근거' : '기본 운영'}</em></div>
+        <div><small>예상 성향</small><b>${st('engage') ? st('engage').name : '-'}</b><em>${st('zone') ? st('zone').name : '-'} · 보스 ${st('boss') ? st('boss').name : '-'}</em></div>
+        <div><small>조정 제안</small><b>${a.rec.length ? a.rec[0].cat : '유지'}</b><em>${a.rec.length ? a.rec[0].fromName + ' → ' + a.rec[0].toName : '현재 설정 그대로'}</em></div>
       </div>
       <div class="ob-gauge"><i style="width:${share}%"></i></div><div class="ob-gl"><span>우리</span><span>상대</span></div>
       ${a.notes.length ? `<ul class="ob-note">${a.notes.map(n => `<li>${n}</li>`).join('')}</ul>` : ''}
@@ -555,7 +558,7 @@ header.top, header.app-header, #topbar, .topbar{
   const dcPanel = (title, sub, body) => `<div class="glass panel dc-panel"><header><h4>${title}</h4>${sub ? `<small>${sub}</small>` : ''}</header>${body}</div>`;
   views.data = () => {
     const g = G(), S = Stats.get(g), all = Stats.fighters(g), top = Stats.topWin(g, 5), roster = Stats.roster();
-    const tabs = [['overview', '종합'], ['mine', '내 데이터'], ['fighter', '파이터 승률'], ['matchup', '상성'], ['team', '팀 선호도'], ['league', '리그 밴픽률'], ['order', '지시']];
+    const tabs = [['overview', '종합'], ['mine', '내 데이터'], ['report', '리포트 룸'], ['fighter', '파이터 승률'], ['matchup', '상성'], ['team', '팀 선호도'], ['league', '리그 밴픽률'], ['order', '지시']];
     const tabHtml = `<nav class="dc-tabs">${tabs.map(([id, n]) => `<button class="dc-tab ${dcS.tab === id ? 'on' : ''}" data-act="dcTab" data-tab="${id}">${n}</button>`).join('')}</nav>`;
     const hero = `<section class="dc-hero"><div class="dc-hero-h"><h3>승률 TOP 5</h3><small>총 ${S.n}경기 집계${S.n ? ' · 표본이 적은 파이터는 제외' : ''}</small></div>${top.length
       ? `<div class="dc-top5">${top.map((x, i) => { const f = FD(x.id); return `<button class="dc-card r${i + 1}" style="--ec:${f.color}" data-act="dcFighter" data-id="${x.id}"><span class="dc-rank">${i + 1}</span>${mini(f)}<b>${f.name}</b><em>${CONFIG.roles[f.role].icon} ${CONFIG.roles[f.role].name}</em><strong>${pct(x.wr)}</strong><small>${x.w}승 ${x.g - x.w}패 · ${x.g}전</small>${dcBar(x.wr, 1)}</button>`; }).join('')}</div>`
@@ -563,6 +566,8 @@ header.top, header.app-header, #topbar, .topbar{
     let body = '';
     if (dcS.tab === 'mine') {
       body = MyData.html(g, dcS, { FD, mini, panel: dcPanel, name: dcName, bar: dcBar });
+    } else if (dcS.tab === 'report') {
+      body = Report.room(g, dcS, { panel: dcPanel });
     } else if (dcS.tab === 'overview') {
       const pick1 = Stats.topBy(g, 'pr', 1)[0], ban1 = Stats.topBy(g, 'br', 1)[0], tile = (k, v, sub) => `<div class="dc-tile"><small>${k}</small><b>${v}</b><span>${sub || ''}</span></div>`;
       const tiles = `<div class="dc-tiles">${tile('총 경기', S.n, '집계된 전체 경기')}${tile('집계 파이터', all.filter(x => x.g).length + ' / ' + roster.length, '1회 이상 출전')}
@@ -738,6 +743,9 @@ header.top, header.app-header, #topbar, .topbar{
 .tac-opt{appearance:none;border:1px solid rgba(255,255,255,.1);background:rgba(0,0,0,.28);color:var(--text);font:inherit;font-size:12px;font-weight:650;padding:5px 10px;border-radius:8px;cursor:pointer;transition:all .14s;line-height:1.2}
 .tac-opt:hover{border-color:rgba(94,231,255,.45);background:rgba(94,231,255,.08)}
 .tac-opt.on{border-color:var(--acc);background:var(--acc);color:#061018;font-weight:800;box-shadow:none}
+.tac-more summary{position:relative;display:inline-block;padding:6px 12px;border:1px solid rgba(255,255,255,.1);border-radius:8px;background:rgba(0,0,0,.28);color:var(--muted);font-size:12px;font-weight:700;cursor:pointer}
+.tac-more[open] summary{border-color:var(--acc);color:var(--text)}
+.tac-more .tac-grid{margin-top:10px}
 .tac-meter{display:flex;align-items:center;gap:10px;margin-top:2px}
 .tac-meter.off{opacity:.35;pointer-events:none}
 .tac-meter .lab{font-size:11px;font-weight:700;color:var(--muted);min-width:28px}
@@ -820,17 +828,17 @@ header.top, header.app-header, #topbar, .topbar{
           </div>
           <div class="right"><span class="tac-hint">${slotHint}</span><button class="btn small ghost" data-act="tacReset" data-slot="${slot}">자동으로</button></div>
         </div>
-        <div class="tac-body"><div class="tac-grid" ${roleOf === 'auto' ? 'style="opacity:.5"' : ''}>${rows || '<p class="tac-empty">항목 없음</p>'}</div></div>
+        <div class="tac-body"><details class="tac-more" ${roleOf === 'custom' ? 'open' : ''}><summary>세부 조정</summary><div class="tac-grid" ${roleOf === 'auto' ? 'style="opacity:.5"' : ''}>${rows || '<p class="tac-empty">항목 없음</p>'}</div></details></div>
       </section>`;
     }
 
     return `<section class="tac-view">
       <div class="glass panel tac-hero"><div class="tac-hero-inner">
         <div><h2>${CONFIG.nav.tactics}</h2>
-          <p>팀 기조와, 배치한 선수별 역할을 정합니다. 경기 중에는 지시로 상황에 맞게 바꿀 수 있고, 지시가 없으면 여기서 정한 대로 움직입니다.</p></div>
+          <p>우리 팀이 어떤 성격으로 싸울지 고릅니다. 정답은 없고, 어떤 스타일이든 장단점이 함께 있습니다. 불리한 상황의 판단은 선수와 AI가 맡고, 경기 중 지시가 있으면 지시가 우선합니다.</p></div>
         <div class="tac-seg">
-          <button class="${tacTab === 'team' ? 'on' : ''}" data-ui="tacTab" data-t="team">팀 전략</button>
-          <button class="${tacTab === 'slot' ? 'on' : ''}" data-ui="tacTab" data-t="slot">픽 슬롯 전술</button>
+          <button class="${tacTab === 'team' ? 'on' : ''}" data-ui="tacTab" data-t="team">팀 성격</button>
+          <button class="${tacTab === 'slot' ? 'on' : ''}" data-ui="tacTab" data-t="slot">선수 스타일</button>
         </div>
       </div></div>
       ${body}
@@ -879,6 +887,24 @@ header.top, header.app-header, #topbar, .topbar{
     return { nick: p.nick || '선수', favs, roleName: R ? (R.icon + ' ' + R.name) : '', grade: p.grade || '' };
   }
   let swapFrom = null;      // 밴픽 완료 후 스왑용 (슬롯 인덱스)
+  const DR_ADV = Object.assign({ name: '밴픽 분석관', face: 'img/manager/DraftAnalyst.png' }, (CONFIG.draft && CONFIG.draft.advisor) || {});
+  function advRender() {
+    const box = $('#drAdvBody'), M = Game.match, d = Game.draft, g = G(); if (!box || !M || !d || !g) return;
+    let a = null;
+    try { a = Draft.analyze(g, d, M.pIdx, League.team(g, M.teams[M.pIdx].id), League.team(g, M.teams[1 - M.pIdx].id)); } catch (e) { a = null; }
+    if (!a) { box.innerHTML = ''; return; }
+    const nm = id => (FD(id) || {}).name || id, sp = id => `<img class="px" src="${Sprites.url(FD(id))}" alt="">`;
+    const hit = c => `<div class="dr-adv-hit" data-act="draftSel" data-id="${c.id}" title="${c.why.join(' / ')}">${sp(c.id)}<div class="dr-adv-txt"><b>${nm(c.id)}</b>${c.why[0]}</div></div>`;
+    const chip = c => `<span class="dr-adv-ch" data-act="draftSel" data-id="${c.id}" title="${c.why.join(' / ')}">${sp(c.id)}${nm(c.id)}</span>`;
+    const stTxt = { banned: '이미 밴됨', mine: '내가 픽함', used: '사용 불가' };
+    const oppHtml = a.opp ? `<section class="dr-adv-sec"><h4>상대 픽 상성</h4><div class="dr-adv-tags">${a.opp.tags.map(t => `<span class="dr-adv-tag">${t}</span>`).join('')}</div>
+      ${a.opp.picks.map(p => `<div class="dr-adv-pk"><div class="dr-adv-row">${sp(p.id)}<div class="dr-adv-txt"><b>${nm(p.id)}</b>${p.notes.join(' · ')}${p.weak ? `<br><span class="dr-adv-weak">약점: ${p.weak}</span>` : ''}</div></div>${p.counters.length ? `<div class="dr-adv-fav"><span>상대하기 좋은</span>${p.counters.map(chip).join('')}</div>` : ''}</div>`).join('')}
+      ${a.opp.recs.length ? `<h4>추천 카운터 (상대 조합 전체 기준)</h4>${a.opp.recs.map(hit).join('')}` : ''}</section>` : '';
+    const thHtml = a.threat ? `<section class="dr-adv-sec"><h4>내 선수 주력 파이터 위협 (밴 참고)</h4>
+      ${a.threat.rows.map(r => { const pr = draftProOf(M.pIdx, r.slot); return `<div class="dr-adv-pk"><p class="dr-adv-nick">${pr ? pr.nick : '선수 ' + (r.slot + 1)}</p>${r.favs.map(f => `<div class="dr-adv-fav ${f.state}"><b>${nm(f.id)}</b>${f.state !== 'ok' ? `<span>${stTxt[f.state]}</span>` : f.threats.length ? `<span>← 상성 불리</span>${f.threats.map(chip).join('')}` : '<span>뚜렷한 카운터 없음</span>'}</div>`).join('')}</div>`; }).join('')}
+      ${a.threat.ban.length ? `<h4>종합 밴 추천</h4>${a.threat.ban.map(hit).join('')}` : ''}</section>` : '';
+    box.innerHTML = `<p class="dr-adv-say">${a.say}</p>${oppHtml || thHtml ? `<div class="dr-adv-cols">${thHtml}${oppHtml}</div>` : ''}`;
+  }
 
   views.draft = () => {
     const M = Game.match, d = Game.draft; if (!M || !d) return `<section class="glass panel empty-match"><h2>진행 중인 경기가 없습니다</h2><button class="btn primary" data-act="nav" data-view="league">리그로 이동</button></section>`;
@@ -911,6 +937,35 @@ header.top, header.app-header, #topbar, .topbar{
 .dr-slot.can-swap { cursor: pointer; }
 .dr-slot.can-swap:hover { background: rgba(255,255,255,.06); }
 .dr-swap-hint { font-size: 12px; color: var(--muted); margin: 0 0 6px; }
+.dr-adv { display: grid; grid-template-columns: clamp(170px, 20vw, 260px) minmax(0, 1fr); gap: 16px; align-items: stretch; margin: 0 0 12px; padding: 14px 16px; }
+.dr-adv-who { display: flex; flex-direction: column; align-items: stretch; gap: 6px; min-height: 240px; text-align: center; }
+.dr-adv-face { display: block; flex: 1; width: 100%; min-height: 0; object-fit: cover; object-position: center top; border: 2px solid rgba(110,231,255,.55); border-radius: 14px; background: rgba(255,255,255,.06); box-shadow: 0 4px 14px rgba(0,0,0,.35); }
+.dr-adv-ph { display: flex; flex: 1; align-items: center; justify-content: center; border: 2px dashed rgba(255,255,255,.3); border-radius: 14px; font-size: 48px; }
+.dr-adv-ph[hidden] { display: none; }
+.dr-adv-who small { font-size: 12px; font-weight: 700; color: var(--muted); }
+.dr-adv-body { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.dr-adv-say { position: relative; margin: 0; padding: 9px 14px; border-radius: 10px; background: rgba(110,231,255,.12); font-size: 13px; font-weight: 700; line-height: 1.5; color: var(--text); }
+.dr-adv-say::before { content: ''; position: absolute; top: 14px; left: -5px; width: 10px; height: 10px; background: rgba(110,231,255,.12); transform: rotate(45deg); }
+.dr-adv-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; }
+.dr-adv-sec { min-width: 0; max-height: 280px; padding: 8px 10px; overflow-y: auto; border: 1px solid rgba(255,255,255,.1); border-radius: 10px; background: rgba(255,255,255,.04); scrollbar-width: thin; }
+.dr-adv-sec h4 { margin: 8px 0 4px; font-size: 12px; color: var(--muted); }
+.dr-adv-sec h4:first-child { margin-top: 0; }
+.dr-adv-tags { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 6px; }
+.dr-adv-tag { padding: 2px 8px; border-radius: 999px; background: rgba(255,255,255,.1); font-size: 11px; color: var(--text); }
+.dr-adv-pk { padding: 6px 0; border-top: 1px dashed rgba(255,255,255,.12); }
+.dr-adv-row, .dr-adv-hit { display: flex; align-items: flex-start; gap: 8px; padding: 3px 0; }
+.dr-adv-row img.px, .dr-adv-hit img.px { flex: none; width: 28px; height: 28px; }
+.dr-adv-hit { border-radius: 8px; transition: background .15s; cursor: pointer; }
+.dr-adv-txt { flex: 1; min-width: 0; font-size: 11px; line-height: 1.4; color: var(--muted); }
+.dr-adv-txt b { display: block; font-size: 12px; color: var(--text); }
+.dr-adv-weak { color: #fca5a5; }
+.dr-adv-nick { margin: 0 0 2px; font-size: 12px; font-weight: 700; color: var(--text); }
+.dr-adv-fav { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 3px 0; font-size: 11px; color: var(--muted); }
+.dr-adv-fav > b { font-size: 12px; color: var(--text); }
+.dr-adv-fav.banned, .dr-adv-fav.mine, .dr-adv-fav.used { opacity: .5; }
+.dr-adv-ch { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px 2px 4px; border: 1px solid rgba(110,231,255,.3); border-radius: 8px; background: rgba(110,231,255,.08); font-size: 11px; color: var(--text); transition: background .15s; cursor: pointer; }
+.dr-adv-ch img.px { width: 20px; height: 20px; }
+.dr-adv-hit:hover, .dr-adv-ch:hover { background: rgba(110,231,255,.18); }
 `;
       document.head.appendChild(st);
     }
@@ -930,6 +985,7 @@ header.top, header.app-header, #topbar, .topbar{
       <div class="dr-slot ban" id="slot-b${t}"><span class="dr-lab">BAN</span></div>${[0, 1, 2].map(i => `<div class="dr-slot" id="slot-p${t}-${i}" data-team="${t}" data-slot="${i}">${proBlock(t, i)}</div>`).join('')}</div>`;
     const tiles = CONFIG.fighterOrder.map(id => { const f = FD(id); return `<button class="dr-tile" data-act="draftSel" data-id="${id}" data-fid="${id}" data-role="${f.role}" style="--ec:${f.color}"><img class="px" src="${Sprites.url(f)}" alt=""><b>${f.name}</b><small>${f.icon}</small><i class="dr-x"></i></button>`; }).join('');
     return `<section class="draft-view"><div class="glass panel dr-head"><div><h2>밴픽</h2><p>${M.label} · 벤 1 · 픽 3 · 번갈아 선택 (벤된 파이터는 양 팀 모두 사용 불가)${Game.draft && Game.draft.fearless && Game.draft.fearless.length ? ' · 피어리스: 앞 세트에서 나온 파이터 사용 불가' : ''}</p><p class="dr-swap-hint" id="drSwapHint" hidden>밴픽 완료 — 내 픽 슬롯을 두 번 클릭하면 순서를 바꿀 수 있습니다</p></div><div class="dr-turn" id="drTurn"></div></div>
+      <div class="glass panel dr-adv"><div class="dr-adv-who"><img class="dr-adv-face" src="${DR_ADV.face}" alt="" onerror="this.style.display='none';this.nextElementSibling.hidden=false"><span class="dr-adv-ph" hidden>🧠</span><small>${DR_ADV.name}</small></div><div class="dr-adv-body" id="drAdvBody"></div></div>
       <div class="dr-grid">${col(0)}<div class="dr-mid"><div class="chips dr-filter" id="drFilter">${['all', ...Object.keys(CONFIG.roles)].map(r => `<button class="chip ${draftRole === r ? 'on' : ''}" data-act="draftFilter" data-role="${r}">${r === 'all' ? '전체' : CONFIG.roles[r].icon + ' ' + CONFIG.roles[r].name}</button>`).join('')}</div><div class="dr-tiles-box"><div class="dr-tiles" id="drTiles">${tiles}</div><div class="dr-overlay" id="drOverlay"><button class="btn primary big" data-act="draftDone" id="drDone">경기장으로 이동</button></div></div></div>${col(1)}</div></section>`;
   };
   const draftSelected = () => selected;
@@ -1007,6 +1063,7 @@ header.top, header.app-header, #topbar, .topbar{
     if (c && (d.done || !mine || !selected || taken.includes(selected))) { closeModal(); selected = null; $$('.dr-tile').forEach(b => b.classList.remove('sel')); }
     else if (c) c.textContent = cur && cur.type === 'ban' ? '밴 확정' : '픽 확정';
     const ov = $('#drOverlay'); if (ov) ov.classList.toggle('on', !!d.done);
+    advRender();
   }
 
   /* ---------- 경기장 ---------- */
@@ -1147,10 +1204,12 @@ header.top, header.app-header, #topbar, .topbar{
     modal(`<div class="res-head win"><h2>${s.year ? s.year + '년 ' : ''}시즌 ${s.season} 종료</h2><p>${G().teamName} 최종 순위 ${s.rank}위</p></div>
       <ul class="notes">${s.lines.map(l => `<li>${l}</li>`).join('')}</ul>
       ${s.growth && s.growth.length ? `<h3>📈 선수 성장 결과</h3><table class="tbl small"><thead><tr><th>선수</th><th>나이</th><th>능력</th><th>변화</th><th>잠재</th><th>등급</th></tr></thead><tbody>${s.growth.map(x => `<tr><td>${x.nick}</td><td>${x.age}</td><td>${x.from} → ${x.to}</td><td>${x.d > 0 ? '▲ +' + x.d : x.d < 0 ? '▼ ' + x.d : '-'}</td><td>${x.pot}</td><td>${x.promoted ? x.oldGrade + ' → ' + x.grade + ' 승급' : x.grade}${x.note ? ' · ' + x.note : ''}</td></tr>`).join('')}</tbody></table>` : ''}
+      <p><button class="btn small" data-ui="report">📊 시즌 리포트</button></p>
       ${scoutHTML(s)}`, 'result scout-modal', true);
   }
+  function showReport() { modal(Report.html(G()), 'result scout-modal', true); }
 
-  return { teamLogo, addView: (n, f) => { views[n] = f; }, onStatus: f => statusHooks.push(f), init, go, refresh, status, toast, modal, closeModal, showFighter, setCodexForm, showResult, reShowResult: () => { if (lastRes) showResult(lastRes); }, showSummary, showTeam, draftSelect, draftSelected, draftUpdate, setDraftFilter,
+  return { teamLogo, addView: (n, f) => { views[n] = f; }, onStatus: f => statusHooks.push(f), init, go, refresh, status, toast, modal, closeModal, showFighter, setCodexForm, showResult, reShowResult: () => { if (lastRes) showResult(lastRes); }, showSummary, showReport, showTeam, draftSelect, draftSelected, draftUpdate, setDraftFilter,
     toggleLegend: () => { legendOpen = !legendOpen; refresh(); }, battleStarted, setPauseLabel, setSpeedUI, setAutoLabel, toggleLogFilter,
     setTacSlot: s => { tacSlot = +s; refresh(); }, setLeagueTab: t => { leagueTab = t; refresh(); }, setSelLeague: id => openLeague(id), dc: p => { Object.assign(dcS, p); refresh(); }, selLeague: () => selLg, setRoleFilter: r => { roleFilter = r; refresh(); }, get view() { return view; } };
 })();

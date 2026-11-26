@@ -6,7 +6,7 @@ const ProUI = (() => {
   const GR = ['S', 'A', 'B', 'C'];
   const flipped = new Set();                       // 뒤집어 둔 카드 키 '위치:선수id' (같은 선수라도 선발 / 선수단 / 시장 카드는 따로 뒤집힘)
   const tier = v => (v >= 90 ? 's' : v >= 75 ? 'a' : v >= 60 ? 'b' : 'c');
-  const gcol = g => CONFIG.pro.grades[g].color;
+  const gcol = p => (p.god ? '#fb7185' : CONFIG.pro.grades[p.grade].color), gname = p => (p.god ? 'SSS' : p.grade);
   const pmini = id => { const f = FD(id); return `<span class="pmini" style="--ec:${f.color}" title="${f.name}"><img class="px" src="${Sprites.url(f)}" alt=""></span>`; };
   const bar = (v, cls) => `<i class="pbar ${cls || ''}"><u style="width:${Math.max(3, Math.min(100, v))}%"></u></i>`;
   const arcTag = p => { if (!p.arc) return ''; const a = Pros.arcOf(p); return (p.sn || 0) >= CONFIG.pro.growth.seasonsToReveal ? `<span class="ptag" title="${a.desc}">${a.icon} ${a.name}</span>` : '<span class="ptag" title="함께 뛴 시즌이 쌓이면 성장 유형이 드러납니다">❔ 성향 미확인</span>'; };
@@ -21,8 +21,8 @@ const ProUI = (() => {
     const best = sorted.slice(0, 2).map(d => d.name).join(' · '), worst = sorted[sorted.length - 1].name;
     const avg = Math.round(defs.reduce((t, d) => t + sk[d.id], 0) / defs.length);
     const rows = defs.map(d => `<div class="sk-row" title="${d.desc}"><span>${d.icon} ${d.name}</span><b class="t-${tier(sk[d.id])}">${sk[d.id]}</b>${bar(sk[d.id], 't-' + tier(sk[d.id]))}</div>`).join('');
-    return `<div class="pro-card back ${ra ? 'rare-' + ra.id : ''}" style="--gc:${gcol(p.grade)}">
-      <div class="back-head"><div class="pro-grade mini"><b>${p.grade}</b></div>
+    return `<div class="pro-card back ${ra ? 'rare-' + ra.id : ''}" style="--gc:${gcol(p)}">
+      <div class="back-head"><div class="pro-grade mini"><b>${gname(p)}</b></div>
         <h4>${p.nick}<small>${p.real} · ${p.nation ? Pros.nationName(p.nation) + ' · ' : ''}${p.age}세</small></h4>
         ${ra ? `<span class="rare-badge ${ra.id}">${ra.icon} ${ra.name}</span>` : ''}
         <span class="avg-chip" title="세부 능력치 평균">평균 <b>${avg}</b></span><span class="avg-chip" title="성장 한계">잠재 <b>${p.pot != null ? p.pot : p.ovr}</b></span>
@@ -41,9 +41,9 @@ const ProUI = (() => {
     const g0 = Game.G, mine = !!(g0 && g0.club && (g0.club.roster || []).includes(p.id));
     if (!mine && p.fxb) Facility.clean(p);
     const pv = mine ? { ...p, ...(({ form, mental, trouble }) => ({ form, mental, trouble }))(Facility.eff(g0, p)) } : p;
-    const front = `<div class="pro-card front ${o.cls || ''} ${ra ? 'rare-' + ra.id : ''}" style="--gc:${gcol(p.grade)}">
+    const front = `<div class="pro-card front ${o.cls || ''} ${ra ? 'rare-' + ra.id : ''}" style="--gc:${gcol(p)}">
       <span class="flip-ico">↻</span>
-      <div class="pro-grade"><b>${p.grade}</b><small>${CONFIG.pro.grades[p.grade].name}</small></div>
+      <div class="pro-grade"><b>${gname(p)}</b><small>${p.god ? 'SSS급' : CONFIG.pro.grades[p.grade].name}</small></div>
       <div class="pro-main"><h4>${p.nick}<small>${p.real} · ${p.nation ? Pros.nationName(p.nation) + ' · ' : ''}${p.age}세</small>${ra ? `<span class="rare-badge ${ra.id}">${ra.icon} ${ra.name}</span>` : ''}</h4>
         <div class="pro-pref"><span title="선호 역할군">${r.icon} ${r.name}</span><span title="선호 플레이">🎮 ${Pros.styleName(p.style)}</span><span class="pro-favs" title="선호 캐릭터">${p.favs.map(pmini).join('')}</span></div>
         <div class="pro-tags">${tags(pv)}</div></div>
@@ -51,7 +51,7 @@ const ProUI = (() => {
         <div><small>폼 ${pv.form != null ? pv.form : '-'}</small>${bar(pv.form != null ? pv.form : 50, (pv.form != null && pv.form < 40) ? 'bad' : '')}</div>
         <div><small>멘탈 ${pv.mental}</small>${bar(pv.mental, pv.mental < 45 ? 'bad' : '')}</div>
         <div><small>트러블 ${pv.trouble}</small>${bar(pv.trouble, 'warn')}</div></div>
-      <div class="pro-money"><b>${money(p.salary)}</b><small>연봉 · 계약 ${p.years}년</small>${o.extra || ''}</div>
+      <div class="pro-money"><b>${money(p.salary)}</b><small>연봉 · 계약 ${p.god ? '무제한' : p.years + '년'}</small>${o.extra || ''}</div>
       <div class="pro-act">${actions || ''}</div></div>`;
     if (o.front) return front.replace('<span class="flip-ico">↻</span>', '');
     return `<div class="pro-flip ${on ? 'flipped' : ''}" data-fk="${fk}" title="클릭하면 세부 능력치를 볼 수 있습니다"><div class="pro-inner">${front}${backFace(p)}</div></div>`;
