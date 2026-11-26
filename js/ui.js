@@ -326,6 +326,7 @@ header.top, header.app-header, #topbar, .topbar{
       else if (k === 'scout') showScout(el.dataset.id);
       else if (k === 'report') showReport();
       else if (k === 'reportRoom') { closeModal(); Object.assign(dcS, { tab: 'report', rsel: null }); go('data'); }
+      else if (k === 'reportLast') { closeModal(); Object.assign(dcS, { tab: 'report', rsel: 'last' }); go('data'); }
       else if (k === 'summary') showSummary();
       else if (k === 'tourEnter') { const g = G(); (g.tourSeen = g.tourSeen || {})[tourKey(g, el.dataset.k)] = 1; Game.save(); refresh(); }
       else if (k === 'scoutApply') { const g = G(), ax = el.dataset.axis, c = CONFIG.tactics.team.find(x => x.id === ax); if (c && c.options.some(o => o.id === el.dataset.to)) { g.strategy[ax] = [el.dataset.to, CONFIG.tactics.pre.level]; Draft.normalizeStrategy(g.strategy); Game.save(); closeModal(); refresh(); toast('제안을 적용했습니다'); } }
@@ -1178,7 +1179,7 @@ header.top, header.app-header, #topbar, .topbar{
       ${info.fan ? `<p class="note">${info.fan.ticket ? `🎟 티켓 수입 +${Pros.money(info.fan.ticket.income)} · ` : ''}👥 ${info.fan.fans.d ? `팬 ${info.fan.fans.d > 0 ? '+' : ''}${info.fan.fans.d.toLocaleString('ko-KR')}명(${info.fan.fans.pct > 0 ? '+' : ''}${(info.fan.fans.pct * 100).toFixed(1)}%)` : '팬 변동 없음'}</p>` : ''}
       ${info.notes && info.notes.length ? `<ul class="notes">${info.notes.map(n => `<li>${n}</li>`).join('')}</ul>` : ''}
       <table class="tbl small"><thead><tr><th>파이터</th><th>타입</th><th>피해</th><th>치유</th><th>처치</th><th>코어 제출</th><th>상태</th></tr></thead><tbody>${rows}</tbody></table>
-      <div class="modal-actions">${info.analysisId ? `<button class="btn big" data-ui="resOpen" data-id="${info.analysisId}">전투 분석 보기</button>` : ''}${typeof Feedback !== 'undefined' && G().club && G().club.lineup ? '<button class="btn big" data-act="fbOpen" data-from="result">💬 선수 피드백</button>' : ''}<button class="btn primary big" data-act="resultContinue">계속</button></div>`, 'result', false);
+      <div class="modal-actions"><button class="btn big" data-ui="reportLast">📊 이번 경기 상세 분석</button>${info.analysisId ? `<button class="btn big" data-ui="resOpen" data-id="${info.analysisId}">전투 분석 보기</button>` : ''}${typeof Feedback !== 'undefined' && G().club && G().club.lineup ? '<button class="btn big" data-act="fbOpen" data-from="result">💬 선수 피드백</button>' : ''}<button class="btn primary big" data-act="resultContinue">계속</button></div>`, 'result', false);
   }
   /* 시즌 종료 스카웃 제안 영역: 제안 온 팀 또는 현재 팀 잔류만 선택 가능 */
   function scoutHTML(s) {

@@ -158,6 +158,11 @@ const Draft = (() => {
     }
     return wpick(avail, score.map(s => Math.pow(Math.max(s, 1e-4), TUNE.sharp)));
   }
+  function matchup(mine, theirs) {
+    const side = (a, b) => { const A = view(null, b, []); return a.filter(id => CONFIG.fighters[id]).map(id => { const w = []; return { id, k: counter(feat(id), A, w), why: w }; }); };
+    const m = side(mine, theirs), o = side(theirs, mine), gm = l => Math.exp(l.reduce((s, r) => s + Math.log(r.k), 0) / Math.max(1, l.length));
+    return { mine: m, theirs: o, mk: gm(m), tk: gm(o) };
+  }
   /* ---------- 분석관 (밴픽 화면 조언) ---------- */
   const fname = id => (CONFIG.fighters[id] || {}).name || id;
   function traits(f) {
@@ -242,5 +247,5 @@ const Draft = (() => {
   }
   const favorites = n => { const a = ids().slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a.slice(0, n); };
 
-  return { create, current, taken, banned, apply, aiChoose, auto, profile, learn, analyze, neutralTactic, presetTactic, aiTactic, favorites };
+  return { create, current, taken, banned, apply, aiChoose, auto, profile, learn, analyze, matchup, neutralTactic, presetTactic, aiTactic, favorites };
 })();
