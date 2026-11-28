@@ -71,7 +71,7 @@ const Arena = (() => {
     if (ev.type === 'skill') return { cat: 'skill', html: `${sec}${nm(ev.src)} <i class="sk-${ev.slot}">${ev.slot === 'ult' ? '궁극기' : '스킬'}</i> <b>${ev.name}</b> 발동` };
     if (ev.type === 'order') return { cat: 'sys', html: `${sec}<b style="color:${tcol(ev.team)}">${names[ev.team]}</b> 지시 <i class="crit">${ev.name}</i>${ev.unit ? ' → ' + nm(ev.unit) : ''}` };
     if (ev.type === 'ace') return { cat: 'sys', html: `${sec}<b style="color:${tcol(ev.team)}">${names[ev.team]}</b> 상대 전멸!` };
-    if (ev.type === 'sudden') return { cat: 'sys', html: `${sec}<b>서든데스</b> — 전원 체력이 줄고, 먼저 코어를 제출하는 팀이 승리합니다! <i class="crit">SUDDEN DEATH</i>` };
+    if (ev.type === 'sudden') return { cat: 'sys', html: `${sec}<b>서든데스</b> — 전원 풀피로 중앙에서 맞붙습니다. 먼저 전멸하는 팀이 패배합니다! <i class="crit">SUDDEN DEATH</i>` };
     if (ev.type === 'boss') {
       if (ev.phase === 'warn') return { cat: 'sys', html: `${sec}<b>${CONFIG.bossDefs[ev.plan.def].name}</b> 출현 예고 — ${ev.plan.warn}초 뒤 중앙 구덩이에 나타납니다! (처치 시 코어 ${CONFIG.battle.map.core.boss[ev.plan.kind === 'late' ? 'late' : 'first']}개 드랍 + 팀 버프)` };
       if (ev.phase === 'spawn') return { cat: 'sys', html: `${sec}<b>${ev.unit.ch.name}</b> 등장! 막타를 치는 팀이 <i class="crit">코어 ${CONFIG.battle.map.core.boss[ev.unit.bossDef.kind === 'late' ? 'late' : 'first']}개</i>와 팀 버프를 얻습니다` };
@@ -412,7 +412,7 @@ const Arena = (() => {
     ctx.textAlign = 'center'; ctx.fillStyle = battle.sudden ? '#fb7185' : '#fff'; ctx.font = '800 24px Orbitron, "Noto Sans KR", sans-serif'; ctx.fillText(battle.clockText(), cx, y + 22);
     ctx.fillStyle = '#ffd166'; ctx.font = '700 11px "Noto Sans KR", sans-serif';
     let sub = '';
-    if (battle.sudden) sub = '먼저 코어를 제출하는 팀 승리';
+    if (battle.sudden) sub = '전멸하는 팀 패배';
     else if (!boss) { const pl = battle.bossPlan.find(p => !p.spawned); sub = pl ? (pl.atTick != null ? '보스 ' + Math.max(0, Math.ceil((pl.atTick - battle.t) / 20)) + '초 후' : '보스 처치 후 다음 보스 등장') : '보스 없음'; }
     else sub = boss.ch.name + ' (코어 ' + CONFIG.battle.map.core.boss[boss.bossDef.kind === 'late' ? 'late' : 'first'] + '개 + 버프)';
     ctx.fillText(sub, cx, y + 46);

@@ -50,7 +50,8 @@
         const u = 1 - gs.timeRatio, m = gs.scoreDiff + 2.5 * gs.powerRatio * (1 + 0.5 * u);
         const big = 4 - 1.5 * u, dire = 3.5 - 1.5 * u;
         let want;
-        if (this.sudden || (gs.suddenRisk && Math.round(gs.scoreDiff) === 0)) want = 'SuddenPrep';
+        if (this.sudden) want = 'Contest';
+        else if (gs.suddenRisk && Math.round(gs.scoreDiff) === 0) want = 'SuddenPrep';
         else if (m >= big) want = 'Protect';
         else if (m >= 1) want = 'Extend';
         else if (m > -1) want = 'Contest';
@@ -121,7 +122,8 @@
       const bossOn = gs.bossState === 'active' || gs.bossState === 'lowHp';
       this.reckon(team, foes);
       let want;
-      if (cv >= 3) want = 'SecureDeposit';
+      if (this.sudden) want = 'ForceFight';
+      else if (cv >= 3) want = 'SecureDeposit';
       else switch (M.mode) {
         case 'Protect': want = cv > 0 ? 'SecureDeposit' : 'FarmCores'; break;
         case 'Extend': want = cv >= CARRY_MIN ? 'SecureDeposit' : 'FarmCores'; break;
@@ -252,7 +254,7 @@
       P.edge = clamp((mine - theirs) / (mine + theirs || 1) + X.respawn * (gap(op) - gap(me)) + P.bias, -1, 1);
       const lead = this.score[team] - this.score[1 - team], { total, left } = this.clock();
       P.lead = lead; P.left = left;
-      P.need = this.sudden ? 1 : clamp(-lead / ((X.needBase + X.needLeft * left / total) * (1 - X.needC * P.c)), -1, 1);
+      P.need = this.sudden ? 0 : clamp(-lead / ((X.needBase + X.needLeft * left / total) * (1 - X.needC * P.c)), -1, 1);
     },
 
     tempo(team) {
@@ -441,7 +443,7 @@
       const T = P.tempo, lead = this.score[team] - this.score[1 - team];
       let st = S.stance, lv = S.stanceL, dep = S.deposit, amb = false, ruled = false;
       const dn = this.ordNow(team);
-      if (this.sudden) { st = 'collect'; lv = 6; dep = 'early'; ruled = true; }
+      if (this.sudden) { st = 'slay'; lv = 6; ruled = true; }
       else if (dn === 'kill') { st = 'slay'; lv = 7; ruled = true; }
       else if (dn === 'boss') { st = 'boss'; lv = 7; ruled = true; }
       else if (dn === 'bossWait') { st = 'boss'; lv = 5; ruled = true; }

@@ -10,43 +10,84 @@
   const mageBasic = { type: 'magic', atk: 0.5, ap: 0.5, proj: 'bolt' };
   const meleeBasic = { type: 'phys', atk: 1, ap: 0, proj: 'melee' };
 
-  /* ================= 15. 셀리맨더 ================= */
+/* ================= 15. 셀리맨더 ================= */
   const marked = (u, t) => t.st.some(s => s.key === 'sal_mark' && s.src === u);
+  const salRes = (b, u, t, k) => { const a = Math.max(0, b.eff(t, 'res') * (1 - Math.min(0.9, Math.max(0, b.eff(u, 'pen'))))); return (100 + a) / (100 + a * (1 - k)); };
   FD.salamander = {
     id: 'salamander', name: '셀리맨더', role: 'mage', color: '#fb923c', title: '화염정령',
     concept: '"어떻게 불태워줄까?"',
     stats: { hp: 800, mp: 330, aspd: 0.85, spd: 7.6, atk: 28, ap: 82, def: 20, res: 26, ten: 0, pen: 0.14, ls: 0, range: 24 },
     basic: mageBasic, ai: { backline: true, kite: 13, threat: 0.85, style: { ult: 'finish' } },
     tac: { act: ['basic', 'retreat'], fight: ['coop'], pos: ['none', 'cover'], aim: ['carry'] },
-    look: { pal: { r: '#ef4444', R: '#991b1b', o: '#fb923c', y: '#fde047', w: '#ffffff', k: '#450a0a' },
+    look: { res: 2, pal: { y: '#ffe066', Y: '#fff4b0', o: '#ff9f1c', O: '#f97316', r: '#ef4444', R: '#b91c1c', s: '#d98a52', S: '#a95a33', c: '#f0a566', e: '#ff6a1a', a: '#ffb300', A: '#fff2b3', k: '#2a0f0a', m: '#8a3a2a', b: '#3d2621', B: '#65402f', v: '#94664c', x: '#59514f', X: '#8b837f', g: '#ff7a1a', G: '#ffd27a', p: '#3a241d' },
       rows: [
-        '......y.y.......',
-        '....yoyoyoy.....',
-        '...yoyRyoyoy....',
-        '..oyrryoyyrryo..',
-        '.orryoooooyrro..',
-        'rRRroooooooorRRr',
-        'RrRrrroooorrrRrR',
-        '.RrrrrrrrrrrrR..',
-        '..RRrrrrrrrrRR..',
-        '...rRRRwwRRRr...',
-        '....ooooooo.....',
-        '...rr.R.R.rr....',
-        '..rr..R.R..rr...',
-        '..RRRkk.kkRRR...'],
+        '............y.yyyy.y............',
+        '........y.yoyyoyyoyyoy.y........',
+        '......o.yoyooyoyyoyooyyy.o......',
+        '.....o.yooyOooyyyyooOyooy.o.....',
+        '....y.yoOrOyooOyyOooyOrOoy.y....',
+        '.....oOyoORrooyyyyoorROoyOoy....',
+        '..y..oOrOyooRooyyooRooyOrOo..y..',
+        '...ooOrOoOyssssssssssyOoOrOoo...',
+        '..y.oOrOoOyskkksskkksyOoOrOo.y..',
+        '...ooOrOoOesaAssssAasyOoOrOyo...',
+        '..O.oOrOoOysessSSssSsyOoOrOoyO..',
+        '...y.rOrOoysssmmmmsssyoOrooyy...',
+        '....oyrOrOoySesSSssSyoOrOoOyo...',
+        '...ooo.rrOoyyssssssyyoOrroOYyo..',
+        '....yo..bBBBvBbggbBvBBBb.OoyyO..',
+        '....O.xXxbBBvBgbbgBvBBbxXx.ooyo.',
+        '.....xXXxsscsesSSsssessxXXx.oy..',
+        '.....xbbsecsseSssSesscssbbx.....',
+        '..y...sSxbBvBBbbbbBBvebxSs......',
+        '.....ssSbBBvBgBbbBgBvBBbSss.....',
+        '....ssS.bBvBBBbggbBBBvBb.Sys....',
+        '....ssS.bBeBgGBbbBGgBBBb.Sss....',
+        '...bBgb.bBvBBBbbbbBBBvBb.bgBb...',
+        '..obgBb.xbBBgBbbbbBgBBbx.bBybo..',
+        '..ybBgb..bBvBgbbbbgBvBb..bgBby..',
+        '..oxbbx...cssesSSsessc...xbbxo..',
+        '..ysSs..xbbBBBvXXvBBBbbx..sSsy..',
+        '..osSs..pBppppp..pppppBp..sSso..',
+        '..OSyS...pBpppp..ppppBp...SySy..',
+        '...yo....ppBppg..gppBpp....oy...',
+        '...o....xXpBpgp..pgpBpXxy...o...',
+        '.........pppBgp..pgBppp.........',
+        '........bbBBbbb..bbbBBbb........',
+        '........bbbBbbb..bbbBbbb....y...',
+        '...y..oyoOrOyoYyyYoyOrOoyo......',
+        '.....yoOrRrOoyoYYoyoOrRrOoy.....'],
       weapon: '' },
-    passive: { name: '화염각인', desc: '스킬이 적에게 화염 표식을 남깁니다(8초). 표식이 있는 적은 셀리맨더에게 받는 피해가 15% 증가합니다.',
-      onDealt(b, u, t, res, o) { if (o.skill && t.alive && !o.noPassive) b.buff(t, 'sal_mark', 8, { name: '화염 표식', good: false, src: u, quiet: true }); },
-      dmgMul(b, u, t) { return marked(u, t) ? 1.15 : 1; } },
+    passive: { name: '화염각인', desc: '스킬이 적에게 화염 표식(8초)과 화상(3초)을 남깁니다. 표식이 있는 적은 셀리맨더에게 받는 피해가 15% 증가합니다.',
+      onDealt(b, u, t, res, o) { if (o.skill && t.alive && !o.noPassive) { b.buff(t, 'sal_mark', 8, { name: '화염 표식', good: false, src: u, quiet: true }); b.cc(u, t, 'burn', 3, { quiet: true }); } },
+      dmgMul(b, u, t, o) { let m = marked(u, t) ? 1.15 : 1; if (o && o.basic && u.st.some(s => s.key === 'fireblade')) m *= 2 * salRes(b, u, t, 0.4); return m; },
+      tick(b, u) {
+        if (!u.st.some(s => s.key === 'fireblade') || b.stunned(u) || b.gone(u) || u.st.some(s => s.root || s.disarm || s.blind || s.channel) || b.t < (u.mem.slDash || 0)) return;
+        const en = b.foes(u).filter(e => !e.struct && !b.hidden(e));
+        if (en.some(e => b.dist(u, e) <= 9.5)) return;
+        const t = en.filter(e => b.dist(u, e) <= 20).sort((a, c) => b.dist(u, a) - b.dist(u, c))[0]; if (!t) return;
+        u.mem.slDash = b.t + b.sec(1.5);
+        const e = dashTo(b, u, t, 20, 6); beam(b, u, e.x, e.y, 3, '#fb923c'); b.slide(u, e.x, e.y);
+        if (u.cd >= 1) { u.cd -= 1; u.fxAtk = b.t; u.actT = b.t; b.attack(u, t); }
+      } },
     skills: [
       { id: 'sl_s1', name: '불의 창', cost: 40, cd: 5, range: 30, sfx: 'nuke', desc: '전방으로 관통하는 불을 날려 직선상의 적에게 피해를 줍니다.', plan: foeIn(30),
         cast(b, u, pl) { const e = lineEnd(b, u, pl.t, 32); beam(b, u, e.x, e.y, 3, '#fb923c'); b.inLine(b.foes(u), u.x, u.y, e.x, e.y, 3).forEach(x => hit(b, u, x, 'magic', b.raw(u, 50, 0, 0.95), '불의 창', { path: true })); } },
-      { id: 'sl_s2', name: '불의칼', cost: 35, cd: 8, range: 14, sfx: 'buff', desc: '다음 기본 공격의 사거리가 짧아지는 대신 피해가 대폭 강화됩니다. 표식이 있는 적에게는 저항력 일부를 무시합니다(피해 +30%).', plan: anyIn(14),
+      { id: 'sl_s2', name: '불의칼', cost: 35, cd: 12, range: 20, sfx: 'buff', desc: '6초 동안 기본 공격이 근접 사거리로 바뀌는 대신 피해가 대폭 강화되고(공속 +20%) 적의 저항력 일부(40%)를 무시합니다. 적이 20 거리 안에 있고 근접 사거리 밖이면 적에게 돌진해 공격합니다. 강화 기본 공격은 화염 표식과 화상을 남기고, 표식이 있는 적을 맞히면 표식을 소모해 주변(6)에 폭발 피해와 화상을 줍니다.',
+        plan: (b, u, en) => (u.hp >= u.maxHp * 0.4 && en.some(e => !e.struct && b.dist(u, e) <= 20) ? {} : null),
         cast(b, u) {
-          const restore = () => { u.role.range = u.f.stats.range; u.role.kite = 13; };
-          u.role.range = 8; u.role.kite = 0;
-          b.buff(u, 'fireblade', 6, { name: '불의칼', f: { onEnd: restore } });
-          u.bm.push({ until: b.t + b.sec(6), once: true, fn(bb, uu, t) { hit(bb, uu, t, 'magic', bb.raw(uu, 60, 0, 1.1) * (marked(uu, t) ? 1.3 : 1), '불의칼'); ring(bb, t.x, t.y, 5, '#fb923c'); uu.st = uu.st.filter(x => x.key !== 'fireblade'); restore(); } });
+          const restore = uu => { uu.role.range = uu.f.stats.range; uu.role.kite = 13; };
+          u.role.range = 8; u.role.kite = 0; u.glow = '#fb923c'; ring(b, u.x, u.y, 6, '#fb923c');
+          b.buff(u, 'fireblade', 6, { name: '불의칼', mul: { aspd: 1.2 }, f: { onEnd(bb, uu) { restore(uu); uu.glow = null; } } });
+          u.bm = u.bm.filter(m => m.id !== 'fireblade');
+          u.bm.push({ id: 'fireblade', until: b.t + b.sec(6), fn(bb, uu, t) {
+            if (!t.alive || t.struct) return;
+            if (marked(uu, t)) {
+              t.st = t.st.filter(s => !(s.key === 'sal_mark' && s.src === uu));
+              ring(bb, t.x, t.y, 6, '#f97316');
+              bb.inCircle(bb.foes(uu), t.x, t.y, 6).forEach(e => { hit(bb, uu, e, 'magic', bb.raw(uu, 40, 0, 0.75), '불의칼 폭발', { splash: true, noPassive: true }); bb.cc(uu, e, 'burn', 3, { quiet: true }); });
+            } else { bb.buff(t, 'sal_mark', 8, { name: '화염 표식', good: false, src: uu, quiet: true }); bb.cc(uu, t, 'burn', 2, { quiet: true }); }
+          } });
         } }
     ],
     ult: { id: 'sl_ult', name: '폭열', cd: 36, range: 45, move: true, sfx: 'dash', desc: '지정 위치로 불이 되어 날아가 피해를 줍니다. 적을 처치하면 한 번 더 사용할 수 있습니다.',

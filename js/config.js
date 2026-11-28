@@ -78,17 +78,17 @@ const CONFIG = {
   /* ---------- 스탯 (도감 표시용) ---------- */
   statOrder: ['hp', 'mp', 'aspd', 'spd', 'atk', 'ap', 'def', 'res', 'ten', 'pen', 'ls', 'range', 'crit', 'critDmg'],
   stats: {
-    hp:    { name: '체력',       short: '체력',   color: '#4ade80', max: 1100, digits: 0 },
-    mp:    { name: '마나',       short: '마나',   color: '#38bdf8', max: 360,  digits: 0 },
-    aspd:  { name: '공격속도',   short: '공속',   color: '#f97316', max: 1.4,  digits: 2 },
-    spd:   { name: '이동속도',   short: '이속',   color: '#2dd4bf', max: 11,   digits: 1 },
-    atk:   { name: '공격력',     short: '공격력', color: '#fb7185', max: 70,   digits: 0 },
-    ap:    { name: '주문력',     short: '주문력', color: '#c084fc', max: 80,   digits: 0 },
-    def:   { name: '방어력',     short: '방어력', color: '#60a5fa', max: 50,   digits: 0 },
-    res:   { name: '저항력',     short: '저항력', color: '#a78bfa', max: 40,   digits: 0 },
-    ten:   { name: '강인함',     short: '강인함', color: '#fbbf24', max: 0.6,  digits: 0, pct: true, tip: 'CC 지속시간 단축' },
-    pen:   { name: '관통력',     short: '관통력', color: '#f43f5e', max: 0.3,  digits: 0, pct: true, tip: '방어력·저항력 무시' },
-    ls:    { name: '생명력흡수', short: '흡수',   color: '#ef4444', max: 0.3,  digits: 0, pct: true, tip: '준 피해의 일부를 회복' },
+    hp:    { name: '체력',       short: '체력',   color: '#4ade80', max: 2000, digits: 0 },
+    mp:    { name: '마나',       short: '마나',   color: '#38bdf8', max: 500,  digits: 0 },
+    aspd:  { name: '공격속도',   short: '공속',   color: '#f97316', max: 5.0,  digits: 2 },
+    spd:   { name: '이동속도',   short: '이속',   color: '#2dd4bf', max: 20,   digits: 1 },
+    atk:   { name: '공격력',     short: '공격력', color: '#fb7185', max: 100,   digits: 0 },
+    ap:    { name: '주문력',     short: '주문력', color: '#c084fc', max: 100,   digits: 0 },
+    def:   { name: '방어력',     short: '방어력', color: '#60a5fa', max: 100,   digits: 0 },
+    res:   { name: '저항력',     short: '저항력', color: '#a78bfa', max: 100,   digits: 0 },
+    ten:   { name: '강인함',     short: '강인함', color: '#fbbf24', max: 1.0,  digits: 0, pct: true, tip: 'CC 지속시간 단축' },
+    pen:   { name: '관통력',     short: '관통력', color: '#f43f5e', max: 1.0,  digits: 0, pct: true, tip: '방어력·저항력 무시' },
+    ls:    { name: '생명력흡수', short: '흡수',   color: '#ef4444', max: 5.0,  digits: 0, pct: true, tip: '준 피해의 일부를 회복' },
     range: { name: '사거리',     short: '사거리', color: '#94a3b8', max: 30,   digits: 0 },
     crit:  { name: '치명타 확률', short: '치명타', color: '#facc15', max: 0.5,  digits: 0, pct: true, tip: '기본 공격이 치명타가 될 확률' },
     critDmg: { name: '치명타 피해', short: '치피',  color: '#fb923c', max: 2.5,  digits: 0, pct: true, tip: '치명타 시 피해 배율' }
@@ -305,21 +305,87 @@ const CONFIG = {
   },
 
   scout: {
-    top: 2, minGames: 3, skillGap: 4,
+    top: 3, minGames: 3, skillGap: 4,
     analyst: { dir: 'img/manager/', prefix: 'Analyst', ext: 'png', count: 1,   /* 이미지: img/manager/Analyst1.png, Analyst2.png … (count = 준비한 장수, 입장 때마다 무작위) */
       lines: ['상대 데이터 정리해 뒀습니다. 천천히 보세요.', '조정 제안은 참고만 하세요. 최종 판단은 감독님 몫입니다.', '상대의 예상 운영 방식부터 확인해 보세요.', '밴 추천도 놓치지 마세요. 의외로 승부가 갈립니다.', '표본이 적으면 예측이 빗나갈 수 있습니다. 그건 감안해 주세요.'] },
     risk: { mental: 65, form: 45, trouble: 60, slack: 60 },
-    rules: [
-      { axis: 'deposit', to: 'early', w: 2, when: { deposit: { is: 'early' } }, why: "상대가 일찍 제출하는 편이니 제출 리듬을 '수시'로 바꿔볼 수 있습니다." },
-      { axis: 'boss', to: 'smart', w: 2, when: { boss: { in: ['contest', 'steal'] }, gap: { lte: 0 } }, why: "상대가 보스에 적극적이라 보스 태도를 '상황 판단'으로 두면 무리한 합류를 줄일 수 있습니다." },
-      { axis: 'boss', to: 'contest', w: 2, when: { boss: { is: 'yield' }, gap: { gte: 0 } }, why: "상대가 보스 비중을 낮추는 편이라 보스 태도를 '적극'으로 올려볼 수 있습니다." },
-      { axis: 'engage', to: 'careful', w: 1, when: { engage: { in: ['aggressive', 'allout'] }, gap: { lte: 0 } }, why: "상대가 교전을 일찍 여는 편이라 교전 성향을 '신중'으로 두면 손실을 줄일 수 있습니다." },
-      { axis: 'engage', to: 'aggressive', w: 1, when: { gap: { gte: 2 } }, why: "선수단 등급이 앞서 교전 성향을 '적극'으로 올려도 부담이 적습니다." },
-      { axis: 'formation', to: 'group', w: 1, when: { gap: { lte: -2 } }, why: "전력이 밀리는 편이라 진형을 '집결'로 두면 흩어져 손해 보는 일이 줄어듭니다." },
-      { axis: 'formation', to: 'duo', w: 1, when: { form: { is: 'split' } }, why: "상대가 흩어져 움직이는 편이라 진형을 '짝'으로 두면 고립 없이 코어를 챙길 수 있습니다." },
-      { axis: 'zone', to: 'center', w: 1, when: { zone: { is: 'press' } }, why: "상대가 적진까지 올라오는 편이라 활동 영역을 '중앙'에 두면 양쪽 길목을 함께 볼 수 있습니다." },
-      { axis: 'zone', to: 'press', w: 1, when: { zone: { is: 'home' }, gap: { gte: 0 } }, why: "상대가 자기 진영에서 버티는 편이라 활동 영역을 '적진 압박'으로 넓혀볼 수 있습니다." },
-      { axis: 'ultT', to: 'save', w: 1, when: { teamEdge: { gte: 3 } }, why: "상대 팀워크가 높아 한타가 길어질 수 있어 궁 운용을 '한타/보스 보존'으로 두면 좋습니다." }
+    margin: 0.35, prior: 8, dataK: 3, scale: { gap: 12, skill: 10 },
+    conflicts: [[['engage', 'allout'], ['zone', 'home']], [['engage', 'allout'], ['deposit', 'full']], [['engage', 'careful'], ['zone', 'press']], [['engage', 'avoid'], ['boss', 'contest']]],
+    model: {
+      engage: {
+        avoid:      { _: -0.9, adv: -1.0, tiltMy: 0.6, oppAggro: 0.2, lvF: 0.2 },
+        careful:    { _: 0.05, adv: -0.6, oppAggro: 0.5, tiltMy: 0.6, eJudge: -0.2, eFight: -0.3, myBack: 0.4, oppAsn: 0.3, lvF: 0.15 },
+        balanced:   { _: 0.25 },
+        aggressive: { _: -0.35, adv: 0.9, oppAggro: -0.5, eFight: 0.5, eReact: 0.3, eClutch: 0.2, eJudge: 0.2, myAsn: 0.4, myFront: 0.3, oppBack: 0.35, tiltOpp: 0.5, tiltMy: -0.7 },
+        allout:     { _: -1.0, adv: 1.0, oppAggro: -0.8, eFight: 0.4, eReact: 0.2, oppBack: 0.3, tiltOpp: 0.4, tiltMy: -1.0 }
+      },
+      zone: {
+        home:   { _: -0.1, adv: -0.5, oppPress: 0.6, oppAsn: 0.3, myBack: 0.4, tiltMy: 0.3, eTeam: -0.2 },
+        center: { _: 0.2 },
+        press:  { _: -0.35, adv: 0.6, oppPress: -0.5, eTeam: 0.3, myAsn: 0.4, oppBack: 0.2, tiltMy: -0.4, rng: 0.2 }
+      },
+      formation: {
+        split: { _: -0.4, adv: 0.3, eJudge: 0.5, ePosn: 0.4, eObj: 0.4, oppAsn: -0.8, oppAggro: -0.5, tiltMy: -0.3, myAsn: 0.2 },
+        auto:  { _: 0.2 },
+        duo:   { _: 0.05, oppAsn: 0.5, oppAggro: 0.2, eTeam: 0.1 },
+        group: { _: -0.05, adv: -0.5, oppAsn: 0.4, oppAggro: 0.4, oppSplit: 0.5, eTeam: 0.5, myBack: 0.3, tiltMy: 0.2, eObj: -0.3 }
+      },
+      deposit: {
+        early:  { _: 0, adv: -0.3, oppAggro: 0.4, oppAsn: 0.4, oppPress: 0.4, tiltMy: 0.3, eObj: -0.3, eJudge: -0.2 },
+        normal: { _: 0.2 },
+        full:   { _: -0.2, adv: 0.4, oppAggro: -0.6, oppPress: -0.5, oppAsn: -0.4, eJudge: 0.4, ePosn: 0.3, eObj: 0.4 }
+      },
+      boss: {
+        yield:   { _: -0.1, adv: -0.6, oppBoss: 0.5, tiltMy: 0.4, myBack: 0.2, eTeam: -0.4, eJudge: -0.2 },
+        smart:   { _: 0.25, eJudge: 0.4, eReact: 0.3, oppBoss: 0.3 },
+        steal:   { _: -0.2, adv: 0.1, oppBoss: 0.7, eReact: 0.5, eJudge: 0.3, eFight: 0.3, myAsn: 0.3 },
+        contest: { _: -0.35, adv: 0.9, oppBoss: -0.8, eTeam: 0.5, eFight: 0.4, eUlt: 0.2, myFront: 0.4, tiltMy: -0.5 }
+      },
+      ultT: {
+        normal: { _: 0.25 },
+        burst:  { _: -0.2, adv: 0.4, myAsn: 0.3, oppBack: 0.3, eUlt: 0.3, tiltOpp: 0.2, oppAsn: -0.2 },
+        save:   { _: 0, adv: -0.2, eTeam: 0.5, eJudge: 0.3, oppBoss: 0.5, oppAggro: 0.3 },
+        clutch: { _: -0.1, adv: -0.4, eClutch: 0.3, myBack: 0.5, oppAsn: 0.6, oppAggro: 0.4, tiltMy: 0.3 }
+      }
+    },
+    feat: {
+      adv: ['전력이 평균 {v} 앞섬', '전력이 평균 {v} 뒤짐'], oppAggro: ['상대가 교전을 일찍 여는 성향', '상대가 교전에 신중한 성향'], oppPress: ['상대가 우리 진영까지 올라오는 편', '상대가 자기 진영에서 버티는 편'],
+      oppSplit: ['상대가 흩어져 움직이는 편', '상대가 뭉쳐 다니는 편'], oppEarly: ['상대가 코어를 일찍 제출하는 편', '상대가 코어를 가득 채워 제출하는 편'], oppBoss: ['상대가 보스에 적극적', '상대가 보스를 양보하는 편'],
+      oppAsn: ['상대에 암살자형이 있어 후열이 위험', '상대에 암살자형이 없어 후방이 비교적 안전'], oppBack: ['상대 후열 딜러가 많아 파고들 틈이 있음', '상대 후열이 적어 정면 싸움 중심'], oppFront: ['상대 전열이 두터움', '상대 전열이 얇음'],
+      myAsn: ['우리에게 침투형 파이터가 있음', '우리에게 침투형 파이터가 없음'], myBack: ['우리 후열 비중이 높아 보호가 필요', '우리 후열이 적어 기동이 자유로움'], myFront: ['우리 전열이 탄탄함', '우리 전열이 얇음'],
+      rng: ['우리 쪽 사거리가 더 김', '상대 쪽 사거리가 더 김'], eAim: ['스킬샷 정확도가 {v} 앞섬', '스킬샷 정확도가 {v} 뒤짐'], eJudge: ['판단력이 {v} 앞섬', '판단력이 {v} 뒤짐'], eFight: ['교전 마무리 능력이 {v} 앞섬', '교전 마무리 능력이 {v} 뒤짐'],
+      eReact: ['반응속도가 {v} 앞섬', '반응속도가 {v} 뒤짐'], ePosn: ['포지셔닝이 {v} 앞섬', '포지셔닝이 {v} 뒤짐'], eUlt: ['궁극기 운용이 {v} 앞섬', '궁극기 운용이 {v} 뒤짐'], eObj: ['오브젝트·회복 운영이 {v} 앞섬', '오브젝트·회복 운영이 {v} 뒤짐'],
+      eTeam: ['팀워크가 {v} 앞섬', '팀워크가 {v} 뒤짐'], eClutch: ['클러치·침착성이 {v} 앞섬', '클러치·침착성이 {v} 뒤짐'], tiltMy: ['우리 선수 중 폼·멘탈이 불안한 선수가 있음', '우리 선수들의 컨디션이 안정적'],
+      tiltOpp: ['상대 선수 중 폼·멘탈이 불안한 선수가 있음', '상대 선수들의 컨디션이 안정적'], trblMy: ['우리 선수 중 트러블·태업 성향이 있어 변수가 큼', ''], lvF: ['상대 AI 난이도가 높아 실수가 적음', '상대 AI 난이도가 낮아 실수가 잦음']
+    },
+    effect: {
+      engage: { avoid: '손실을 최소화하고 코어 운영에 집중합니다', careful: '불리한 교전을 피해 손실을 줄입니다', balanced: '변수를 줄이고 상황에 맞춰 대응합니다', aggressive: '교전 주도권을 잡아 킬과 압박을 늘립니다', allout: '끝까지 몰아붙여 상대 흐름을 끊습니다' },
+      zone: { home: '우리 진영 방어가 단단해집니다', center: '양쪽 길목을 고르게 봅니다', press: '상대 제출 길목을 눌러 점수 템포를 늦춥니다' },
+      formation: { split: '코어를 넓게 빨리 찾습니다', auto: '코어 가치에 따라 자연스럽게 나뉩니다', duo: '고립을 피하면서 수집 범위를 유지합니다', group: '한타 힘이 커지고 고립이 사라집니다' },
+      deposit: { early: '점수를 일찍 확정해 코어 손실을 막습니다', normal: '수집과 제출의 균형을 잡습니다', full: '왕복 횟수를 줄여 한 번에 큰 점수를 냅니다' },
+      boss: { yield: '보스 부담을 덜고 코어 수집에 집중합니다', smart: '점수와 위치를 보고 합류 여부를 정합니다', steal: '체력이 깎인 보스를 가로챌 기회가 늘어납니다', contest: '보스를 먼저 잡아 큰 점수를 선점합니다' },
+      ultT: { normal: '개인 궁 설정에 맞춰 효율적으로 씁니다', burst: '궁을 아끼지 않고 흐름을 잡습니다', save: '큰 교전과 보스 타이밍에 궁을 맞춥니다', clutch: '아군이 위험할 때 궁이 곧바로 나갑니다' }
+    },
+    risk: {
+      engage: { avoid: '킬·압박이 줄어 역전 수단이 부족합니다', careful: '기회를 놓칠 수 있습니다', balanced: '뚜렷한 장점이 없습니다', aggressive: '컨디션이 흔들리면 손실이 커집니다', allout: '데스가 늘고 점수 템포가 늦어집니다' },
+      zone: { home: '먼 코어는 늦게 닿습니다', center: '길목을 놓칠 수 있습니다', press: '우리 진영이 비기 쉽습니다' },
+      formation: { split: '고립되면 암살자에게 노출됩니다', auto: '조합 특성을 못 살릴 수 있습니다', duo: '나머지 1명이 고립됩니다', group: '코어 수집 범위가 좁아집니다' },
+      deposit: { early: '오가는 시간이 늘어납니다', normal: '', full: '운반 중 사망하면 손실이 큽니다' },
+      boss: { yield: '보스 점수를 내줄 수 있습니다', smart: '', steal: '타이밍을 놓치면 아무것도 못 얻습니다', contest: '보스전에서 체력과 궁을 많이 씁니다' },
+      ultT: { normal: '', burst: '큰 교전에서 궁이 비어 있을 수 있습니다', save: '아끼다가 못 쓰고 지는 경우가 있습니다', clutch: '선제 타이밍을 놓칠 수 있습니다' }
+    },
+    insights: [
+      { f: 'oppAsn', gte: 0.6, text: '상대에 암살자형이 있습니다. 후열이 고립되지 않게 주의하세요.' },
+      { f: 'oppBack', gte: 0.6, text: '상대 후열 딜러가 많습니다. 전열이 파고들 수 있는 구도입니다.' },
+      { f: 'oppFront', gte: 0.9, text: '상대 전열이 두텁습니다. 정면 교전보다 코어 운영이 유리할 수 있습니다.' },
+      { f: 'myBack', gte: 0.9, text: '우리 후열 비중이 높습니다. 전열 보호와 사거리 활용이 핵심입니다.' },
+      { f: 'rng', gte: 0.5, text: '사거리 우위가 있습니다. 거리를 유지하며 싸우는 편이 유리합니다.' },
+      { f: 'rng', lte: -0.5, text: '상대 사거리가 더 깁니다. 거리를 좁힐 타이밍이 중요합니다.' },
+      { f: 'tiltOpp', gte: 0.3, text: '상대 선수 중 컨디션이 불안한 선수가 있습니다. 초반 압박이 먹힐 수 있습니다.' },
+      { f: 'eReact', lte: -0.5, text: '상대 반응속도가 더 높습니다. 허를 찌르는 변칙보다 안정적인 운영이 낫습니다.' },
+      { f: 'eTeam', lte: -0.5, text: '상대 팀워크가 더 좋습니다. 한타가 길어지면 불리합니다.' },
+      { f: 'adv', gte: 0.75, text: '전력 우위가 큽니다. 상대가 맞서더라도 흔들리지 않는 운영이 가능합니다.' },
+      { f: 'adv', lte: -0.75, text: '전력이 크게 밀립니다. 정면 승부보다 상대 약점을 노리는 운영이 필요합니다.' }
     ]
   },
   mind: {
@@ -463,7 +529,7 @@ const CONFIG = {
       killPoints: 0, acePoints: 0,
       core: MAP_CORE,
       bonus: { first: 0, cap: 0, shut: 0, shutAt: 3 },
-      sudden: { hpRatio: 0.35, maxTicks: 1200, protect: 3, pressSec: 30, kinds: ['playoff', 'msi', 'worlds'] },
+      sudden: { hpRatio: 1, maxTicks: 1500, protect: 3, pressSec: 30, kinds: ['playoff', 'msi', 'worlds'] },
       spawns: [ { pts: [[20, 125], [28, 130], [21, 133]] }, { pts: [[205, 25], [197, 20], [204, 17]] } ],
       zones: MAP_ZONES,
       lanes: MAP_ROADS,
@@ -483,7 +549,7 @@ const CONFIG = {
     },
     skillStartCdRatio: 0.3, ultStart: 0.2, ultAtk: 2.5, ultSkill: 8, ultRefCd: 32,      /* 궁 게이지: 시작 비율 · 기본공격/스킬 1회 충전량(%) · 기준 cd(궁 cd가 클수록 충전 느림) */
     /* 파이터별 궁 충전 배율 (1 = 기본, 클수록 빨리 참 / 작을수록 천천히 참). 위 cd 보정에 추가로 곱해집니다. 없는 파이터는 1.
-       기준: 위력 · 범위 · 사거리 · 부가효과(CC/무적/회복)가 강할수록 낮게, 자기 강화·보조형이나 공속이 빠른 파이터는 높게.
+      기준: 위력 · 범위 · 사거리 · 부가효과(CC/무적/회복)가 강할수록 낮게, 자기 강화·보조형이나 공속이 빠른 파이터는 높게.
        alien(슈퍼 상태에서만 궁 사용), aria·steamman(변환형, 시간 충전)은 해당 없음 */
     ultCharge: {
       /* 전사 */ deathkaiser: 0.90, crow: 1.10, swordsaint: 1.20, sarcoza: 0.85, warrior: 0.90, dash: 1.00, wind: 1.00, thunderbolt: 0.80, magnum: 0.75, fabman: 0.80, oba: 0.85,

@@ -1903,7 +1903,180 @@
       } }
   };
 
-  const NEW = ['crush', 'viser', 'darkknight', 'shadow', 'redhood', 'reaper', 'press', 'jade', 'dark', 'biomachine', 'frost', 'shining', 'steamman', 'itrain', 'grainger', 'angel', 'oba', 'stardust', 'renegade', 'carcer', 'peg', 'breaker', 'astra'];
+  /* ================= 53. 레온 ================= */
+  /* 방패전개의 호(弧) 판정: 선분(a→c)이 호(중심 cx,cy · 반지름 R · 방향 ang · 반각 half)를 가로지르면 막힘.
+     battle.js deal() 의 zone.guard 훅을 통해 호출됩니다 (훅이 없는 엔진에서는 방패가 막지 못하고 이동속도 효과만 남습니다) */
+  const arcBlocks = (z, a, c) => {
+    const dx = c.x - a.x, dy = c.y - a.y, fx = a.x - z.cx, fy = a.y - z.cy, A = dx * dx + dy * dy;
+    if (A < 1e-6) return false;
+    const B = 2 * (fx * dx + fy * dy), C = fx * fx + fy * fy - z.R * z.R, D = B * B - 4 * A * C;
+    if (D < 0) return false;
+    const sq = Math.sqrt(D);
+    for (const s of [(-B - sq) / (2 * A), (-B + sq) / (2 * A)]) {
+      if (s < 0 || s > 1) continue;
+      let d = Math.atan2(a.y + dy * s - z.cy, a.x + dx * s - z.cx) - z.ang; d = Math.atan2(Math.sin(d), Math.cos(d));
+      if (Math.abs(d) <= z.half) return true;
+    }
+    return false;
+  };
+  /* 오라 종류 (수호맹약의저주): 켜질 때마다 무작위 하나 */
+  const LN_AURAS = [
+    { id: 'atk', name: '투지', color: '#f87171', desc: '공격력·주문력 +12%', fx: { mul: { atk: 1.12, ap: 1.12 } } },
+    { id: 'guard', name: '철벽', color: '#60a5fa', desc: '방어·저항 +10', fx: { add: { def: 10, res: 10 } } },
+    { id: 'swift', name: '질풍', color: '#34d399', desc: '이동·공격속도 +12%', fx: { mul: { spd: 1.12, aspd: 1.12 } } },
+    { id: 'regen', name: '재생', color: '#fde68a', desc: '매초 최대 체력의 1.4% 회복', fx: { f: { regen: 0.014 } } }
+  ];
+  const LN = { gap: 8, dur: 6, first: 4, r: 12 };       // 오라: 첫 발동 4초, 6초 지속, 끝난 뒤 8초 쉬고 다시 (반경 12)
+
+  FD.leon = {
+    id: 'leon', name: '레온', role: 'guardian', color: '#60a5fa', title: '버림받은 왕실 근위병',
+    concept: '\"맹약은 이 몸에 새겨졌다. 지켜야 할 이는, 이제 너희뿐이다.\"',
+    stats: { hp: 1120, mp: 230, aspd: 0.78, spd: 7.6, atk: 44, ap: 42, def: 40, res: 38, ten: 0.2, pen: 0.05, ls: 0, range: 6.5 },
+    basic: meleeBasic, ai: { front: true, threat: 1.4, style: { peel: true, stick: 'carry', ult: 'save' } },
+    tac: { act: ['basic'], fight: ['support', 'coop'], pos: ['front'] },
+    look: { res: 2, pal: { s: '#d4a98a', S: '#a8785c', D: '#6e4a3a', Z: '#f2d3b6', h: '#3b4b70', H: '#9bb2d9', j: '#1a2238', e: '#7dd3fc', E: '#e0f2fe', w: '#cbd5e1', r: '#7f3b3b', p: '#8b2a2a', c: '#38bdf8', C: '#e0f7ff', m: '#b4c0d1', M: '#7b8aa3', X: '#3b465c', t: '#8a5a35', y: '#c9962b', Y: '#f6cf5b', g: '#8a6414', n: '#27408b', N: '#18255a', b: '#2d56c9', B: '#1c3a8c', v: '#5b86ea', l: '#6b4a33', L: '#432e22', k: '#0b1020' },
+      rows: [
+        '..............jHhjhh............',
+        '............hjhhHhjhhh..........',
+        '...........hjhHhhhHhjhh.........',
+        '..........hhHhhhjhhHhjHh........',
+        '.........hhhhhjshhsjhhhhh.......',
+        '.........hHjhSpsssshhhhhh.......',
+        '.........hhhHSpkkskkkhjHH.......',
+        '.........hHhhSwESSEwShhhh.......',
+        '.........hhhhpSSSSSSShhHj.......',
+        '.........hHjHSpSssSSShhhH.......',
+        '........XpmmmXSDrrDSDhjHh.......',
+        '......mYmmMYmMXSssShhhhhXXX.....',
+        '.....XmmtttMtMXssssshSssSMt.....',
+        '.....XyYyyYyYXyyYyscsssssSMM....',
+        '.mYmYmYmYmYXXmmmmmsZcssllSl.....',
+        '.MMMMMMMMMMMXmmtMXZZSScscssS....',
+        '.MvyyyyyyyBXMyYyXXDSZsCssCsS....',
+        '.MvybbbbbgBXXyyyXSsDDSsssscS....',
+        '.cvyYbYbYgBXsspXXSSSsCSSssCS....',
+        '.MmyYYYYYmBCDStXpSDZCssSScsS....',
+        '.MvyyYYYygBXsSXXSSSSsccSsDDS....',
+        '.MvXbbYbbmBXmMXpZSDsZssYmmmt....',
+        '.CvyXbYpbXBXyysssssccsSyyytX....',
+        '.MvyyyyyygBcXXllyYYyllllXXXX....',
+        '.MvtbbYbXgBXLLLLgLLgLLLLSSS.....',
+        '..MvybYbgtX.nnlllXXlllnNDDS.....',
+        '..MXybYbtBX.NnLllXXllLNnSDS.....',
+        '..cMXyggBXc.nNLlLXXLlLN.........',
+        '...MvybgpX...YgLLXXLLgY.........',
+        '....MvbBX....yYyy..yyYy.........',
+        '....cvbBX....mmmX..Xmmm.........',
+        '.....XbX.....MmtX..XtmM.........',
+        '.....MMX....kXtMXkkXMpXk........',
+        '......M.....kkkkkkkkkkkk........'
+],
+      weapon: '' },
+    passive: { name: '수호맹약의저주', desc: '4초 뒤부터 주변(12) 아군에게 오라를 6초간 내뿜고, 8초 쉬었다가 다시 발동합니다. 오라는 매번 무작위 하나입니다: 투지(공격력·주문력 +12%) · 철벽(방어·저항 +10) · 질풍(이동·공격속도 +12%) · 재생(매초 최대 체력 1.4% 회복).',
+      tick(b, u) {
+        if (!u.alive) return;
+        const m = u.mem;
+        if (m.next === undefined) { m.next = b.t + b.sec(LN.first); m.aura = null; }
+        if (m.aura && b.t >= m.end) { m.aura = null; m.next = b.t + b.sec(LN.gap); }
+        if (!m.aura && b.t >= m.next) {
+          m.aura = LN_AURAS[Math.floor(Math.random() * LN_AURAS.length)]; m.start = b.t; m.end = b.t + b.sec(LN.dur);
+          ring(b, u.x, u.y, LN.r, m.aura.color);
+          b.buff(u, 'ln_aura', 1, { name: '맹약의 오라 · ' + m.aura.name, ...m.aura.fx, src: u });      // 첫 적용만 상태 표시
+        }
+        if (m.aura) {
+          const k = b.t - m.start;
+          if (k % 10 === 0) b.inCircle(b.friends(u), u.x, u.y, LN.r).forEach(a => b.buff(a, 'ln_aura', 1, { name: '맹약의 오라 · ' + m.aura.name, ...m.aura.fx, quiet: true, src: u }));
+          if (k % 30 === 0 && k > 0) ring(b, u.x, u.y, LN.r, m.aura.color);
+        }
+        u.gauge = m.aura ? { label: m.aura.name, val: Math.max(0, m.end - b.t), max: b.sec(LN.dur), color: m.aura.color }
+          : { label: '맹약', val: Math.max(0, b.sec(LN.gap) - Math.max(0, m.next - b.t)), max: b.sec(LN.gap), color: '#64748b' };
+      } },
+    skills: [
+      { id: 'ln_s1', name: '수호쇄도', cost: 30, cd: 3.5, range: 30, move: true, sfx: 'dash', tags: ['gapclose', 'peel'], desc: '지정한 아군이나 적에게 돌진합니다. 아군에게 도착하면 자신과 그 아군의 방어·저항이 3.5초간 +16, 적에게 도착하면 피해를 주고 잠시 경직시킵니다. 쿨타임이 짧은 대신 같은 대상에게는 아군 7초 · 적 9초 동안 다시 쓸 수 없습니다.',
+        plan(b, u, en, al) {
+          const rc = u.mem.rc || (u.mem.rc = {}), ok = x => !(rc[x.id] > b.t);
+          let best = null, bs = 0;
+          for (const a of al) {                                            // 위기에 빠진 아군 우선
+            if (a === u || !a.alive || a.struct || !ok(a)) continue;
+            const d = b.dist(u, a); if (d < 7 || d > 30) continue;
+            const s = (b.t - a.hitT < 50 ? 0.6 : 0) + (1 - a.hp / a.maxHp);
+            if (s > 0.55 && s > bs && en.some(e => b.dist(e, a) <= 16)) { bs = s; best = a; }
+          }
+          if (best) return { t: best };
+          const pk = b.skillPick(u, en.filter(ok), 30, 8); return pk ? { t: pk.t } : null;
+        },
+        cast(b, u, pl) {
+          const t = pl.t, rc = u.mem.rc || (u.mem.rc = {}), ox = u.x, oy = u.y, e = dashTo(b, u, t, 34, 4.4);
+          b.slide(u, e.x, e.y); slash(b, ox, oy, u.x, u.y, 4.5, '#7dd3fc'); ring(b, u.x, u.y, 5, '#7dd3fc');
+          if (!t.alive) return;
+          if (t.team === u.team) {
+            rc[t.id] = b.t + b.sec(7);
+            [u, t].forEach(x => b.buff(x, 'ln_guard', 3.5, { name: '수호의 맹약', add: { def: 16, res: 16 }, src: u }));
+            ring(b, t.x, t.y, 4, '#fde68a');
+          } else {
+            rc[t.id] = b.t + b.sec(9);
+            hit(b, u, t, 'phys', b.raw(u, 38, 0.8, 0.35), '수호쇄도');
+            b.cc(u, t, 'stagger', 0.5);
+          }
+        } },
+      { id: 'ln_s2', name: '방패전개', cost: 40, cd: 15, range: 28, sfx: 'shield', tags: ['peel'], desc: '4초 동안 전방에 곡선 모양의 큰 마법 방패를 전개해, 방패를 가로지르는 모든 공격을 막습니다. 방패는 레온이 바라보는 쪽(싸우는 적 방향)을 따라 움직이고, 지속시간 동안 레온의 이동속도가 20% 증가합니다. 옆이나 뒤에서 오는 공격은 막지 못합니다.',
+        plan: (b, u, en, al) => (en.some(e => b.dist(u, e) <= 34) && al.some(a => !a.struct && (b.t - a.hitT < 40 || a === u && b.t - u.hitT < 40)) ? {} : null),
+        cast(b, u) {
+          const aim = (o, bb) => { const tg = o.target && o.target.alive ? o.target : null; if (tg && bb.dist(o, tg) <= 48) { const d = bb.dir(o, tg); return Math.atan2(d.y, d.x); } const f = bb.axis[o.team]; return Math.atan2(f.fy, f.fx); };
+          const z = b.zone({ x: u.x, y: u.y, r: 8, dur: 4, owner: u, follow: true, kind: 'ln_wall', color: '#7dd3fc', every: 0.05, R: 6.5, half: 0.95, ang: aim(u, b), cx: u.x, cy: u.y,
+            onTick(zz, bb) {
+              const o = zz.owner; if (!o.alive) return;
+              let da = aim(o, bb) - zz.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); zz.ang += da * 0.35;       // 부드럽게 회전
+              zz.cx = o.x - Math.cos(zz.ang) * 3; zz.cy = o.y - Math.sin(zz.ang) * 3;
+              if ((bb.t - zz.t0) % 4 === 0) {                                                                       // 호를 짧은 선분으로 그려 표시
+                for (let i = 0; i < 7; i++) {
+                  const a1 = zz.ang - zz.half + zz.half * 2 * i / 7, a2 = zz.ang - zz.half + zz.half * 2 * (i + 1) / 7;
+                  slash(bb, zz.cx + Math.cos(a1) * zz.R, zz.cy + Math.sin(a1) * zz.R, zz.cx + Math.cos(a2) * zz.R, zz.cy + Math.sin(a2) * zz.R, 1.6, '#7dd3fc');
+                }
+              }
+            } });
+          z.cx = u.x - Math.cos(z.ang) * 3; z.cy = u.y - Math.sin(z.ang) * 3;
+          z.guard = (bb, src, t) => !!src && src.team !== t.team && arcBlocks(z, src, t);       // battle.js deal() 의 zone.guard 훅
+          b.buff(u, 'ln_wall_spd', 4, { name: '방패전개', mul: { spd: 1.2 }, src: u });
+          ring(b, u.x, u.y, 7, '#7dd3fc');
+        } }
+    ],
+    ult: { id: 'ln_ult', tags: ['peel', 'heal', 'control'], name: '파군진', cd: 42, range: 18, sfx: 'nuke', desc: '방패를 땅에 찍어 파동을 일으킵니다. 즉시 자신과 범위(18) 안 아군의 체력을 회복하고, 범위 안의 적에게 피해를 주며 멀리(가까울수록 더 멀리, 20~34) 밀어냅니다. 밀려나던 적이 벽·구조물·다른 유닛과 부딪히면 그 자리에서 큰 피해를 입고 1.5초간 기절하며, 부딪힌 적 유닛도 피해와 짧은 기절을 받습니다.',
+      plan: (b, u, en, al) => { const near = en.filter(e => !e.struct && b.dist(u, e) <= 14); return near.length >= 2 || (near.length >= 1 && al.some(a => !a.struct && a.hp < a.maxHp * 0.5 && b.dist(u, a) <= 16)) ? {} : null; },
+      cast(b, u) {
+        const R = 18, gap = b.cfg.unitRadius * 1.9;
+        ring(b, u.x, u.y, R, '#fde68a'); ring(b, u.x, u.y, R * 0.55, '#60a5fa'); ring(b, u.x, u.y, 6, '#ffffff');
+        const heal = Math.round(70 + b.eff(u, 'ap') * 1.3);
+        b.inCircle(b.friends(u), u.x, u.y, R).forEach(a => b.heal(u, a, heal, '파군진'));
+        const targets = b.inCircle(b.foes(u), u.x, u.y, R).filter(e => !e.struct).sort((p, q) => b.dist(u, q) - b.dist(u, p));     // 먼 적부터
+        const dest = new Map();
+        targets.forEach(e => {
+          hit(b, u, e, 'magic', b.raw(u, 60, 0.5, 0.9), '파군진', { splash: true });
+          if (!e.alive) return;
+          const d = b.dir(u, e), K = Math.floor(20 + 14 * (1 - Math.min(1, b.dist(u, e) / R)));        // 가까울수록 더 멀리(20~34): 앞선 적을 따라잡아 서로 부딪힘
+          let x = e.x, y = e.y, wall = false, by = null;
+          for (let s = 1; s <= K; s++) {
+            const nx = e.x + d.x * s, ny = e.y + d.y * s, p = b.clampPos(nx, ny);
+            if (Math.abs(p.x - nx) > 0.01 || Math.abs(p.y - ny) > 0.01 || b.inObs(nx, ny, 1.4)) { wall = true; break; }
+            by = b.units.find(o => o !== e && o !== u && o.alive && Math.hypot((dest.get(o) || o).x - nx, (dest.get(o) || o).y - ny) < gap);
+            if (by) break;
+            x = nx; y = ny;
+          }
+          const moved = Math.hypot(x - e.x, y - e.y), crash = wall || by;
+          if (moved > 0.3) b.knock(u, e, moved, u);
+          if (moved > 0.3 && !e.st.some(s => s.key === 'knock')) return;           // 넉백이 통하지 않는 대상(무적·제어면역)
+          dest.set(e, { x, y });
+          if (crash) b.later(moved > 0.3 ? 0.4 : 0.05, bb => {
+            if (!e.alive) return;
+            ring(bb, e.x, e.y, 6, '#fbbf24'); bb.cc(u, e, 'stun', 1.5);
+            hit(bb, u, e, 'phys', bb.raw(u, 70, 0.6, 0.5), '파군진 · 충돌', { splash: true });
+            if (by && by.alive && by.team !== u.team) { hit(bb, u, by, 'phys', bb.raw(u, 45, 0.4, 0.3), '파군진 · 충돌', { splash: true }); if (!by.struct) bb.cc(u, by, 'stun', 0.8); }
+          });
+        });
+      } }
+  };
+
+  const NEW = ['crush', 'viser', 'darkknight', 'shadow', 'redhood', 'reaper', 'press', 'jade', 'dark', 'biomachine', 'frost', 'shining', 'steamman', 'itrain', 'grainger', 'angel', 'oba', 'stardust', 'renegade', 'carcer', 'peg', 'breaker', 'astra', 'leon'];
   NEW.forEach(id => { CONFIG.fighterOrder.push(id); const f = FD[id], R = CONFIG.roles[f.role]; f.icon = R.icon; f.roleName = R.name; });
   Object.values(FD).forEach(f => { if (f.stats.crit === undefined) f.stats.crit = 0; if (f.stats.critDmg === undefined) f.stats.critDmg = 1.5; });     // 도감 표시용 기본값
 })();

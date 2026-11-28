@@ -275,6 +275,7 @@ const Battle = (() => {
       if (t.st.some(s => s.invuln)) { this.emit({ ...base, dmg: 0, immune: true }); return { dealt: 0, absorbed: 0, kill: false, immune: true }; }
       if (t.st.some(s => s.projBlock) && ((o.basic && o.proj && o.proj !== 'melee' && o.proj !== 'none') || o.path)) { this.emit({ ...base, dmg: 0, blocked: true }); return { dealt: 0, absorbed: 0, kill: false, blocked: true }; }     // 투사체 방어(마풍벽)
       if (t.st.some(s => s.block)) { this.emit({ ...base, dmg: 0, blocked: true }); return { dealt: 0, absorbed: 0, kill: false, blocked: true }; }
+      if (!o.pierce && !o.dot && this.zones.some(z => z.guard && z.until > this.t && z.guard(this, src, t))) { this.emit({ ...base, dmg: 0, blocked: true }); return { dealt: 0, absorbed: 0, kill: false, blocked: true }; }     // 방패 장판(zone.guard): 공격선이 방패를 가로지르면 막힘 (관통·지속피해 제외)
       for (const s of t.st) if (s.dmgIn && !(o.pierce && s.dmgIn < 1)) dmg *= s.dmgIn;     // pierce: 피해감소 효과 무시
       dmg = Math.max(1, Math.round(dmg));
       const bz = o.pierce ? null : this.zones.find(z => z.kind === 'barrier' && z.team === t.team && z.hpS > 0 && Math.hypot(t.x - z.x, t.y - z.y) <= z.r);
@@ -1553,7 +1554,7 @@ const Battle = (() => {
         const every = this.assignEvery(tm);
         if (this.t % every === 1) this.assign(tm);
       }
-      for (const u of this.units) if (!u.alive && u.respawnAt && this.t >= u.respawnAt) { u.respawnAt = 0; this.respawn(u); }
+      for (const u of this.units) if (!this.sudden && !u.alive && u.respawnAt && this.t >= u.respawnAt) { u.respawnAt = 0; this.respawn(u); }
       for (const p of M.pods) {
         if (this.t < p.readyAt) continue;
         const u = this.units.find(x => x.team < 2 && !x.struct && x.alive && !this.gone(x) && x.hp < x.maxHp * 0.97 && Math.hypot(x.x - p.x, x.y - p.y) <= 3.6);
@@ -1569,17 +1570,13 @@ const Battle = (() => {
       this.bossPlan.forEach(p => { p.spawned = true; });
       this.map.pods.forEach(p => { p.readyAt = 1e12; });
       this.zones = []; this.cores = [];
-      const SK = CONFIG.battle.map.core.sudden, A = this.cfg.arena;
-      for (let j = 0; j < Math.floor(SK.n / 2); j++) {
-        const p = this.pushOut(A.w / 2 - SK.dx, A.h / 2 + SK.dy * (j % 2 ? -1 : 1));
-        this.newCore('small', p.x, p.y, 0, true); this.newCore('small', A.w - p.x, A.h - p.y, 0, true);
-      }
+      const A = this.cfg.arena, gap = SD.gap || 24, spread = SD.spread || 9;
       for (const u of this.units) {
         if (u.team > 1 || u.struct) continue;
         u.carry = []; u.depProg = 0; u.depAt = ''; u.bail = null; u.bailN = 0;
         if (!u.alive) { u.respawnAt = 0; this.respawn(u); }
         for (const s of u.st) if (s.onEnd) s.onEnd(this, u, s);
-        const i = Number(u.id.split('-')[1]) || 0, sp = this.spawnPt(u.team, i);
+        const i = Number(u.id.split('-')[1]) || 0, sp = this.pushOut(A.w / 2 + (u.team ? gap : -gap), A.h / 2 + (i - 1) * spread);
         u.st = []; u.bm = []; u.rc = {}; u.target = null; u.goal = null; u.fb = null; u.x = u.px = sp.x; u.y = u.py = sp.y;
         u.hp = Math.max(1, Math.round(u.maxHp * SD.hpRatio)); u.mp = u.mpMax;
         this.buff(u, 'spawn', SD.protect, { name: '서든데스', quiet: true, f: { invuln: true } });
@@ -1642,7 +1639,16 @@ const Battle = (() => {
       this.stuckProbe();
       if (!this.sudden && this.t >= this.cfg.maxTicks) {
         if (Math.round(this.score[0]) === Math.round(this.score[1]) && this.suddenOk()) this.startSudden(); else this.endMatch();
-      } else if (this.sudden && (this.suddenWinner != null || this.t >= this.cfg.maxTicks + CONFIG.battle.map.sudden.maxTicks)) this.endMatch();
+      } else if (this.sudden) {
+        if (this.suddenWinner == null) {
+          const al = [0, 1].map(i => this.units.some(u => u.team === i && !u.struct && u.alive));
+          if (!al[0] || !al[1]) {
+            const dm = [0, 1].map(i => this.units.filter(u => u.team === i && !u.struct).reduce((s, u) => s + u.dmg, 0));
+            this.suddenWinner = al[0] ? 0 : al[1] ? 1 : (dm[0] >= dm[1] ? 0 : 1); this.suddenLoser = 1 - this.suddenWinner;
+          }
+        }
+        if (this.suddenWinner != null || this.t >= this.cfg.maxTicks + CONFIG.battle.map.sudden.maxTicks) this.endMatch();
+      }
     }
 
     /* 임시 진단: 풀피인데 구석에서 8초 넘게 멈춘 선수의 판단 상태를 콘솔에 남깁니다 (화면 전투에서만) */
