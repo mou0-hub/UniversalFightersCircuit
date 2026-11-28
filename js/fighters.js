@@ -7,22 +7,7 @@
   const sq = x => x * x;
 
   /* ---------- 계획(plan) 도우미 ---------- */
-  const foeIn = (r, min) => (b, u, en) => b.skillPick(u, en, r, min || 0);
-  const anyIn = r => (b, u, en) => (en.some(e => b.dist(u, e) <= r) ? {} : null);
-  const clusterPick = (b, u, en, range, r) => {          // 범위 안에서 주변에 적이 가장 많은 적
-    let best = null, bn = 0;
-    for (const e of en) { if (b.dist(u, e) > range) continue; const n = en.filter(x => b.dist(x, e) <= r).length; if (n > bn || (n === bn && best && b.dist(u, e) < b.dist(u, best))) { best = e; bn = n; } }
-    return best ? { t: best, n: bn } : null;
-  };
-  const hit = (b, u, e, type, raw, via, extra) => b.deal(u, e, { type, raw, via, skill: true, ...(extra || {}) });
-  const beam = (b, u, x2, y2, w, color) => b.emit({ type: 'beam', x1: u.x, y1: u.y, x2, y2, w, color });
-  const lineEnd = (b, u, t, len) => { const d = b.dir(u, t); return b.clampPos(u.x + d.x * len, u.y + d.y * len); };
-  const cone = (b, u, t, range, half, color) => { const d = b.dir(u, t); b.emit({ type: 'cone', x: u.x, y: u.y, dir: Math.atan2(d.y, d.x), range, half, color }); };
-  const ring = (b, x, y, r, color) => b.emit({ type: 'aoe', x, y, radius: r, color });
-  const dashTo = (b, u, t, maxDist, stopGap) => {        // t 방향으로 최대 거리만큼 이동할 도착점
-    const d = b.dir(u, t), go = Math.max(0, Math.min(maxDist, b.dist(u, t) - (stopGap || 0)));
-    return b.clampPos(u.x + d.x * go, u.y + d.y * go);
-  };
+  const { foeIn, anyIn, clusterPick, hit, beam, lineEnd, cone, ring, dashTo } = FKit;
   
   /* ================= 1. 데스카이저 ================= */
   FD.deathkaiser = {

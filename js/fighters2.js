@@ -3,23 +3,10 @@
 (() => {
   const FD = CONFIG.fighters;
 
-  const foeIn = (r, min) => (b, u, en) => b.skillPick(u, en, r, min || 0);
-  const anyIn = r => (b, u, en) => (en.some(e => b.dist(u, e) <= r) ? {} : null);
-  const clusterPick = (b, u, en, range, r) => {
-    let best = null, bn = 0;
-    for (const e of en) { if (b.dist(u, e) > range) continue; const n = en.filter(x => b.dist(x, e) <= r).length; if (n > bn || (n === bn && best && b.dist(u, e) < b.dist(u, best))) { best = e; bn = n; } }
-    return best ? { t: best, n: bn } : null;
-  };
-  const hit = (b, u, e, type, raw, via, extra) => b.deal(u, e, { type, raw, via, skill: true, ...(extra || {}) });
-  const beam = (b, u, x2, y2, w, color) => b.emit({ type: 'beam', x1: u.x, y1: u.y, x2, y2, w, color });
-  const lineEnd = (b, u, t, len) => { const d = b.dir(u, t); return b.clampPos(u.x + d.x * len, u.y + d.y * len); };
-  const cone = (b, u, t, range, half, color) => { const d = b.dir(u, t); b.emit({ type: 'cone', x: u.x, y: u.y, dir: Math.atan2(d.y, d.x), range, half, color }); };
-  const ring = (b, x, y, r, color) => b.emit({ type: 'aoe', x, y, radius: r, color });
-  const dashTo = (b, u, t, maxDist, stopGap) => { const d = b.dir(u, t), go = Math.max(0, Math.min(maxDist, b.dist(u, t) - (stopGap || 0))); return b.clampPos(u.x + d.x * go, u.y + d.y * go); };
+  const { foeIn, anyIn, clusterPick, hit, beam, lineEnd, cone, ring, dashTo, lock } = FKit;
   const air = (b, u, e, d) => { if (!e.alive || e.st.some(s => s.ccImmune || s.invuln)) return; b.buff(e, 'airborne', d, { name: '에어본', good: false, f: { stun: true }, src: u }); };
   const barrier = (b, u, x, y, r, hp, dur, color) => b.zone({ x, y, r, dur, owner: u, kind: 'barrier', color, hpS: hp });
   const hurtAlly = (b, u, al, r) => b.lowest(al.filter(a => a !== u && a.hp < a.maxHp * 0.6 && b.dist(u, a) <= r));
-  const lock = (b, u, sec) => b.buff(u, 'channel', sec, { name: '시전 중', f: { channel: true }, quiet: true });
   const mageBasic = { type: 'magic', atk: 0.5, ap: 0.5, proj: 'bolt' };
   const meleeBasic = { type: 'phys', atk: 1, ap: 0, proj: 'melee' };
 

@@ -1,0 +1,297 @@
+/* report.css — 리포트 룸 · 분석 담당관 (report.js 의 rp-css에서 분리). 속성 순서: Concentric CSS. style.css 뒤에 로드 */
+
+.rp-officer {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 14px;
+}
+
+.rp-photo {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  width: 120px;
+  height: 180px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 14px;
+  background: rgba(0,0,0,.35);
+  font-size: 44px;
+}
+
+.rp-photo img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.rp-say {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.rp-say b {
+  font-size: 14px;
+}
+
+.rp-say p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.rp-scope {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.rp-row {
+  cursor: pointer;
+}
+
+.lm-wrap {
+  display: grid;
+  grid-template-columns: clamp(200px,24vw,320px) minmax(0,1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.lm-who {
+  position: sticky;
+  top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lm-photo {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 2/3;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 16px;
+  background: rgba(0,0,0,.35);
+  font-size: 64px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.4);
+}
+
+.lm-photo img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+}
+
+.lm-name {
+  font-size: 13px;
+  text-align: center;
+}
+
+.lm-bubble {
+  position: relative;
+  margin: 6px 0 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(110,231,255,.12);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.lm-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.lm-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.lm-badge {
+  padding: 4px 14px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.lm-badge.win {
+  background: rgba(52,211,153,.4);
+}
+
+.lm-badge.lose {
+  background: rgba(248,113,113,.4);
+}
+
+.lm-badge.draw {
+  background: rgba(250,204,21,.35);
+}
+
+.lm-score {
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.lm-meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.lm-fr {
+  display: grid;
+  grid-template-columns: 96px minmax(0,1fr) 44px;
+  gap: 8px;
+  align-items: center;
+  padding: 5px 0;
+  font-size: 12px;
+}
+
+.lm-bar {
+  display: flex;
+  overflow: hidden;
+  height: 10px;
+  border-radius: 5px;
+  background: rgba(255,255,255,.08);
+}
+
+.lm-bar i {
+  display: block;
+  height: 100%;
+}
+
+.lm-bar i.a {
+  background: #60a5fa;
+}
+
+.lm-bar i.b {
+  background: #f87171;
+}
+
+.lm-fv {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.lm-vd {
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 700;
+  text-align: right;
+  color: var(--muted);
+}
+
+.lm-vd.ok,
+.lm-ul .ok,
+.lm-wrap td.ok {
+  color: #6ee7b7;
+}
+
+.lm-vd.bad,
+.lm-ul .bad,
+.lm-wrap td.bad {
+  color: #fca5a5;
+}
+
+.lm-ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.75;
+  color: var(--text);
+}
+
+.lm-sp {
+  width: 24px;
+  height: 24px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.lm-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(240px,1fr));
+  gap: 10px;
+  margin: 10px 0 0;
+}
+
+.lm-card {
+  padding: 10px 12px;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 10px;
+  background: rgba(255,255,255,.04);
+}
+
+.lm-card h5 {
+  margin: 0 0 4px;
+  font-size: 13px;
+}
+
+.lm-svg {
+  display: block;
+  width: 100%;
+  height: 120px;
+  margin: 0 0 4px;
+  border-radius: 8px;
+  background: rgba(0,0,0,.25);
+}
+
+.lm-scroll {
+  overflow-x: auto;
+}
+
+.lm-det {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+
+.lm-det summary {
+  color: var(--muted);
+  cursor: pointer;
+}
+
+@media (max-width:820px) {
+  .lm-wrap {
+    grid-template-columns: 1fr;
+  }
+
+  .lm-who {
+    position: static;
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .lm-photo {
+    flex: none;
+    width: 96px;
+    aspect-ratio: 1;
+  }
+
+  .lm-bubble {
+    margin: 0;
+  }
+}

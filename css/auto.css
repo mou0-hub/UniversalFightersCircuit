@@ -1,0 +1,43 @@
+/* auto.css — 시즌 자동 진행 오버레이 (main.js 의 auto-css에서 분리). 속성 순서: Concentric CSS. style.css 뒤에 로드 */
+
+.auto-ov {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,.6);
+}
+
+.auto-box {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(420px,90vw);
+  padding: 22px;
+  border-radius: 14px;
+  background: #1b1f2a;
+  font-size: 14px;
+  color: #fff;
+  box-shadow: 0 10px 40px rgba(0,0,0,.5);
+}
+
+.auto-bar {
+  overflow: hidden;
+  height: 14px;
+  border-radius: 7px;
+  background: rgba(255,255,255,.12);
+}
+
+.auto-bar i {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: 7px;
+  background: linear-gradient(90deg,#4da3ff,#7cf0c0);
+  transition: width .2s;
+}

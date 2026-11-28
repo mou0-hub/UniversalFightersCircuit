@@ -1,0 +1,368 @@
+/* draft.css — 밴픽 화면 · 밴픽 분석관 (ui.js 의 draftCss에서 분리). 속성 순서: Concentric CSS. style.css 뒤에 로드 */
+
+.draft-view .dr-grid {
+  grid-template-columns: minmax(200px, 0.85fr) minmax(0, 1.3fr) minmax(200px, 0.85fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.draft-view .dr-mid {
+  min-width: 0;
+}
+
+.draft-view .dr-tiles {
+  grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+  gap: 6px;
+}
+
+.draft-view .dr-tiles-box {
+  position: relative;
+  border-radius: 12px;
+}
+
+.draft-view .dr-tiles {
+  max-height: clamp(320px, calc(100vh - 340px), 640px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px 6px 4px 2px;
+  scrollbar-width: thin;
+}
+
+.draft-view .dr-tiles::-webkit-scrollbar {
+  width: 8px;
+}
+
+.draft-view .dr-tiles::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background: rgba(255,255,255,.25);
+}
+
+.draft-view .dr-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: rgba(4,8,18,.6);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .35s;
+}
+
+.draft-view .dr-overlay.on {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.draft-view .dr-team h3 {
+  text-align: center;
+}
+
+.draft-view .dr-slot {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 12px;
+  min-height: 88px;
+}
+
+.draft-view .dr-slot .dr-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  text-align: left;
+}
+
+.draft-view .dr-slot .dr-pick {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 64px;
+  text-align: center;
+}
+
+.draft-view .dr-slot .dr-pick img.px {
+  display: block;
+  margin: 0 auto;
+}
+
+.draft-view .dr-slot .dr-pick b {
+  display: block;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.dr-slot .dr-lab {
+  display: block;
+  font-size: 11px;
+  opacity: .8;
+}
+
+.dr-slot .dr-pro {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.dr-slot .dr-meta {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.3;
+}
+
+.dr-slot .dr-favs {
+  display: block;
+  font-size: 11px;
+  color: var(--text);
+  line-height: 1.35;
+  word-break: keep-all;
+  opacity: .92;
+}
+
+.dr-slot.swap-on {
+  outline: 2px solid var(--acc);
+  box-shadow: 0 0 0 3px rgba(110,231,255,.25);
+}
+
+.dr-slot.can-swap {
+  cursor: pointer;
+}
+
+.dr-slot.can-swap:hover {
+  background: rgba(255,255,255,.06);
+}
+
+.dr-swap-hint {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.dr-adv {
+  display: grid;
+  grid-template-columns: clamp(170px, 20vw, 260px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: stretch;
+  margin: 0 0 12px;
+  padding: 14px 16px;
+}
+
+.dr-adv-who {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  min-height: 240px;
+  text-align: center;
+}
+
+.dr-adv-face {
+  display: block;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  object-fit: cover;
+  object-position: center top;
+  border: 2px solid rgba(110,231,255,.55);
+  border-radius: 14px;
+  background: rgba(255,255,255,.06);
+  box-shadow: 0 4px 14px rgba(0,0,0,.35);
+}
+
+.dr-adv-ph {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed rgba(255,255,255,.3);
+  border-radius: 14px;
+  font-size: 48px;
+}
+
+.dr-adv-ph[hidden] {
+  display: none;
+}
+
+.dr-adv-who small {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.dr-adv-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.dr-adv-say {
+  position: relative;
+  margin: 0;
+  padding: 9px 14px;
+  border-radius: 10px;
+  background: rgba(110,231,255,.12);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.dr-adv-say::before {
+  position: absolute;
+  top: 14px;
+  left: -5px;
+  width: 10px;
+  height: 10px;
+  content: '';
+  background: rgba(110,231,255,.12);
+  transform: rotate(45deg);
+}
+
+.dr-adv-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.dr-adv-sec {
+  min-width: 0;
+  max-height: 280px;
+  padding: 8px 10px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 10px;
+  background: rgba(255,255,255,.04);
+}
+
+.dr-adv-sec h4 {
+  margin: 8px 0 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.dr-adv-sec h4:first-child {
+  margin-top: 0;
+}
+
+.dr-adv-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 0 6px;
+}
+
+.dr-adv-tag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.1);
+  font-size: 11px;
+  color: var(--text);
+}
+
+.dr-adv-pk {
+  padding: 6px 0;
+  border-top: 1px dashed rgba(255,255,255,.12);
+}
+
+.dr-adv-row,
+.dr-adv-hit {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 3px 0;
+}
+
+.dr-adv-row img.px,
+.dr-adv-hit img.px {
+  flex: none;
+  width: 28px;
+  height: 28px;
+}
+
+.dr-adv-hit {
+  border-radius: 8px;
+  transition: background .15s;
+  cursor: pointer;
+}
+
+.dr-adv-txt {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.dr-adv-txt b {
+  display: block;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.dr-adv-weak {
+  color: #fca5a5;
+}
+
+.dr-adv-nick {
+  margin: 0 0 2px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.dr-adv-fav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.dr-adv-fav > b {
+  font-size: 12px;
+  color: var(--text);
+}
+
+.dr-adv-fav.banned,
+.dr-adv-fav.mine,
+.dr-adv-fav.used {
+  opacity: .5;
+}
+
+.dr-adv-ch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px 2px 4px;
+  border: 1px solid rgba(110,231,255,.3);
+  border-radius: 8px;
+  background: rgba(110,231,255,.08);
+  font-size: 11px;
+  color: var(--text);
+  transition: background .15s;
+  cursor: pointer;
+}
+
+.dr-adv-ch img.px {
+  width: 20px;
+  height: 20px;
+}
+
+.dr-adv-hit:hover,
+.dr-adv-ch:hover {
+  background: rgba(110,231,255,.18);
+}

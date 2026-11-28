@@ -1,0 +1,44 @@
+/* mascot.css — 마스코트 크기 조절 핸들 · 드래그 상태 (mascot.js 의 rst 스타일에서 분리). 속성 순서: Concentric CSS. style.css 뒤에 로드 */
+
+#mascot .mc-rs {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid rgba(255,255,255,.28);
+  border-radius: 50%;
+  background: rgba(10,14,32,.55);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(0,0,0,.35);
+  opacity: .7;
+  backdrop-filter: blur(8px);
+  cursor: nwse-resize;
+  touch-action: none;
+  transition: opacity .15s ease, background .15s ease, transform .15s ease;
+}
+
+#mascot .mc-rs:hover,
+#mascot.rs-on .mc-rs {
+  background: rgba(255,126,179,.45);
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+#mascot.rs-on,
+#mascot.rs-on * {
+  cursor: nwse-resize !important;
+}
+
+#mascot.mc-sz .mc-bubble {
+  font-size: var(--mc-fs);
+}
+
+#mascot.drag .mc-fig {
+  animation: mc-open .5s var(--ease), mc-breathe 3.6s ease-in-out .5s infinite;
+  animation-play-state: paused;
+}

@@ -1,6 +1,6 @@
 const Feedback = (() => {
   const CAP = 0.3, STEP = 0.4, DECAY = 0.87, SEASON = 0.35, DROP = 0.1;
-  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const { clamp } = Util;
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const S = { sel: 0, from: '', text: '', pending: null, miss: [], hints: [] };
 
@@ -228,13 +228,6 @@ const Feedback = (() => {
     for (const id in s.p) { const e = s.p[id]; for (const ax in e) { e[ax].v *= SEASON; if (Math.abs(e[ax].v) < DROP) delete e[ax]; } if (!Object.keys(e).length) delete s.p[id]; }
   }
 
-  function css() {
-    if (document.getElementById('fbCss')) return;
-    const t = document.createElement('style'); t.id = 'fbCss';
-    t.textContent = `.fb-panel{margin-top:14px}.fb-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}.fb-head h3{margin:0}.fb-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-top:10px}.fb-card{padding:10px;border-radius:10px;background:rgba(255,255,255,.05)}.fb-card h4{margin:0 0 6px;display:flex;justify-content:space-between;align-items:center}.fb-card ul{list-style:none;margin:0;padding:0}.fb-card li{margin:6px 0;font-size:13px}.fb-card li small{display:block;opacity:.7}.fb-bar{height:5px;border-radius:3px;background:rgba(255,255,255,.12);margin-top:3px}.fb-bar i{display:block;height:100%;border-radius:3px;background:#6cf}.fb-bar i.dn{background:#f96}.fb-x{background:none;border:0;color:inherit;opacity:.6;cursor:pointer}.fb-tabs{display:flex;gap:6px;margin:10px 0}.fb-tabs .btn.on{outline:2px solid #6cf}.fb-modal textarea{width:100%;box-sizing:border-box;min-height:80px;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.3);color:inherit;font:inherit}.fb-ex{font-size:12px;opacity:.7;margin:6px 0}`;
-    document.head.appendChild(t);
-  }
-
   function listHTML(g, id, withX) {
     const e = st(g).p[id], ks = e ? Object.keys(e) : [];
     if (!ks.length) return '<p class="note">반영 중인 피드백이 없습니다.</p>';
@@ -243,7 +236,7 @@ const Feedback = (() => {
 
   function panel(g) {
     if (!g || !g.club || !g.club.lineup) return '';
-    css(); sync(g);
+    sync(g);
     const cards = g.club.lineup.filter(Boolean).map(id => `<div class="fb-card"><h4>${esc(nick(g, id))}<button class="btn small ghost" data-act="fbResetOne" data-id="${id}">초기화</button></h4>${listHTML(g, id, true)}</div>`).join('');
     return `<section class="glass panel fb-panel"><div class="fb-head"><h3>🧠 AI 피드백 학습 · 현재 반영된 피드백</h3><div><button class="btn small primary" data-act="fbOpen">피드백 쓰기</button> <button class="btn small ghost" data-act="fbResetAll">전체 초기화</button></div></div>
       <p class="note">선수별로 적은 피드백대로 다음 경기부터 AI가 움직입니다. 항목당 최대 ±30%, 경기마다 약해져 5경기면 절반, 시즌이 바뀌면 크게 줄고, 선수단이 많이 바뀌면 초기화됩니다. 같은 불만을 다시 적으면 강해집니다.</p><div class="fb-cards">${cards || '<p class="empty">라인업을 먼저 채워주세요.</p>'}</div></section>`;
@@ -254,7 +247,6 @@ const Feedback = (() => {
   }
   function render() {
     const g = Game.G, lu = g.club.lineup, id = lu[S.sel] || lu.find(Boolean);
-    css();
     const tabs = lu.map((pid, i) => pid ? `<button class="btn small ${i === S.sel ? 'on' : ''}" data-act="fbPick" data-i="${i}">${esc(nick(g, pid))}</button>` : '').join('');
     UI.modal(`<h2>💬 선수 피드백</h2><p class="note">타자로 적으면 AI가 키워드를 읽어 다음 경기부터 반영합니다.</p><div class="fb-tabs">${tabs}</div>
       ${S.pending ? pendHTML() : ''}<textarea id="fbText" maxlength="150" placeholder="예) 후반엔 코어 더 넓게 맵 쓰면서 찾아. 체력 없으면 무리한 싸움 하지마">${esc(S.text)}</textarea>

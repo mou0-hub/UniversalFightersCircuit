@@ -6,8 +6,7 @@ const Arena = (() => {
   let running = false, paused = false, fast = false, hooks = {}, names = [], hudT = 0, endT = 0;
   const now = () => performance.now();
   const tcol = t => CONFIG.ui.teamColors[t] || '#fbbf24';      // 2 = 중립(보스)
-  const lerp = (a, b, k) => a + (b - a) * k;
-  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const { clamp, lerp } = Util;
   const vsp = () => Math.sqrt(Math.max(1, speed));
   const STK = ['freeze', 'stun', 'burn', 'poison', 'bleed', 'root', 'silence', 'fear', 'blind', 'slow', 'stagger', 'knock'];
   const STC = { freeze: '#bae6fd', stun: '#fde047', burn: '#fb923c', poison: '#84cc16', bleed: '#ef4444', root: '#a3e635', silence: '#c084fc', fear: '#e879f9', blind: '#94a3b8', slow: '#38bdf8', stagger: '#fbbf24', knock: '#f87171' };

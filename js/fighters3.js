@@ -10,14 +10,9 @@
   const FD = CONFIG.fighters;
 
   /* ---------- 도우미 ---------- */
-  const foeIn = (r, min) => (b, u, en) => b.skillPick(u, en, r, min || 0);
-  const anyIn = r => (b, u, en) => (en.some(e => b.dist(u, e) <= r) ? {} : null);
+  const { foeIn, anyIn, lineEnd, cone, ring, dashTo, lock } = FKit;
   const hit = (b, u, e, type, raw, via, extra) => b.deal(u, e, { type, raw, via, skill: true, pierce: u.st.some(s => s.pierce), ...(extra || {}) });
-  const cone = (b, u, t, range, half, color) => { const d = b.dir(u, t); b.emit({ type: 'cone', x: u.x, y: u.y, dir: Math.atan2(d.y, d.x), range, half, color }); };
-  const ring = (b, x, y, r, color) => b.emit({ type: 'aoe', x, y, radius: r, color });
   const slash = (b, x1, y1, x2, y2, w, color) => b.emit({ type: 'beam', x1, y1, x2, y2, w, color });
-  const dashTo = (b, u, t, maxDist, stopGap) => { const d = b.dir(u, t), go = Math.max(0, Math.min(maxDist, b.dist(u, t) - (stopGap || 0))); return b.clampPos(u.x + d.x * go, u.y + d.y * go); };
-  const lock = (b, u, sec) => b.buff(u, 'channel', sec, { name: '시전 중', f: { channel: true }, quiet: true });
   const meleeBasic = { type: 'phys', atk: 1, ap: 0, proj: 'melee' };
   const bleeding = t => t.st.some(s => s.key === 'bleed');
   const bleed = (b, u, t, sec) => b.cc(u, t, 'bleed', sec);
@@ -387,7 +382,6 @@
   /* ================= 37~40. 사냥꾼 (프레스 · 제이드 · 다크 · 바이오머신) =================
      새 엔진 기능: 치명타(stats.crit / critDmg, 기본 공격 자동 판정 · 스킬은 rollCrit:true), disarm 플래그(기본 공격 불가 = 재장전) */
   const beamU = (b, u, x2, y2, w, color) => slash(b, u.x, u.y, x2, y2, w, color);
-  const lineEnd = (b, u, t, len) => { const d = b.dir(u, t); return b.clampPos(u.x + d.x * len, u.y + d.y * len); };
   const rangedBasic = { type: 'phys', atk: 1, ap: 0, proj: 'bolt' };
   /* 탄환: u.mem.ammo / ammoMax, 0 이 되면 재장전(기본 공격 불가) 후 가득 참 */
   const ammoInit = (u, max, reload) => { u.mem.ammo = max; u.mem.ammoMax = max; u.mem.reloadSec = reload; };
@@ -1436,8 +1430,8 @@
         '.....a.....kkkk..kkkk.....a.....',
         '...........kkkk..kkkk...........'],
       weapon: '' } },
-    passive: { name: '변절의검', desc: '자신이 적을 처치하거나 처치에 관여할 때마다 공격 속도(+4.5%)와 사거리(+0.4)가 증가합니다. (최대 8중첩, 사망 시 초기화)',
-      init(b, u) { u.mem.rn = 0; u.mem.rh = {}; u.mem.ki = b.rec.kills.length; },
+    passive: { name: '변절의검', desc: '자신이 적을 처치하거나 처치에 관여할 때마다 공격 속도(+4.5%)와 사거리(+0.4)가 증가합니다. (최대 8중첩, 사망해도 유지되며 해당 경기 동안 영구적으로 누적)',
+      init(b, u) { u.mem.rn = u.rnKeep || 0; u.mem.rh = {}; u.mem.ki = b.rec.kills.length; },
       onDealt(b, u, t, res) { if (res.dealt > 0 && !t.struct) (u.mem.rh = u.mem.rh || {})[t.id] = b.t; },
       stat(b, u, k, v) { return k === 'aspd' ? v * (1 + 0.045 * (u.mem ? u.mem.rn || 0 : 0)) : v; },
       onForm(b, u, form) { if (form === 'fallen') { u.scale = 1.3; u.glow = '#7c3aed'; } else { u.scale = 1; u.glow = b.has(u, 'rn_blade') ? '#a78bfa' : null; } },
@@ -1448,7 +1442,7 @@
           const h = m.rh && m.rh[K.v];
           if (K.k === u.id || (h && b.t - h <= b.sec(6))) m.rn = Math.min(RN_MAX, (m.rn || 0) + 1);
         }
-        rnSync(b, u);
+        u.rnKeep = m.rn || 0; rnSync(b, u);
         u.gauge = { label: '변절', val: m.rn || 0, max: RN_MAX, color: '#a78bfa' };
       } },
     skills: [
@@ -1662,7 +1656,254 @@
   };
 
 
-  const NEW = ['crush', 'viser', 'darkknight', 'shadow', 'redhood', 'reaper', 'press', 'jade', 'dark', 'biomachine', 'frost', 'shining', 'steamman', 'itrain', 'grainger', 'angel', 'oba', 'stardust', 'renegade', 'carcer', 'peg'];
+  const BR_WIN = 4, BR_NAME = { s1: '도륙', s2: '집행', ult: '광란' };
+  const brCb = (b, u) => { const c = u.mem.cb; return c && c.until > b.t ? c : null; };
+  const brClose = (b, u, key, combo) => { u.mem.cb = combo ? null : { until: b.t + b.sec(BR_WIN), last: key }; };
+  const brNote = (b, u, name) => b.emit({ type: 'status', src: u, dst: u, name: '콤보 · ' + name, good: true });
+  const brWound = (b, u, t, sec) => b.buff(t, 'wound', sec, { name: '상처', good: false, src: u, f: { healMul: 0.5 } });
+  const brSit = (b, u, en) => {
+    const p = b.skillPick(u, en, 26, 0), t = p ? p.t : null, d = t ? b.dist(u, t) : 99;
+    return { t, d, hp: u.hp / u.maxHp, th: t ? t.hp / t.maxHp : 1, n11: en.filter(e => b.dist(u, e) <= 11).length, n16: en.filter(e => b.dist(u, e) <= 16).length };
+  };
+  const brCan = (b, u) => ({ s1: b.canCast(u, FD.breaker.skills[0], 'skill'), s2: b.canCast(u, FD.breaker.skills[1], 'skill'), ult: b.canCast(u, FD.breaker.ult, 'ult') });
+  const brCombo = (b, u, en) => {
+    const c = brCb(b, u), S = brSit(b, u, en); if (!c || !S.t) return null;
+    const can = brCan(b, u), late = c.until - b.t < b.sec(0.7), sc = {};
+    if (can.s1 && S.d <= 12) sc.s1 = 0.9 + (S.hp < 0.5 ? 2.2 : 0) + (S.n11 >= 2 ? 1 : 0) + (S.n11 >= 3 ? 0.6 : 0) + (S.d <= 8 ? 0.4 : 0) - (S.th < 0.25 && S.d > 6 ? 1.2 : 0);
+    if (can.s2 && S.d <= 22) sc.s2 = 1 + (S.d >= 9 ? 1.2 : 0) + (S.th < 0.45 ? 1.6 : 0) - (S.hp < 0.35 && S.n11 >= 2 ? 2.2 : 0) - (S.n11 >= 3 ? 0.6 : 0);
+    if (can.ult && c.last !== 'ult') {
+      if (c.last === 's1' && S.d <= 26) sc.ult = 0.8 + (S.th < 0.55 ? 2.2 : 0) + (S.d >= 10 ? 1 : 0.3) + (S.hp < 0.5 ? 0.6 : 0);
+      if (c.last === 's2' && S.n16 >= 1) sc.ult = 0.4 + 0.9 * S.n16 + (S.hp < 0.45 ? 1 : 0);
+    }
+    let key = null, best = -1;
+    for (const k in sc) { const need = k === 'ult' ? (late ? 1.4 : 2.2) : (late ? 0.1 : 0.9); if (sc[k] >= need && sc[k] > best) { best = sc[k]; key = k; } }
+    return key ? { key, S, last: c.last } : null;
+  };
+  const brNormal = (b, u, en) => {
+    if (brCb(b, u)) return null;
+    const S = brSit(b, u, en); if (!S.t) return null;
+    const can = brCan(b, u), sc = {};
+    if (can.s1 && S.d <= 11) sc.s1 = 1 + 0.8 * (S.n11 - 1) + (S.d <= 7 ? 0.3 : 0);
+    if (can.s2 && S.d <= 19) sc.s2 = 1 + (S.d >= 8 ? 0.9 : 0) + (S.n11 <= 1 ? 0.2 : 0);
+    let key = null, best = 0;
+    for (const k in sc) if (sc[k] > best) { best = sc[k]; key = k; }
+    return key ? { key, S } : null;
+  };
+  const brSpin = (b, u, n) => {
+    if (!u.alive || b.gone(u)) return;
+    ring(b, u.x, u.y, 12, '#ef4444');
+    for (let a = 0; a < 4; a++) { const r = a * Math.PI / 2 + n * 0.8; slash(b, u.x, u.y, u.x + Math.cos(r) * 12, u.y + Math.sin(r) * 12, 2.5, '#fca5a5'); }
+    let tot = 0, cnt = 0;
+    b.inCircle(b.foes(u), u.x, u.y, 12).forEach(e => { const r = hit(b, u, e, 'phys', b.raw(u, 40, 0.9), '광란', { splash: true }); tot += (r && r.dealt) || 0; cnt++; });
+    if (cnt) b.heal(u, u, tot * 0.6 + 22 * cnt, '광란');
+  };
+
+  FD.breaker = {
+    id: 'breaker', name: '브레이커', role: 'assassin', color: '#dc2626', title: '톱날을 펼치는 씬시티의 해결사',
+    concept: '"조용히 끝내지. 소리 지를 시간도 안 줄 테니까."',
+    stats: { hp: 880, mp: 240, aspd: 1.0, spd: 9.1, atk: 54, ap: 0, def: 28, res: 20, ten: 0.04, pen: 0.1, ls: 0.1, range: 6 },
+    basic: meleeBasic, ai: { threat: 0.95, style: { ult: 'finish' } },
+    tac: { act: ['rush', 'basic'], fight: ['solo', 'coop'], aim: ['weak', 'back'] },
+    look: { res: 2, pal: { h: '#0a0c12', H: '#242b3b', s: '#d8c2ae', S: '#a98f7d', k: '#05070b', e: '#ff3b3b', m: '#7f1d1d', j: '#1b1f2b', J: '#303850', l: '#475066', d: '#3a4152', t: '#991b1b', T: '#dc2626', y: '#9ca3af', p: '#141824', P: '#242c3e', g: '#2a303d', W: '#f1f5f9', w: '#cbd5e1', x: '#7a879c', r: '#b91c1c' },
+      rows: [
+        '...........hhhhhhhhhh...........',
+        '..........hhHhhhhhhHhh..........',
+        '.........hhhhHhhhhHhhhh.........',
+        '.........hhhsssssssshhh.........',
+        '..........hskksssskksh..........',
+        '..........hsseesseessh..........',
+        '..........hsssSSSSsssh..........',
+        '..........hSsssmmsssSh..........',
+        '...........SssssssssS...........',
+        '............SssssssS............',
+        '.............sSSSSs.............',
+        '.......jJjjjjllddlljjjjJj.......',
+        '.....jjjJjjjjldttdljjjjJjjj.....',
+        '....jJj.jjjjjldttdljjjjj.jJj....',
+        '...jJj..jjjjjjlTTljjjjjj..jJj...',
+        '...jlj...jjjjjlTTljjjjj...jlj...',
+        '..gSg....kkkkkkyykkkkkk....gSg..',
+        '..xW....jjjJjjjjjjjjJjjj....Wx..',
+        '.wxW.....pPpppp..ppppPp.....Wxw.',
+        '..xWx....ppppPp..pPpppp....xWx..',
+        '.wxW.....pppppp..pppppp.....Wxw.',
+        '..xrx....pppppp..pppppp....xrx..',
+        '.wxW.....pppppp..pppppp.....Wxw.',
+        '..xrx....pppppp..pppppp....xrx..',
+        '.wxW.....pppppp..pppppp.....Wxw.',
+        '..xWx....pppppp..pppppp....xWx..',
+        '.wrW.....kkkkkk..kkkkkk.....Wrw.',
+        '..xW....kkkkkkk..kkkkkkk....Wx..',
+        '..xW....kkkkkkk..kkkkkkk....Wx..',
+        '...w....kkkkkkk..kkkkkkk....w...'],
+      weapon: '' },
+    passive: { name: '냉혈한', desc: '스킬을 쓰면 4초 동안 콤보가 활성화됩니다. 콤보 중에 다른 스킬을 쓰면 콤보 스킬로 발동하고, 콤보 스킬 다음에는 다시 일반 스킬로 발동합니다. 궁극기 콤보는 직전에 쓴 스킬(도륙/집행)에 따라 달라집니다.',
+      init(b, u) { u.mem.cb = null; },
+      tick(b, u) {
+        const c = brCb(b, u); if (!c) u.mem.cb = null;
+        u.gauge = c ? { label: '콤보 · ' + BR_NAME[c.last], val: Math.max(0, (c.until - b.t) / b.sec(BR_WIN)), max: 1, color: '#ef4444' } : { label: '냉혈한', val: 0, max: 1, color: '#475569' };
+      } },
+    skills: [
+      { id: 'br_s1', name: '도륙', tags: ['control', 'antiheal'], cost: 35, cd: 7, range: 11, sfx: 'aoe', desc: '전방의 넓은 범위(부채꼴보다 넓음)를 베어 피해를 주고 상처(4초, 받는 치유량 50% 감소)를 입힙니다. [콤보] 짧게 뛰어들어 전방의 적을 제압(0.7초 기절)하며 피해·상처·출혈을 주고, 뒤로 물러나며 경로의 적에게 한 번 더 피해와 출혈을 줍니다.',
+        plan(b, u, en) {
+          if (brCb(b, u)) { const r = brCombo(b, u, en); return r && r.key === 's1' ? { t: r.S.t, mode: 'combo' } : null; }
+          const r = brNormal(b, u, en); return r && r.key === 's1' ? { t: r.S.t, mode: 'norm' } : null;
+        },
+        cast(b, u, pl) {
+          const t = pl.t, co = pl.mode === 'combo'; brClose(b, u, 's1', co);
+          if (!co) {
+            cone(b, u, t, 13, 1.35, '#ef4444');
+            b.inCone(b.foes(u), u, t.x, t.y, 13, 1.35).forEach(e => { hit(b, u, e, 'phys', b.raw(u, 30, 1.0), '도륙', { splash: true }); brWound(b, u, e, 4); });
+            return {};
+          }
+          brNote(b, u, '도륙');
+          const ox = u.x, oy = u.y, d = b.dir(u, t), e = dashTo(b, u, t, 8, 2.5); b.slide(u, e.x, e.y); lock(b, u, 0.9);
+          slash(b, ox, oy, u.x, u.y, 3, '#ef4444'); cone(b, u, t, 9, 1.0, '#ef4444');
+          b.inCone(b.foes(u), u, t.x, t.y, 9, 1.0).forEach(x => { hit(b, u, x, 'phys', b.raw(u, 44, 1.1), '도륙 · 제압', { splash: true }); b.cc(u, x, 'stun', 0.7); brWound(b, u, x, 5); bleed(b, u, x, 4); });
+          b.later(0.5, bb => {
+            if (!u.alive || bb.gone(u)) return;
+            const fx = u.x, fy = u.y, back = bb.clampPos(u.x - d.x * 10, u.y - d.y * 10); bb.slide(u, back.x, back.y); slash(bb, fx, fy, u.x, u.y, 3, '#fca5a5');
+            bb.inLine(bb.foes(u), fx, fy, u.x, u.y, 3.5).forEach(x => { hit(bb, u, x, 'phys', bb.raw(u, 26, 0.65), '도륙 · 후퇴', { path: true }); bleed(bb, u, x, 4); });
+          });
+          return { cd: 6 };
+        } },
+      { id: 'br_s2', name: '집행', tags: ['gapclose', 'finisher'], cost: 40, cd: 8, range: 19, move: true, sfx: 'pierce', desc: '전방의 꽤 먼 거리까지 찔러 경로의 적에게 피해를 줍니다. [콤보] 전방으로 돌진해 무기를 찍어내려 큰 피해를 주고(상처 입은 적에게 15% 증가) 대상을 잠깐 경직시킵니다. 주변의 다른 적에게는 일부 피해가 퍼집니다.',
+        plan(b, u, en) {
+          if (brCb(b, u)) { const r = brCombo(b, u, en); return r && r.key === 's2' ? { t: r.S.t, mode: 'combo' } : null; }
+          const r = brNormal(b, u, en); return r && r.key === 's2' ? { t: r.S.t, mode: 'norm' } : null;
+        },
+        cast(b, u, pl) {
+          const t = pl.t, co = pl.mode === 'combo'; brClose(b, u, 's2', co);
+          if (!co) {
+            const d = b.dir(u, t), e = b.clampPos(u.x + d.x * 19, u.y + d.y * 19); slash(b, u.x, u.y, e.x, e.y, 3, '#e2e8f0');
+            b.inLine(b.foes(u), u.x, u.y, e.x, e.y, 2.6).forEach(x => hit(b, u, x, 'phys', b.raw(u, 40, 1.15), '집행', { path: true }));
+            return {};
+          }
+          brNote(b, u, '집행');
+          const ox = u.x, oy = u.y, e = dashTo(b, u, t, 22, 2.5), wd = t.st.some(s => s.key === 'wound'); b.slide(u, e.x, e.y); lock(b, u, 0.5);
+          slash(b, ox, oy, u.x, u.y, 4, '#e2e8f0'); ring(b, t.x, t.y, 5, '#ef4444');
+          hit(b, u, t, 'phys', b.raw(u, 62, 1.5) * (wd ? 1.15 : 1), '집행 · 강타'); b.cc(u, t, 'stagger', 0.4);
+          b.inCircle(b.foes(u).filter(x => x !== t), t.x, t.y, 5).forEach(x => hit(b, u, x, 'phys', b.raw(u, 62, 1.5) * 0.6, '집행 · 강타', { splash: true }));
+          return { cd: 7 };
+        } }
+    ],
+    ult: { id: 'br_ult', name: '광란', tags: ['heal', 'finisher'], cd: 42, range: 12, sfx: 'aoe', desc: '제자리에서 360도로 회전하며 주변의 적을 두 번 벱니다. 적중한 적의 수와 준 피해에 비례해 체력을 크게 회복합니다. [콤보: 도륙 뒤] 전방으로 회전하며 돌진해 경로의 적에게 피해를 주고 체력을 조금 회복합니다. [콤보: 집행 뒤] 더 넓은 범위의 적에게 피해와 상처를 주고 에어본시킵니다.',
+      plan(b, u, en) {
+        const c = brCb(b, u);
+        if (c) { const r = brCombo(b, u, en); return r && r.key === 'ult' ? { t: r.S.t, mode: c.last === 's1' ? 'rush' : 'air' } : null; }
+        const S = brSit(b, u, en); if (!S.t) return null;
+        if (S.n11 >= 2 || (S.hp < 0.5 && S.n11 >= 1) || (S.th < 0.4 && S.d <= 11)) return { t: S.t, mode: 'norm' };
+        return null;
+      },
+      cast(b, u, pl) {
+        const t = pl.t, m = pl.mode; brClose(b, u, 'ult', m !== 'norm');
+        if (m === 'norm') { lock(b, u, 0.9); brSpin(b, u, 0); b.later(0.45, bb => brSpin(bb, u, 1)); return {}; }
+        brNote(b, u, '광란');
+        if (m === 'rush') {
+          const ox = u.x, oy = u.y, e = dashTo(b, u, t, 26, -4); b.slide(u, e.x, e.y); lock(b, u, 0.5);
+          slash(b, ox, oy, u.x, u.y, 6, '#ef4444'); ring(b, u.x, u.y, 7, '#fca5a5');
+          let tot = 0; b.inLine(b.foes(u), ox, oy, u.x, u.y, 4.5).forEach(x => { const r = hit(b, u, x, 'phys', b.raw(u, 70, 1.35), '광란 · 회전돌진', { path: true }); tot += (r && r.dealt) || 0; });
+          if (tot > 0) b.heal(u, u, tot * 0.3, '광란');
+          return {};
+        }
+        ring(b, u.x, u.y, 16, '#ef4444'); lock(b, u, 0.6);
+        b.inCircle(b.foes(u), u.x, u.y, 16).forEach(x => { hit(b, u, x, 'phys', b.raw(u, 62, 1.15), '광란 · 격진', { splash: true }); air(b, u, x, 1.3); brWound(b, u, x, 5); });
+        return {};
+      } }
+  };
+
+
+  FD.astra = {
+    id: 'astra', name: '아스트라', role: 'guardian', color: '#2dd4bf', title: '외계 고위 여전사',
+    concept: '\"질서는 포격으로 완성된다.\"',
+    stats: { hp: 1020, mp: 330, aspd: 0.68, spd: 7.8, atk: 26, ap: 66, def: 30, res: 36, ten: 0.12, pen: 0.1, ls: 0, range: 27 },
+    basic: { type: 'magic', atk: 0.3, ap: 0.95, proj: 'bolt' },
+    ai: { backline: true, kite: 10, threat: 0.9, style: { peel: true, stick: 'carry', ult: 'finish' } },
+    tac: { act: ['basic'], fight: ['support'], pos: ['cover', 'none'], aim: ['near', 'carry'], ult: ['normal'] },
+    look: { res: 2, pal: { h: '#0b0d14', H: '#4a5670', s: '#b9bfe0', S: '#8c93bd', c: '#d9ddfb', e: '#67e8f9', E: '#e6fcff', m: '#c0707a', k: '#0a0b10', a: '#2a2438', A: '#473e61', v: '#7c7aa6', V: '#2f7f86', y: '#d4a73a', Y: '#f5d56a', g: '#22d3ee', G: '#a5f3fc', n: '#5a6286', N: '#9aa4cc', b: '#232842' },
+      rows: [
+        'GGG.GGG..................GGG.GGG',
+        'yyy.yyy..................yyy.yyy',
+        '.Nnn.Nnn................nnN.nnN.',
+        '.yyyyyyy................yyyyyyy.',
+        '..yyyyyyyhhhHhhhhhhHhhhyyyyyyy..',
+        '..NnnbNnhhhHhHhhhhHhHhhhnNbnnN..',
+        '..Ngn.NgnhHhhHhhhhHhhHhngN.ngN..',
+        '...Ngn.NshhsccccccccshhsN.ngN...',
+        '...yyyyyysshkksccskkhssyyyyyy...',
+        '....yyyyyssheEssssEehssyyyyy....',
+        '....NynnnhHsSssssssSsHhnnnyN....',
+        '....NynggHhsssmmmmssshHggnyN....',
+        '.....yngGhHhssSSSSsshHhGgny.....',
+        '.....ynggHhy.sSSSSs.yhHggny.....',
+        '.....ynnyhHAaaYggYaaAHhynny.....',
+        '.....yyyAHhAaaYggYaaAhHAyyy.....',
+        '.....yAAvhHVaaAaaAaaVHhvAAy.....',
+        '.......yaHhvAaAyyAaAvhHay.......',
+        '.....sSyahHAVaAaaAaVAHhaySs.....',
+        '....ssS.yHhAAaAaaAaAAhHy.Sss....',
+        '....yyy.yhyyyyYggYyyyyhy.yyy....',
+        '...gaAa...sscssSSsscss...aAag...',
+        '...gaAa...SsssSSSSsssS...aAag...',
+        '..gaAa....sscssSSsscss....aAag..',
+        '..gaAa..yyyaaAYggYAaayyy..aAag..',
+        '..yyyy..yAaagaaYYaagaaAy..yyyy..',
+        '..knNk..sccsssS..Ssssccs..kNnk..',
+        '..knNk..sccsssS..Ssssccs..kNnk..',
+        '.kynk...scssssS..Ssssscs...knyk.',
+        '.kkkk...scssssS..Ssssscs...kkkk.',
+        '.......yyAvAAag..gaAAvAyy.......',
+        '.......gAvAAaag..gaaAAvAg.......',
+        '.......gaAvAAag..gaAAvAag.......',
+        '.......gaAAAAag..gaAAAAag.......',
+        '.......gaAAAAYg..gYAAAAag.......',
+        '.......kkkkkkkk..kkkkkkkk.......'],
+      weapon: '' },
+    passive: { name: '초기술', desc: '기본공격에 맞은 적은 4초간 방어력·저항이 12% 감소합니다(중첩 안 됨). 사거리 안의 아군이 위급하면 기본공격으로 아군을 치유합니다(공격력의 85%). 주변(22) 아군이 회복하면 그 회복량의 30%(최대 최대체력의 2.5%)만큼 자신도 회복합니다.',
+      onBasic(b, u, t) { if (t && t.alive && !t.struct) b.buff(t, 'as_break', 4, { name: '장갑 분해', good: false, src: u, mul: { def: 0.88, res: 0.88 } }); },
+      onAllyHeal(b, u, a, got) { if (u.hp < u.maxHp && b.dist(u, a) <= 22) b.heal(u, u, Math.min(got * 0.3, u.maxHp * 0.025), '초기술 공명'); },
+      tick(b, u) {
+        if (u.cd < 1 || b.stunned(u) || b.gone(u) || u.st.some(s => s.disarm || s.blind || s.channel)) return;
+        const R = u.f.stats.range, en = b.foes(u).filter(e => !e.struct && !b.hidden(e) && b.dist(u, e) <= R);
+        const a = b.lowest(b.friends(u).filter(x => x !== u && b.dist(u, x) <= R && x.hp < x.maxHp * (en.length ? 0.55 : 0.85)));
+        if (!a) return;
+        if (en.length && a.hp >= a.maxHp * 0.35 && en.some(e => e.hp < e.maxHp * 0.2)) return;
+        u.cd -= 1; u.fxAtk = b.t; u.actT = b.t; b.ultGain(u, b.cfg.ultAtk);
+        FKit.beam(b, u, a.x, a.y, 2.2, '#34d399'); b.heal(u, a, b.raw(u, 0, u.f.basic.atk, u.f.basic.ap) * 0.85, '초기술 보급');
+      } },
+    skills: [
+      { id: 'as_s1', name: '성운 집약포', cost: 55, cd: 11, range: 38, sfx: 'nuke', desc: '에너지를 모아 지정 위치에 느린 포탄을 발사합니다. 폭발하면 넓은 범위의 적에게 피해를 주고 중심에서 밀어내며, 잠시 동안 영역 안의 적을 화상 상태로 만듭니다. 범위 안의 아군은 회복합니다.',
+        plan: (b, u, en) => { const r = FKit.clusterPick(b, u, en, 38, 14); return r ? { t: r.t, n: r.n } : null; },
+        cast(b, u, pl) {
+          const x = pl.t.x, y = pl.t.y, fly = 0.55 + b.dist(u, pl.t) / 45;
+          lock(b, u, 0.55); FKit.beam(b, u, x, y, 2, '#5eead4'); ring(b, x, y, 14, '#fb923c');
+          b.later(fly, bb => {
+            ring(bb, x, y, 14, '#f97316');
+            bb.inCircle(bb.foes(u), x, y, 14).forEach(e => { hit(bb, u, e, 'magic', bb.raw(u, 68, 0.2, 1.05), '성운 집약포', { splash: true }); bb.knock(u, e, 9, { x, y }); bb.cc(u, e, 'burn', 3); });
+            bb.inCircle(bb.friends(u), x, y, 14).forEach(a => bb.heal(u, a, bb.raw(u, 40, 0, 0.7), '성운 집약포'));
+            bb.zone({ x, y, r: 14, dur: 3, owner: u, kind: 'fog', color: '#fb923c', every: 0.5, onTick(z, b2) { b2.inCircle(b2.foes(u), z.x, z.y, z.r).forEach(e => b2.cc(u, e, 'burn', 1.2, { quiet: true })); } });
+          });
+        } },
+      { id: 'as_s2', tags: ['heal'], name: '재구성', cost: 45, cd: 12, range: 20, sfx: 'buff', desc: '4초 동안 자신과 주변 아군의 체력을 서서히 회복시킵니다.',
+        plan: (b, u, en, al) => (al.some(a => b.dist(u, a) <= 20 && a.hp < a.maxHp * 0.8) ? {} : null),
+        cast(b, u) {
+          ring(b, u.x, u.y, 20, '#5eead4');
+          for (let i = 1; i <= 8; i++) b.later(i * 0.5, bb => { if (u.alive) bb.inCircle(bb.friends(u), u.x, u.y, 20).forEach(a => bb.heal(u, a, bb.raw(u, 8, 0, 0.17), '재구성')); });
+        } }
+    ],
+    ult: { id: 'as_ult', name: '초함대 공중지원', cd: 55, range: 200, sfx: 'nuke', desc: '맵 어디든 지정한 넓은 범위에 함포 요격을 퍼붓습니다. 잠시 후 4.5초 동안 범위 안의 적에게 지속 피해를 주고 이동속도를 낮춥니다.',
+      plan: (b, u, en, al, strict) => { const r = FKit.clusterPick(b, u, en, 200, 22); return r && (!strict || r.n >= 2) ? { t: r.t, n: r.n } : null; },
+      cast(b, u, pl) {
+        const x = pl.t.x, y = pl.t.y; lock(b, u, 0.7); ring(b, x, y, 22, '#fde047');
+        b.later(1.0, bb => bb.zone({ x, y, r: 22, dur: 4.5, owner: u, kind: 'fog', color: '#fde047', every: 0.5,
+          onTick(z, b2) {
+            ring(b2, z.x + (Math.random() - 0.5) * 30, z.y + (Math.random() - 0.5) * 30, 6, '#f97316');
+            b2.inCircle(b2.foes(u), z.x, z.y, z.r).forEach(e => { hit(b2, u, e, 'magic', b2.raw(u, 26, 0, 0.4), '초함대 공중지원', { splash: true }); b2.cc(u, e, 'slow', 0.8, { amt: 0.2, quiet: true }); });
+          } }));
+      } }
+  };
+
+  const NEW = ['crush', 'viser', 'darkknight', 'shadow', 'redhood', 'reaper', 'press', 'jade', 'dark', 'biomachine', 'frost', 'shining', 'steamman', 'itrain', 'grainger', 'angel', 'oba', 'stardust', 'renegade', 'carcer', 'peg', 'breaker', 'astra'];
   NEW.forEach(id => { CONFIG.fighterOrder.push(id); const f = FD[id], R = CONFIG.roles[f.role]; f.icon = R.icon; f.roleName = R.name; });
   Object.values(FD).forEach(f => { if (f.stats.crit === undefined) f.stats.crit = 0; if (f.stats.critDmg === undefined) f.stats.critDmg = 1.5; });     // 도감 표시용 기본값
 })();

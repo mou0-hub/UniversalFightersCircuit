@@ -107,25 +107,5 @@ const MyData = (() => {
     myCat(el) { UI.dc({ tcat: el.dataset.c }); }
   };
 
-  if (typeof document !== 'undefined') {
-    const css = document.createElement('style');
-    css.textContent = [
-      '.my-subs { margin-bottom: 12px; }',
-      '.my-cats { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }',
-      '.my-combo { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; }',
-      '.my-names { display: block; margin-top: 2px; font-size: 11px; color: var(--muted); }',
-      '.my-scroll { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }',
-      '@media (max-width: 720px) {',
-      '  .my-subs { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }',
-      '  .my-subs .chip { flex: none; white-space: nowrap; }',
-      '  .my-scroll .dc-tbl { min-width: 560px; font-size: 12px; }',
-      '  .my-scroll .dc-tbl th, .my-scroll .dc-tbl td { padding: 7px 8px; white-space: nowrap; }',
-      '  .dc-tiles .dc-tile { min-width: 0; padding: 12px; }',
-      '  .dc-tiles .dc-tile b { font-size: 18px; }',
-      '}'
-    ].join('\n');
-    document.head.appendChild(css);
-  }
-
   return { blank, get, record, html, actions };
 })();

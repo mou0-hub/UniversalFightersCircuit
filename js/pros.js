@@ -5,10 +5,8 @@
 const Pros = (() => {
   const P = () => CONFIG.pro;
   const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
-  const pick = a => a[Math.floor(Math.random() * a.length)];
-  const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const { clamp, pick, shuffle } = Util;
   const state = G => (G.pros = G.pros || { seq: 0, by: {} });
-  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const get = (G, id) => { const p = state(G).by[id]; if (p && p.god) pin(p); else if (p && (p.pot == null || !p.arc)) ensurePot(p); return p; };
   const fighterPool = role => CONFIG.fighterOrder.filter(f => CONFIG.fighters[f] && !CONFIG.fighters[f].boss && (!role || CONFIG.fighters[f].role === role));
   const round10 = n => Math.round(n / 10) * 10;

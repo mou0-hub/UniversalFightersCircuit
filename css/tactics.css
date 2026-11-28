@@ -1,0 +1,425 @@
+/* tactics.css — 전술 화면 (ui.js 의 tacCss에서 분리). 속성 순서: Concentric CSS. style.css 뒤에 로드 */
+
+.tac-view {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 1040px;
+  margin: 0 auto;
+}
+
+.tac-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 18px 20px 16px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: linear-gradient(135deg,rgba(94,231,255,.08),rgba(255,110,199,.05) 45%,rgba(0,0,0,.25));
+}
+
+.tac-hero::before {
+  position: absolute;
+  inset: 0;
+  content: '';
+  background: radial-gradient(600px 120px at 10% -20%,rgba(94,231,255,.18),transparent 60%),radial-gradient(500px 100px at 90% 0%,rgba(255,110,199,.12),transparent 55%);
+  pointer-events: none;
+}
+
+.tac-hero-inner {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 20px;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.tac-hero h2 {
+  margin: 0 0 4px;
+  font-family: var(--disp);
+  font-size: 24px;
+  letter-spacing: .02em;
+}
+
+.tac-hero p {
+  margin: 0;
+  max-width: 560px;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.tac-seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(0,0,0,.35);
+}
+
+.tac-seg button {
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  appearance: none;
+  cursor: pointer;
+  transition: all .18s;
+}
+
+.tac-seg button:hover {
+  color: var(--text);
+}
+
+.tac-seg button.on {
+  background: var(--acc);
+  color: #061018;
+  box-shadow: none;
+}
+
+.tac-panel {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  min-height: 300px;
+}
+
+.tac-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  background: rgba(0,0,0,.18);
+}
+
+.tac-toolbar .left {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.tac-toolbar .right {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.tac-subtabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 11px;
+  border: 1px solid rgba(255,255,255,.06);
+  background: rgba(255,255,255,.04);
+}
+
+.tac-subtabs button {
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  appearance: none;
+  cursor: pointer;
+  transition: all .15s;
+}
+
+.tac-subtabs button:hover {
+  background: rgba(255,255,255,.05);
+  color: var(--text);
+}
+
+.tac-subtabs button.on {
+  background: var(--acc);
+  color: #061018;
+  box-shadow: none;
+}
+
+.tac-slots {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.tac-slot-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 10px;
+  background: rgba(0,0,0,.28);
+  color: var(--muted);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 800;
+  appearance: none;
+  cursor: pointer;
+  transition: all .15s;
+}
+
+.tac-slot-btn .n {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  background: rgba(255,255,255,.08);
+  font-size: 11px;
+}
+
+.tac-slot-btn:hover {
+  border-color: rgba(94,231,255,.4);
+  color: var(--text);
+}
+
+.tac-slot-btn.on {
+  border-color: var(--acc);
+  background: var(--acc);
+  color: #061018;
+  box-shadow: none;
+}
+
+.tac-slot-btn.on .n {
+  background: rgba(0,0,0,.25);
+  color: #fff;
+}
+
+.tac-hint {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.tac-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.tac-presets .btn {
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 11.5px;
+}
+
+.tac-body {
+  padding: 14px 16px 16px;
+}
+
+.tac-grid {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 12px;
+}
+
+@media (max-width:760px) {
+  .tac-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.tac-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px 12px 15px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.07);
+  background: linear-gradient(165deg,rgba(255,255,255,.045),rgba(255,255,255,.02));
+  box-shadow: 0 8px 24px -18px rgba(0,0,0,.6);
+  transition: border-color .18s,box-shadow .18s;
+}
+
+.tac-card::before {
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 3px;
+  content: '';
+  border-radius: 0 3px 3px 0;
+  background: rgba(255,255,255,.12);
+}
+
+.tac-card:hover {
+  border-color: rgba(94,231,255,.22);
+  box-shadow: 0 10px 28px -16px rgba(94,231,255,.25);
+}
+
+.tac-card:hover::before {
+  background: var(--acc);
+}
+
+.tac-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.tac-card h4 {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: .01em;
+}
+
+.tac-card h4 .cur {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--acc);
+  opacity: .95;
+}
+
+.tac-card .tg {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.05);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.tac-opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.tac-opt {
+  padding: 5px 10px;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 8px;
+  background: rgba(0,0,0,.28);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.2;
+  appearance: none;
+  cursor: pointer;
+  transition: all .14s;
+}
+
+.tac-opt:hover {
+  border-color: rgba(94,231,255,.45);
+  background: rgba(94,231,255,.08);
+}
+
+.tac-opt.on {
+  border-color: var(--acc);
+  background: var(--acc);
+  color: #061018;
+  font-weight: 800;
+  box-shadow: none;
+}
+
+.tac-more summary {
+  position: relative;
+  display: inline-block;
+  padding: 6px 12px;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 8px;
+  background: rgba(0,0,0,.28);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tac-more[open] summary {
+  border-color: var(--acc);
+  color: var(--text);
+}
+
+.tac-more .tac-grid {
+  margin-top: 10px;
+}
+
+.tac-meter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.tac-meter.off {
+  opacity: .35;
+  pointer-events: none;
+}
+
+.tac-meter .lab {
+  min-width: 28px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.tac-meter input[type=range] {
+  flex: 1;
+  min-width: 0;
+  height: 6px;
+  border-radius: 999px;
+  outline: none;
+  background: linear-gradient(90deg,rgba(94,231,255,.15),rgba(255,110,199,.15));
+  appearance: none;
+}
+
+.tac-meter input[type=range]::-webkit-slider-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--acc);
+  background: #fff;
+  appearance: none;
+  box-shadow: 0 0 8px var(--acc);
+  cursor: pointer;
+}
+
+.tac-meter .val {
+  min-width: 22px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--acc);
+}
+
+.tac-desc {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--muted);
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.tac-empty {
+  grid-column: 1/-1;
+  padding: 28px;
+  text-align: center;
+  color: var(--muted);
+}

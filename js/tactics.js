@@ -13,7 +13,7 @@
   const isBack = f => !!(f.ai && f.ai.backline);
   const isFront = f => !!(f.ai && f.ai.front && !f.ai.backline);
   const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
-  const pick = a => a[Math.floor(Math.random() * a.length)];
+  const { pick } = Util;
 
   /* 개인 전술: 파이터 유형별 전투 스타일 (데이터만 고치면 반영) */
   const KIND_STYLE = {
@@ -28,8 +28,8 @@
     const f = fid && FD(fid);
     if (!f) return SLOT_KIND[slot | 0] || 'mid';
     if (f.role === 'assassin') return 'assassin';
-    if (f.role === 'guardian') return 'guard';
     if (isBack(f)) return 'back';
+    if (f.role === 'guardian') return 'guard';
     return isFront(f) ? 'front' : 'mid';
   };
 

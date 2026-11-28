@@ -3,7 +3,7 @@
 const League = (() => {
   const L = () => CONFIG.league;
   const lgOf = G => CONFIG.leagues.find(l => l.id === G.leagueId) || CONFIG.leagues[0];
-  const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const { shuffle } = Util;
 
   const team = (G, id) => G.league.teams.find(t => t.id === id) || (G.ext || {})[id] || { id, fav: [] };
   const name = (G, id) => (id == null ? '부전승' : team(G, id).name || id);
@@ -30,7 +30,7 @@ const League = (() => {
       if (!p) return { form: 55, mental: 70, trouble: 0, slack: 0 };
       if (typeof News !== 'undefined' && News.ensureProMood) News.ensureProMood(p);
       if (p.fxb) Facility.clean(p);
-      return { form: p.form ?? 55, mental: p.mental ?? 70, trouble: p.trouble ?? 0, slack: p.slack ?? 0, nick: p.nick, sk: Pros.skills(p) };
+      return { form: p.form ?? 55, mental: p.mental ?? 70, trouble: p.trouble ?? 0, slack: p.slack ?? 0, nick: p.nick, sk: Pros.skills(p), ovr: p.ovr };
     });
   }
   /* ---------- 피어리스: 같은 시리즈 앞 세트에서 나온 파이터는 양 팀 모두 사용 불가 ---------- */
@@ -55,19 +55,8 @@ const League = (() => {
   let fastMode = false;
   const setFast = v => { fastMode = !!v; };
   const isFast = () => fastMode;
-  /* 픽 조합 보정(아주 약하게): 전열 +1.5 · 마법사 2명 이상 -2 · 암살자 2명 이상 -1.5. 오버롤이 주된 기준이 되도록 합계를 작게 유지 */
-  const isTankF = f => !!f && ((f.ai && f.ai.front && !f.ai.backline) || f.role === 'guardian');
-  function compBonus(fighters) {
-    const fs = (fighters || []).map(id => CONFIG.fighters[id]).filter(Boolean);
-    if (!fs.length) return 0;
-    let b = 0;
-    if (fs.some(isTankF)) b += 1.5;
-    if (fs.filter(f => f.role === 'mage').length >= 2) b -= 2;
-    if (fs.filter(f => f.role === 'assassin').length >= 2) b -= 1.5;
-    return b;
-  }
-  /* 팀 전력: 선발 3명의 능력치(ovr)에 폼·멘탈을 가미한 평균 + 픽 조합 보정. 정상 경기와 같은 선수 데이터를 사용 */
-  function strength(G, id, fighters) {
+  /* 팀 전력: 선발 3명의 능력치(ovr)에 폼·멘탈을 가미한 평균. 정상 경기와 같은 선수 데이터를 사용 */
+  function strength(G, id) {
     const t = team(G, id), ids = id === 'player' ? ((G.club && G.club.lineup) || []).filter(Boolean) : (t.pros || []);
     const mo = id === 'player' && G.club && typeof Club !== 'undefined' && Club.ready(G) ? Club.moods(G) : null;      // 내 팀: 실제 경기와 같은 시설 보정 폼/멘탈
     const ps = ids.map((x, i) => { const p = Pros.get(G, x); return p ? { p, m: (mo && mo[i]) || p } : null; }).filter(Boolean);
@@ -77,10 +66,10 @@ const League = (() => {
       const gr = (t.brains || []).map(g => CONFIG.pro.grades[g]).filter(Boolean);          // 선수 데이터가 없으면 등급 평균
       base = gr.length ? gr.reduce((s, g) => s + (g.ovr[0] + g.ovr[1]) / 2, 0) / gr.length : 60;
     }
-    return base + compBonus(fighters);
+    return base;
   }
   function quick(G, aId, bId, picks) {
-    const diff = strength(G, aId, picks && picks[0]) - strength(G, bId, picks && picks[1]), pA = Math.min(0.95, Math.max(0.05, 1 / (1 + Math.pow(10, -diff / 32))));      // 능력치 10 차이 ≈ 승률 67%
+    const diff = strength(G, aId) - strength(G, bId), pA = Math.min(0.95, Math.max(0.05, 1 / (1 + Math.pow(10, -diff / 32))));      // 능력치 10 차이 ≈ 승률 67%
     const w = Math.random() < pA ? 0 : 1, r = Math.random(), hp = [0, 0], sc = [0, 0];
     hp[w] = 0.4 + 0.5 * r; hp[1 - w] = 0.1 + 0.3 * r; sc[w] = 12 + Math.floor(r * 8); sc[1 - w] = 4 + Math.floor(Math.random() * 8);
     return { winner: w, hp, score: sc, scoreText: sc[0] + ':' + sc[1], ticks: 3600 };

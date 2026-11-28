@@ -1,0 +1,107 @@
+/* feedback.css — AI 피드백 학습 패널 · 피드백 모달 (feedback.js 의 fbCss에서 분리). 속성 순서: Concentric CSS. style.css 뒤에 로드 */
+
+.fb-panel {
+  margin-top: 14px;
+}
+
+.fb-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.fb-head h3 {
+  margin: 0;
+}
+
+.fb-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(240px,1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.fb-card {
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(255,255,255,.05);
+}
+
+.fb-card h4 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0 0 6px;
+}
+
+.fb-card ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fb-card li {
+  margin: 6px 0;
+  font-size: 13px;
+}
+
+.fb-card li small {
+  display: block;
+  opacity: .7;
+}
+
+.fb-bar {
+  height: 5px;
+  margin-top: 3px;
+  border-radius: 3px;
+  background: rgba(255,255,255,.12);
+}
+
+.fb-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: #6cf;
+}
+
+.fb-bar i.dn {
+  background: #f96;
+}
+
+.fb-x {
+  border: 0;
+  background: none;
+  color: inherit;
+  opacity: .6;
+  cursor: pointer;
+}
+
+.fb-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 10px 0;
+}
+
+.fb-tabs .btn.on {
+  outline: 2px solid #6cf;
+}
+
+.fb-modal textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 80px;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.2);
+  background: rgba(0,0,0,.3);
+  color: inherit;
+  font: inherit;
+}
+
+.fb-ex {
+  margin: 6px 0;
+  font-size: 12px;
+  opacity: .7;
+}

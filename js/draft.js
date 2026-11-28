@@ -2,7 +2,7 @@
 
 const Draft = (() => {
   const ids = () => CONFIG.fighterOrder;
-  const pick = a => a[Math.floor(Math.random() * a.length)];
+  const { clamp, pick } = Util;
   const wpick = (list, w) => { let tot = 0; w.forEach(x => tot += x); let r = Math.random() * tot; for (let i = 0; i < list.length; i++) { r -= w[i]; if (r < 0) return list[i]; } return list[list.length - 1]; };
 
   /* ---------- 상태 ---------- */
@@ -25,7 +25,6 @@ const Draft = (() => {
      밴 점수 = 상대가 쓸 법한 캐릭터(상대 선호) × 내 조합에 대한 카운터 위협 × 메타, 내 선호는 밴하지 않음
      점수^SHARP 로 가중 추첨 → 같은 팀·같은 상대면 비슷한 조합이 반복되고(메타), 완전히 같지는 않음 */
   const TUNE = { sharp: 2.2, meta: 5, smart: { easy: 0.35, normal: 0.65, hard: 1, master: 1.25 } };
-  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const featCache = {};
   function feat(id) {                                  // 파이터 특징(역할·전열/후열·방어 유형·기동성 등) — 한 번만 계산
     if (featCache[id]) return featCache[id];

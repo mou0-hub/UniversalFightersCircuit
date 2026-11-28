@@ -88,7 +88,7 @@ const Club = (() => {
 
   /* 새 커리어: 구단 자금 + 리그 난이도에 맞는 기본 선수단 5명 지급 (G.league 이전에 호출)
      등급은 AI와 같은 aiMix를 쓰고, 시작/지급 크레딧이 리그 수준에 맞게 책정되어 있음 */
-  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const { clamp } = Util;
   const round10 = n => Math.round(n / 10) * 10;
   const capOfDiff = d => (C().cap || {})[d] || C().cap.normal;
   const KR = () => C().capRule;

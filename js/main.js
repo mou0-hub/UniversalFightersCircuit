@@ -387,14 +387,6 @@ const Game = {
     if (!confirm('남은 시즌 경기를 모두 자동 진행합니다. (밴픽·전술 자동) 계속할까요?')) return;
     this.autoReal = confirm('실제 전투 모드로 진행할까요?\n\n[확인] 모든 경기(AI끼리 포함)를 실제 밴픽·전술·인게임 전투로 진행합니다. 오래 걸리지만 기록·통계가 정확합니다. 내 팀도 AI와 같은 로직을 씁니다.\n[취소] 빠른 진행 (AI 경기는 능력치 확률로 처리)');
     clearTimeout(this.aiTimer); this.draft = null; this.match = null;
-    if (!document.getElementById('auto-css')) {
-      const sty = document.createElement('style'); sty.id = 'auto-css';
-      sty.textContent = `.auto-ov{position:fixed;top:0;right:0;bottom:0;left:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.6)}
-.auto-box{display:flex;flex-direction:column;gap:12px;width:min(420px,90vw);padding:22px;border-radius:14px;background:#1b1f2a;font-size:14px;color:#fff;box-shadow:0 10px 40px rgba(0,0,0,.5)}
-.auto-bar{overflow:hidden;height:14px;border-radius:7px;background:rgba(255,255,255,.12)}
-.auto-bar i{display:block;width:0;height:100%;border-radius:7px;background:linear-gradient(90deg,#4da3ff,#7cf0c0);transition:width .2s}`;
-      document.head.appendChild(sty);
-    }
     const ov = document.createElement('div'); ov.className = 'auto-ov';
     ov.innerHTML = '<div class="auto-box"><b>시즌 자동 진행 중…</b><div class="auto-bar"><i></i></div><span class="auto-txt"></span><button class="btn small">중단</button></div>';
     document.body.appendChild(ov);

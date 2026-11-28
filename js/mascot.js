@@ -2,7 +2,7 @@
 
 const Mascot = (() => {
   const C = () => CONFIG.mascot, G = () => Game.G;
-  const pick = a => a[Math.floor(Math.random() * a.length)];
+  const { pick } = Util;
   /* 터치 반응 영역(얼굴·가슴) 위에서 쓰는 하트 커서 */
   const HEART = `url("data:image/svg+xml,${encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><path d='M16 28S3 19.5 3 11.2C3 7 6.2 4.5 9.6 4.5c2.5 0 4.7 1.4 6.4 3.9 1.7-2.5 3.9-3.9 6.4-3.9C25.8 4.5 29 7 29 11.2 29 19.5 16 28 16 28z' fill='#ff4d8d' stroke='white' stroke-width='2' stroke-linejoin='round'/></svg>")}") 16 15`;
   const KEY = 'cl_mascot_min', POS = 'cl_mascot_pos', SIZE = 'cl_mascot_w';
@@ -176,7 +176,8 @@ const Mascot = (() => {
   function place(l, t) {
     const r = el.getBoundingClientRect(), v = vis().getBoundingClientRect(), ox = v.left - r.left, oy = v.top - r.top;
     l = Math.min(Math.max(l, -ox), Math.max(-ox, window.innerWidth - v.width - ox));
-    t = Math.min(Math.max(t, -oy), Math.max(-oy, window.innerHeight - v.height - oy));
+    const tb = document.getElementById('tabBar'), dock = tb && tb.offsetHeight ? tb.offsetHeight : 0;
+    t = Math.min(Math.max(t, -oy), Math.max(-oy, window.innerHeight - dock - v.height - oy));
     el.style.transform = 'none'; el.style.left = l + 'px'; el.style.top = t + 'px';
   }
   function fitW() { const w = parseFloat(el.style.width); if (w) setW(w); }
@@ -240,13 +241,6 @@ const Mascot = (() => {
       <button class="mc-rs" title="드래그: 크기 조절 · 더블클릭: 원래 크기"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M10 2h4v4M6 14H2v-4M14 2L9.5 6.5M2 14l4.5-4.5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
       <button class="mc-pip" data-mc="open" title="매니저 펼치기"></button>`;
     document.body.appendChild(el);
-    const rst = document.createElement('style');
-    rst.textContent = `#mascot .mc-rs { position: absolute; right: 6px; bottom: 6px; z-index: 3; display: grid; width: 28px; height: 28px; padding: 0; place-items: center; border: 1px solid rgba(255,255,255,.28); border-radius: 50%; background: rgba(10,14,32,.55); color: #fff; box-shadow: 0 4px 14px rgba(0,0,0,.35); opacity: .7; backdrop-filter: blur(8px); cursor: nwse-resize; touch-action: none; transition: opacity .15s ease, background .15s ease, transform .15s ease; }
-#mascot .mc-rs:hover, #mascot.rs-on .mc-rs { background: rgba(255,126,179,.45); opacity: 1; transform: scale(1.1); }
-#mascot.rs-on, #mascot.rs-on * { cursor: nwse-resize !important; }
-#mascot.mc-sz .mc-bubble { font-size: var(--mc-fs); }
-#mascot.drag .mc-fig { animation: mc-open .5s var(--ease), mc-breathe 3.6s ease-in-out .5s infinite; animation-play-state: paused; }`;
-    document.head.appendChild(rst);
     defW = parseFloat(getComputedStyle(el).width) || 264;
     const rs = el.querySelector('.mc-rs');
     rs.addEventListener('pointerdown', rsDown);
